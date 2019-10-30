@@ -2,9 +2,9 @@
 <module type="CPP_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$/rabbithole-rs/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/rabbithole/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/examples" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/rabbithole-rs/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/rabbithole/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/benches" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/memchr-d765e5238b706120/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/log-83f9cb2c64e8e074/out" isTestSource="false" />
@@ -39,8 +39,20 @@
       <sourceFolder url="file://$MODULE_DIR$/rabbithole-derive/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/rabbithole-derive/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/rabbithole-derive/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/rabbithole-derive\examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/rabbithole-derive\benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/rabbithole-rs\examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/rabbithole-rs\benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/rabbithole-rust\examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/rabbithole-rust\benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/rabbithole\examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/rabbithole\benches" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/rabbithole-derive/target" />
+      <excludeFolder url="file://$MODULE_DIR$/rabbithole-derive\target" />
       <excludeFolder url="file://$MODULE_DIR$/rabbithole-rs/target" />
+      <excludeFolder url="file://$MODULE_DIR$/rabbithole-rs\target" />
+      <excludeFolder url="file://$MODULE_DIR$/rabbithole-rust\target" />
+      <excludeFolder url="file://$MODULE_DIR$/rabbithole\target" />
       <excludeFolder url="file://$MODULE_DIR$/rbh-model/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>

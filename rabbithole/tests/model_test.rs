@@ -1,11 +1,11 @@
 mod helper;
 
 use crate::helper::read_json_file;
-use rabbithole_rs::model::document::{Document, DocumentItem, PrimaryDataItem};
-use rabbithole_rs::model::error::Error;
-use rabbithole_rs::model::link::Links;
-use rabbithole_rs::model::resource::*;
-use rabbithole_rs::model::*;
+use rabbithole::model::document::{Document, DocumentItem, PrimaryDataItem};
+use rabbithole::model::error::Error;
+use rabbithole::model::link::Links;
+use rabbithole::model::resource::*;
+use rabbithole::model::*;
 
 #[test]
 fn error_from_json_string() {

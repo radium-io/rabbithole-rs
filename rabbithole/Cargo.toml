@@ -1,5 +1,5 @@
 [package]
-name = "rabbithole-rs"
+name = "rabbithole"
 version = "0.1.0"
 authors = ["Ukonn Ra <ukonnra@outlook.com>"]
 edition = "2018"

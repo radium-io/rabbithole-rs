@@ -39,6 +39,12 @@ pub struct Document {
     pub jsonapi: Option<JsonApiInfo>,
 }
 
+impl Document {
+    pub fn single_resource(resource: Resource, included: Included) -> Self {
+        Self { item: DocumentItem::PrimaryData(Some((PrimaryDataItem::Single(Box::new(resource)), included))), ..Default::default() }
+    }
+}
+
 impl Serialize for Document {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
