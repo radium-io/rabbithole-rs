@@ -15,13 +15,15 @@ fn error_from_json_string() {
         {"id":"1", "links" : {}, "status" : "unknown", "code" : "code1", "title" : "error-title", "detail": "error-detail"}
         "#;
     let error: Result<Error, serde_json::Error> = serde_json::from_str(serialized);
-    assert_eq!(error.is_ok(), true);
+    if let Err(err) = error {
+        unreachable!("err: {:?}", err);
+    }
     match error {
         Ok(jsonapierror) => match jsonapierror.id {
             Some(id) => assert_eq!(id, "1"),
-            None => assert!(false),
+            None => unreachable!(),
         },
-        Err(_) => assert!(false),
+        Err(err) => unreachable!("get err: {:?}", err),
     }
 }
 
@@ -31,7 +33,9 @@ fn single_resource_from_json_string() {
     let serialized =
         r#"{ "id" :"1", "type" : "post", "attributes" : {}, "relationships" : {}, "links" : {} }"#;
     let data: Result<Resource, serde_json::Error> = serde_json::from_str(serialized);
-    assert_eq!(data.is_ok(), true);
+    if let Err(err) = data {
+        unreachable!("err: {:?}", err);
+    }
 }
 
 #[test]
@@ -43,7 +47,9 @@ fn multiple_resource_from_json_string() {
             { "id" :"3", "type" : "post", "attributes" : {}, "relationships" : {}, "links" : {} }
         ]"#;
     let data: Result<Resources, serde_json::Error> = serde_json::from_str(serialized);
-    assert_eq!(data.is_ok(), true);
+    if let Err(err) = data {
+        unreachable!("err: {:?}", err);
+    }
 }
 
 #[test]
@@ -67,7 +73,9 @@ fn single_data_document_from_json_string() {
             }
         }"#;
     let data: Result<Document, serde_json::Error> = serde_json::from_str(serialized);
-    assert_eq!(data.is_ok(), true);
+    if let Err(err) = data {
+        unreachable!("err: {:?}", err);
+    }
 }
 
 #[test]
@@ -81,7 +89,9 @@ fn multiple_data_document_from_json_string() {
             ]
         }"#;
     let data: Result<Document, serde_json::Error> = serde_json::from_str(serialized);
-    assert_eq!(data.is_ok(), true);
+    if let Err(err) = data {
+        unreachable!("err: {:?}", err);
+    }
 }
 
 #[test]
@@ -97,21 +107,18 @@ fn api_document_from_json_file() {
                 assert_eq!(arr.len(), 1);
             }
             DocumentItem::PrimaryData(Some((PrimaryDataItem::Single(_), _))) => {
-                println!(
+                unreachable!(
                     "api_document_from_json_file : Expected one Resource in a vector, \
                      not a direct Resource"
                 );
-                assert!(false);
             }
             DocumentItem::PrimaryData(None) => {
-                println!("api_document_from_json_file : Expected one Resource in a vector");
-                assert!(false);
+                unreachable!("api_document_from_json_file : Expected one Resource in a vector");
             }
-            _ => assert!(false),
+            _ => unreachable!(),
         },
         Err(err) => {
-            println!("api_document_from_json_file : Error: {:?}", err);
-            assert!(false);
+            unreachable!("api_document_from_json_file : Error: {:?}", err);
         }
     }
 }
@@ -134,21 +141,17 @@ fn api_document_collection_from_json_file() {
                     assert_eq!(included[1].id, "5");
                     assert_eq!(included[2].id, "12");
                 }
-                DocumentItem::PrimaryData(Some((PrimaryDataItem::Single(_), _))) => {
-                    println!(
-                        "api_document_collection_from_json_file : Expected one Resource in \
-                         a vector, not a direct Resource"
-                    );
-                    assert!(false);
-                }
-                DocumentItem::PrimaryData(None) => {
-                    println!(
-                        "api_document_collection_from_json_file : Expected one Resource in \
-                         a vector"
-                    );
-                    assert!(false);
-                }
-                _ => assert!(false),
+                DocumentItem::PrimaryData(Some((PrimaryDataItem::Single(_), _))) => unreachable!(
+                    "api_document_collection_from_json_file : Expected one Resource in \
+                     a vector, not a direct Resource"
+                ),
+
+                DocumentItem::PrimaryData(None) => unreachable!(
+                    "api_document_collection_from_json_file : Expected one Resource in \
+                     a vector"
+                ),
+
+                _ => unreachable!(),
             }
 
             match res.links {
@@ -156,14 +159,12 @@ fn api_document_collection_from_json_file() {
                     assert_eq!(links.len(), 3);
                 }
                 None => {
-                    println!("api_document_collection_from_json_file : expected links");
-                    assert!(false);
+                    unreachable!("api_document_collection_from_json_file : expected links");
                 }
             }
         }
         Err(err) => {
-            println!("api_document_collection_from_json_file : Error: {:?}", err);
-            assert!(false);
+            unreachable!("api_document_collection_from_json_file : Error: {:?}", err);
         }
     }
 }
@@ -173,7 +174,9 @@ fn can_deserialize_jsonapi_example_resource_001() {
     let _ = env_logger::try_init();
     let s = crate::read_json_file("data/resource_001.json");
     let data: Result<Resource, serde_json::Error> = serde_json::from_str(&s);
-    assert!(data.is_ok());
+    if let Err(err) = data {
+        unreachable!("err: {:?}", err);
+    }
 }
 
 #[test]
@@ -192,7 +195,9 @@ fn can_deserialize_jsonapi_example_resource_003() {
     let _ = env_logger::try_init();
     let s = crate::read_json_file("data/resource_003.json");
     let data: Result<Resource, serde_json::Error> = serde_json::from_str(&s);
-    assert!(data.is_ok());
+    if let Err(err) = data {
+        unreachable!("err: {:?}", err);
+    }
 }
 
 #[test]
@@ -200,7 +205,9 @@ fn can_deserialize_jsonapi_example_compound_document() {
     let _ = env_logger::try_init();
     let s = crate::read_json_file("data/compound_document.json");
     let data: Result<Document, serde_json::Error> = serde_json::from_str(&s);
-    assert!(data.is_ok());
+    if let Err(err) = data {
+        unreachable!("err: {:?}", err);
+    }
 }
 
 #[test]
@@ -208,7 +215,9 @@ fn can_deserialize_jsonapi_example_links_001() {
     let _ = env_logger::try_init();
     let s = crate::read_json_file("data/links_001.json");
     let data: Result<Links, serde_json::Error> = serde_json::from_str(&s);
-    assert!(data.is_ok());
+    if let Err(err) = data {
+        unreachable!("err: {:?}", err);
+    }
 }
 
 #[test]
@@ -226,7 +235,9 @@ fn can_deserialize_jsonapi_example_jsonapi_info() {
     let _ = env_logger::try_init();
     let s = crate::read_json_file("data/jsonapi_info_001.json");
     let data: Result<JsonApiInfo, serde_json::Error> = serde_json::from_str(&s);
-    assert!(data.is_ok());
+    if let Err(err) = data {
+        unreachable!("err: {:?}", err);
+    }
 }
 
 #[test]
@@ -235,7 +246,6 @@ fn it_omits_empty_document_and_primary_data_keys() {
     let resource = Resource {
         ty: "test".into(),
         id: "123".into(),
-        attributes: ResourceAttributes::new(),
         ..Default::default()
     };
     let doc = Document {
@@ -248,7 +258,7 @@ fn it_omits_empty_document_and_primary_data_keys() {
 
     assert_eq!(
         serde_json::to_string(&doc).unwrap(),
-        r#"{"data":{"type":"test","id":"123","attributes":{}}}"#
+        r#"{"data":{"type":"test","id":"123"}}"#
     );
 }
 
@@ -287,5 +297,7 @@ fn it_allows_for_optional_attributes() {
             }
         }"#;
     let data: Result<Document, serde_json::Error> = serde_json::from_str(serialized);
-    assert_eq!(data.is_ok(), true);
+    if let Err(err) = data {
+        unreachable!("err: {:?}", err);
+    }
 }
