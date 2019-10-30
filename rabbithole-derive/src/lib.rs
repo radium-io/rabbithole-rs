@@ -14,9 +14,19 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
 fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
     let ast: DeriveInput = syn::parse(input)?;
-    extract_decorated_fields(&ast)?;
+    attrs_on_struct(&ast);
+    eprintln!("=====  =====");
+    extract_decorated_fields(&ast);
     let res = quote! {};
     Ok(res)
+}
+
+fn attrs_on_struct(ast: &syn::DeriveInput) -> syn::Result<()> {
+    for attr in &ast.attrs {
+        eprintln!("attr: {:#?}", attr);
+    }
+
+    Ok(())
 }
 
 fn extract_decorated_fields(ast: &syn::DeriveInput) -> syn::Result<()> {
@@ -25,6 +35,11 @@ fn extract_decorated_fields(ast: &syn::DeriveInput) -> syn::Result<()> {
         ..
     }) = ast.data
     {
+        eprintln!("extract_decorated_fields");
+
+        for n in named {
+            eprintln!("field: {:#?}", n);
+        }
         Ok(())
     } else {
         Err(syn::Error::new(
