@@ -35,6 +35,11 @@
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/syn-e91620600dd901ed/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/serde-ce7353b0fd642b8a/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/anyhow-9183525eeaf7edf9/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/rabbithole-derive/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/rabbithole-derive/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/rabbithole-derive/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/rabbithole-derive/benches" isTestSource="true" />
+      <excludeFolder url="file://$MODULE_DIR$/rabbithole-derive/target" />
       <excludeFolder url="file://$MODULE_DIR$/rabbithole-rs/target" />
       <excludeFolder url="file://$MODULE_DIR$/rbh-model/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
