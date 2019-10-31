@@ -27,9 +27,7 @@ impl From<HashMap<String, Value>> for Attributes {
 }
 
 impl Attributes {
-    fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
+    fn is_empty(&self) -> bool { self.0.is_empty() }
 
     fn insert(&mut self, key: impl ToString, value: Value) -> Option<Value> {
         let key = key.to_string();
@@ -40,9 +38,7 @@ impl Attributes {
         }
     }
 
-    fn get(&self, key: impl ToString) -> Option<&Value> {
-        self.0.get(&key.to_string())
-    }
+    fn get(&self, key: impl ToString) -> Option<&Value> { self.0.get(&key.to_string()) }
 }
 
 /// Valid Resource Identifier (can be None)

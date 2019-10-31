@@ -41,22 +41,14 @@ impl From<Links> for RelationshipLinks {
         for &f in &INVALID_RELAT_FIELDS as &HashSet<&str> {
             links.remove(f);
         }
-        Self {
-            slf,
-            related,
-            links,
-        }
+        Self { slf, related, links }
     }
 }
 
 impl RelationshipLinks {
-    pub fn is_valid(&self) -> bool {
-        !(self.slf.is_none() && self.related.is_none())
-    }
+    pub fn is_valid(&self) -> bool { !(self.slf.is_none() && self.related.is_none()) }
 
-    fn is_not_valid(&self) -> bool {
-        !self.is_valid()
-    }
+    fn is_not_valid(&self) -> bool { !self.is_valid() }
 
     pub fn get(&self, key: impl ToString) -> Option<&Link> {
         let key = key.to_string();

@@ -105,21 +105,21 @@ fn api_document_from_json_file() {
         Ok(res) => match res.item {
             DocumentItem::PrimaryData(Some((PrimaryDataItem::Multiple(arr), _))) => {
                 assert_eq!(arr.len(), 1);
-            }
+            },
             DocumentItem::PrimaryData(Some((PrimaryDataItem::Single(_), _))) => {
                 unreachable!(
-                    "api_document_from_json_file : Expected one Resource in a vector, \
-                     not a direct Resource"
+                    "api_document_from_json_file : Expected one Resource in a vector, not a \
+                     direct Resource"
                 );
-            }
+            },
             DocumentItem::PrimaryData(None) => {
                 unreachable!("api_document_from_json_file : Expected one Resource in a vector");
-            }
+            },
             _ => unreachable!(),
         },
         Err(err) => {
             unreachable!("api_document_from_json_file : Error: {:?}", err);
-        }
+        },
     }
 }
 
@@ -140,15 +140,14 @@ fn api_document_collection_from_json_file() {
                     assert_eq!(included[0].id, "9");
                     assert_eq!(included[1].id, "5");
                     assert_eq!(included[2].id, "12");
-                }
+                },
                 DocumentItem::PrimaryData(Some((PrimaryDataItem::Single(_), _))) => unreachable!(
-                    "api_document_collection_from_json_file : Expected one Resource in \
-                     a vector, not a direct Resource"
+                    "api_document_collection_from_json_file : Expected one Resource in a vector, \
+                     not a direct Resource"
                 ),
 
                 DocumentItem::PrimaryData(None) => unreachable!(
-                    "api_document_collection_from_json_file : Expected one Resource in \
-                     a vector"
+                    "api_document_collection_from_json_file : Expected one Resource in a vector"
                 ),
 
                 _ => unreachable!(),
@@ -157,15 +156,15 @@ fn api_document_collection_from_json_file() {
             match res.links {
                 Some(links) => {
                     assert_eq!(links.len(), 3);
-                }
+                },
                 None => {
                     unreachable!("api_document_collection_from_json_file : expected links");
-                }
+                },
             }
-        }
+        },
         Err(err) => {
             unreachable!("api_document_collection_from_json_file : Error: {:?}", err);
-        }
+        },
     }
 }
 
@@ -243,11 +242,7 @@ fn can_deserialize_jsonapi_example_jsonapi_info() {
 #[test]
 fn it_omits_empty_document_and_primary_data_keys() {
     let _ = env_logger::try_init();
-    let resource = Resource {
-        ty: "test".into(),
-        id: "123".into(),
-        ..Default::default()
-    };
+    let resource = Resource { ty: "test".into(), id: "123".into(), ..Default::default() };
     let doc = Document {
         item: DocumentItem::PrimaryData(Some((
             PrimaryDataItem::Single(Box::new(resource)),
@@ -256,36 +251,21 @@ fn it_omits_empty_document_and_primary_data_keys() {
         ..Default::default()
     };
 
-    assert_eq!(
-        serde_json::to_string(&doc).unwrap(),
-        r#"{"data":{"type":"test","id":"123"}}"#
-    );
+    assert_eq!(serde_json::to_string(&doc).unwrap(), r#"{"data":{"type":"test","id":"123"}}"#);
 }
 
 #[test]
 fn it_does_not_omit_an_empty_primary_data() {
-    let doc = Document {
-        item: DocumentItem::PrimaryData(None),
-        ..Default::default()
-    };
+    let doc = Document { item: DocumentItem::PrimaryData(None), ..Default::default() };
 
     assert_eq!(serde_json::to_string(&doc).unwrap(), r#"{"data":null}"#);
 }
 
 #[test]
 fn it_omits_empty_error_keys() {
-    let error = Error {
-        id: Some("error_id".to_string()),
-        ..Default::default()
-    };
-    let doc = Document {
-        item: DocumentItem::Errors(vec![error]),
-        ..Default::default()
-    };
-    assert_eq!(
-        serde_json::to_string(&doc).unwrap(),
-        r#"{"errors":[{"id":"error_id"}]}"#
-    );
+    let error = Error { id: Some("error_id".to_string()), ..Default::default() };
+    let doc = Document { item: DocumentItem::Errors(vec![error]), ..Default::default() };
+    assert_eq!(serde_json::to_string(&doc).unwrap(), r#"{"errors":[{"id":"error_id"}]}"#);
 }
 
 #[test]

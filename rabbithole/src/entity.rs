@@ -1,7 +1,7 @@
-use crate::model::document::{Document, DocumentItem, Included};
+use crate::model::document::{Document, DocumentItem, Included, PrimaryDataItem};
 use crate::model::link::Links;
 use crate::model::relationship::Relationships;
-use crate::model::resource::{Attributes, Resource, Resources};
+use crate::model::resource::{Attributes, Resource};
 use crate::model::Meta;
 use serde::{Deserialize, Serialize};
 
@@ -46,7 +46,8 @@ where
     T: Entity,
 {
     fn from(entity: &T) -> Self {
-        unimplemented!()
+        let res: Resource = entity.into();
+        DocumentItem::PrimaryData(Some((PrimaryDataItem::Single(Box::new(res)), entity.included())))
     }
 }
 
@@ -56,11 +57,6 @@ where
 {
     fn from(entity: &T) -> Self {
         let item: DocumentItem = entity.into();
-        Self {
-            item,
-            links: None,
-            meta: None,
-            jsonapi: None,
-        }
+        Self { item, links: None, meta: None, jsonapi: None }
     }
 }
