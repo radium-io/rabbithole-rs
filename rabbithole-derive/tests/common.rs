@@ -1,42 +1,46 @@
-#[macro_use]
 extern crate rabbithole_derive as rbh_derive;
 
-use rabbithole::model::document::{Document, DocumentItem, PrimaryDataItem};
-use rabbithole::model::link::{Link, RawUri};
-use rabbithole::model::relationship::{Relationship, RelationshipLinks};
-use rabbithole::model::resource::{Attributes, IdentifierData, Resource, ResourceIdentifier};
+use rabbithole::model::document::Document;
+use rabbithole::model::link::Link;
+use rabbithole::model::relationship::Relationship;
+use rabbithole::model::resource::{IdentifierData, Resource, ResourceIdentifier};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 
-#[derive(rbh_derive::ModelDecorator)]
-#[model(type = "dogs")]
-pub struct Dog {
-    #[model(id)]
-    pub id: String,
-    pub name: String,
-    #[model(to_many)]
-    pub fleas: Vec<Flea>,
-    pub master: Human,
-}
-
-#[derive(rbh_derive::ModelDecorator)]
-#[model(type = "fleas")]
-pub struct Flea {
-    #[model(id)]
-    pub id: String,
-    pub name: String,
-}
-
-#[derive(rbh_derive::ModelDecorator)]
-#[model(type = "humans")]
+#[derive(rbh_derive::EntityDecorator)]
+#[entity(type = "humans")]
 pub struct Human {
-    #[model(id)]
+    #[entity(id)]
     pub passport_number: String,
     pub name: String,
-    #[model(to_one)]
+    #[entity(to_one)]
     pub only_flea: Option<Flea>,
     pub gender: Gender,
+}
+
+#[derive(rbh_derive::EntityDecorator)]
+#[entity(type = "dogs")]
+pub struct Dog {
+    #[entity(id)]
+    pub id: String,
+    pub name: String,
+    #[entity(to_many(Flea))]
+    pub fleas: Vec<Flea>,
+    #[entity(to_many)]
+    pub friends: Vec<Dog>,
+    #[entity(to_one)]
+    pub master: Human,
+    #[entity(to_one(Dog))]
+    pub best_friend: Option<Box<Dog>>,
+}
+
+#[derive(rbh_derive::EntityDecorator)]
+#[entity(type = "fleas")]
+pub struct Flea {
+    #[entity(id)]
+    pub id: String,
+    pub name: String,
 }
 
 pub enum Gender {
@@ -154,7 +158,9 @@ fn test() {
         id: "1".to_string(),
         name: "dog_name".to_string(),
         fleas: vec![dog_flea_a, dog_flea_b],
+        friends: vec![],
         master,
+        best_friend: None,
     };
 
     let dog_res = Resource {
