@@ -1,8 +1,8 @@
 #[derive(Error, Debug)]
 pub enum EntityDecoratorError {
     #[error(
-        "`to_one` decorator can only be used on `Option<T>`, `Box<T>` or bare T, you can use \
-         `#[entity(to_one(T))]` to define the type manually"
+        "`to_one` decorator can only be used on `Option<T>`, `Box<T>`, `Option<Box<T>>` or bare \
+         T, you can use `#[entity(to_one(T))]` to define the type manually"
     )]
     InvalidToOneType,
     #[error(

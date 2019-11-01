@@ -2,15 +2,19 @@ extern crate rabbithole_derive as rbh_derive;
 extern crate serde;
 
 use rabbithole::entity::Entity;
-use rabbithole::model::document::Document;
+use rabbithole::entity::EntityExt;
+use rabbithole::error::RabbitholeError;
+use rabbithole::model::document::{Document, Included};
 use rabbithole::model::link::Link;
-use rabbithole::model::patch::PatchData::Relationships;
 use rabbithole::model::relationship::Relationship;
-use rabbithole::model::resource::{IdentifierData, Resource, ResourceIdentifier};
+use rabbithole::model::resource::{Attributes, IdentifierData, Resource, ResourceIdentifier};
+use rabbithole::RbhResult;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
 use std::iter::FromIterator;
+use std::mem::transmute;
 
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
 #[entity(type = "humans")]
@@ -19,11 +23,11 @@ pub struct Human {
     pub passport_number: String,
     pub name: String,
     #[entity(to_one)]
-    pub only_flea: Flea,
+    pub only_flea: Box<Flea>,
     pub gender: Gender,
 }
 
-#[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 #[entity(type = "dogs")]
 pub struct Dog {
     #[entity(id)]
@@ -34,7 +38,40 @@ pub struct Dog {
     #[entity(to_many)]
     pub friends: Vec<Dog>,
     #[entity(to_one)]
-    pub master: Human,
+    pub master: Box<Human>,
+    #[entity(to_one(Dog))]
+    pub best_one: Option<Box<Dog>>,
+}
+
+impl Entity for Dog {
+    fn ty(&self) -> String { unimplemented!() }
+
+    fn id(&self) -> String { unimplemented!() }
+
+    fn attributes(&self) -> Attributes { unimplemented!() }
+
+    fn relationships(
+        &self, uri: &str,
+    ) -> Result<HashMap<String, Relationship, RandomState>, RabbitholeError> {
+        unimplemented!()
+    }
+
+    fn included(&self, uri: &str) -> Result<Vec<Resource>, RabbitholeError> {
+        let mut included: Included = Default::default();
+
+        impl EntityExt<Dog> for Option<Box<Dog>> {
+            fn to_entity(&self) -> Option<&Dog> { self.as_deref() }
+        }
+
+        if let Some(field) = &self.best_one.to_entity() {
+            included.push(field.to_resource(uri)?);
+        }
+        if let Some(&field) = self.master.to_entity() {
+            included.push(field.to_resource(uri)?);
+        }
+
+        Ok(included)
+    }
 }
 
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
@@ -66,13 +103,13 @@ fn test() {
             "self".into(),
             "https://example.com/api/fleas/1".parse::<Link>().unwrap(),
         )]),
-        meta: Default::default(),
+        ..Default::default()
     };
 
     let master = Human {
         passport_number: "number".to_string(),
         name: "master_name".to_string(),
-        only_flea: master_flea,
+        only_flea: Box::new(master_flea),
         gender: Gender::Male,
     };
 
@@ -102,13 +139,13 @@ fn test() {
                 ),
             ])
             .into(),
-            meta: Default::default(),
+            ..Default::default()
         })]),
         links: HashMap::from_iter(vec![(
             "self".into(),
             "https://example.com/api/humans/number".parse::<Link>().unwrap(),
         )]),
-        meta: Default::default(),
+        ..Default::default()
     };
 
     let dog_flea_a = Flea { id: "a".to_string(), name: "dog_flea_a".to_string() };
@@ -118,12 +155,11 @@ fn test() {
         id: "a".to_string(),
         attributes: HashMap::from_iter(vec![("name".into(), Value::String("dog_flea_a".into()))])
             .into(),
-        relationships: Default::default(),
         links: HashMap::from_iter(vec![(
             "self".into(),
             "https://example.com/api/fleas/a".parse::<Link>().unwrap(),
         )]),
-        meta: Default::default(),
+        ..Default::default()
     };
 
     let dog_flea_b = Flea { id: "b".to_string(), name: "dog_flea_b".to_string() };
@@ -133,12 +169,11 @@ fn test() {
         id: "b".to_string(),
         attributes: HashMap::from_iter(vec![("name".into(), Value::String("dog_flea_b".into()))])
             .into(),
-        relationships: Default::default(),
         links: HashMap::from_iter(vec![(
             "self".into(),
             "https://example.com/api/fleas/b".parse::<Link>().unwrap(),
         )]),
-        meta: Default::default(),
+        ..Default::default()
     };
 
     let dog = Dog {
@@ -146,7 +181,8 @@ fn test() {
         name: "dog_name".to_string(),
         fleas: vec![dog_flea_a, dog_flea_b],
         friends: vec![],
-        master,
+        master: Box::new(master),
+        best_one: None,
     };
 
     let dog_res = Resource {
@@ -190,7 +226,7 @@ fn test() {
                     ),
                 ])
                 .into(),
-                meta: Default::default(),
+                ..Default::default()
             }),
             ("master".into(), Relationship {
                 data: IdentifierData::Single(Some(ResourceIdentifier {
@@ -210,14 +246,14 @@ fn test() {
                     ),
                 ])
                 .into(),
-                meta: Default::default(),
+                ..Default::default()
             }),
         ]),
         links: HashMap::from_iter(vec![(
             "self".into(),
             "https://example.com/api/dogs/1".parse::<Link>().unwrap(),
         )]),
-        meta: Default::default(),
+        ..Default::default()
     };
 
     let document =

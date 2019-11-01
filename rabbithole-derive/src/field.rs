@@ -15,11 +15,11 @@ pub(crate) fn get_field_type(item: &syn::Field) -> syn::Result<FieldType> {
                     if let (Some(field_ty), Some(syn::NestedMeta::Meta(nested_last))) =
                         (path.get_ident(), nested.last())
                     {
-                        if let Some(_inner_type) = nested_last.path().get_ident() {
+                        if let Some(inner_type) = nested_last.path().get_ident() {
                             if field_ty == "to_many" {
-                                return Ok(FieldType::ToMany);
+                                return Ok(FieldType::ToMany(inner_type.clone()));
                             } else if field_ty == "to_one" {
-                                return Ok(FieldType::ToOne);
+                                return Ok(FieldType::ToOne(inner_type.clone()));
                             } else {
                                 return Err(syn::Error::new_spanned(
                                     field_ty,
@@ -42,11 +42,11 @@ pub(crate) fn get_field_type(item: &syn::Field) -> syn::Result<FieldType> {
                         if field_ty == "id" {
                             return Ok(FieldType::Id);
                         } else if field_ty == "to_many" {
-                            let _inner_type = get_type(&item.ty, true)?;
-                            return Ok(FieldType::ToMany);
+                            let inner_type = get_type(&item.ty, true)?;
+                            return Ok(FieldType::ToMany(inner_type.clone()));
                         } else if field_ty == "to_one" {
-                            let _inner_type = get_type(&item.ty, false)?;
-                            return Ok(FieldType::ToOne);
+                            let inner_type = get_type(&item.ty, false)?;
+                            return Ok(FieldType::ToOne(inner_type.clone()));
                         } else {
                             return Err(syn::Error::new_spanned(
                                 field_ty,
@@ -130,7 +130,7 @@ fn get_type(ty: &syn::Type, is_to_many: bool) -> syn::Result<&syn::Ident> {
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) enum FieldType {
     Id,
-    ToOne,
-    ToMany,
+    ToOne(syn::Ident),
+    ToMany(syn::Ident),
     Plain,
 }
