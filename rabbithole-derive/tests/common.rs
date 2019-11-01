@@ -1,8 +1,10 @@
 extern crate rabbithole_derive as rbh_derive;
 extern crate serde;
 
+use rabbithole::entity::Entity;
 use rabbithole::model::document::Document;
 use rabbithole::model::link::Link;
+use rabbithole::model::patch::PatchData::Relationships;
 use rabbithole::model::relationship::Relationship;
 use rabbithole::model::resource::{IdentifierData, Resource, ResourceIdentifier};
 use serde::{Deserialize, Serialize};
@@ -10,18 +12,18 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 
-#[derive(rbh_derive::EntityDecorator, Serialize, Deserialize)]
+#[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
 #[entity(type = "humans")]
 pub struct Human {
     #[entity(id)]
     pub passport_number: String,
     pub name: String,
     #[entity(to_one)]
-    pub only_flea: Option<Flea>,
+    pub only_flea: Flea,
     pub gender: Gender,
 }
 
-#[derive(rbh_derive::EntityDecorator, Serialize, Deserialize)]
+#[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
 #[entity(type = "dogs")]
 pub struct Dog {
     #[entity(id)]
@@ -33,11 +35,9 @@ pub struct Dog {
     pub friends: Vec<Dog>,
     #[entity(to_one)]
     pub master: Human,
-    #[entity(to_one(Dog))]
-    pub best_friend: Option<Box<Dog>>,
 }
 
-#[derive(rbh_derive::EntityDecorator, Serialize, Deserialize)]
+#[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
 #[entity(type = "fleas")]
 pub struct Flea {
     #[entity(id)]
@@ -45,7 +45,7 @@ pub struct Flea {
     pub name: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub enum Gender {
     Male,
     Female,
@@ -56,7 +56,7 @@ pub enum Gender {
 fn test() {
     let master_flea = Flea { id: "1".to_string(), name: "master_flea".to_string() };
 
-    let master_flea_res = Resource {
+    let _master_flea_res = Resource {
         ty: "fleas".to_string(),
         id: "1".to_string(),
         attributes: HashMap::from_iter(vec![("name".into(), Value::String("master_flea".into()))])
@@ -72,7 +72,7 @@ fn test() {
     let master = Human {
         passport_number: "number".to_string(),
         name: "master_name".to_string(),
-        only_flea: Some(master_flea),
+        only_flea: master_flea,
         gender: Gender::Male,
     };
 
@@ -85,10 +85,10 @@ fn test() {
         ])
         .into(),
         relationships: HashMap::from_iter(vec![("only_flea".into(), Relationship {
-            data: IdentifierData::Multiple(vec![ResourceIdentifier {
+            data: IdentifierData::Single(Some(ResourceIdentifier {
                 ty: "fleas".to_string(),
                 id: "1".to_string(),
-            }]),
+            })),
             links: HashMap::from_iter(vec![
                 (
                     "self".into(),
@@ -147,7 +147,6 @@ fn test() {
         fleas: vec![dog_flea_a, dog_flea_b],
         friends: vec![],
         master,
-        best_friend: None,
     };
 
     let dog_res = Resource {
@@ -156,6 +155,23 @@ fn test() {
         attributes: HashMap::from_iter(vec![("name".into(), Value::String("dog_name".into()))])
             .into(),
         relationships: HashMap::from_iter(vec![
+            ("friends".into(), Relationship {
+                data: IdentifierData::Multiple(Default::default()),
+                links: HashMap::from_iter(vec![
+                    (
+                        "self".into(),
+                        "https://example.com/api/dogs/1/relationships/friends"
+                            .parse::<Link>()
+                            .unwrap(),
+                    ),
+                    (
+                        "related".into(),
+                        "https://example.com/api/dogs/1/friends".parse::<Link>().unwrap(),
+                    ),
+                ])
+                .into(),
+                meta: Default::default(),
+            }),
             ("fleas".into(), Relationship {
                 data: IdentifierData::Multiple(vec![
                     ResourceIdentifier { ty: "fleas".to_string(), id: "a".to_string() },
@@ -207,6 +223,6 @@ fn test() {
     let document =
         Document::single_resource(dog_res, vec![master_res, dog_flea_a_res, dog_flea_b_res]);
 
-    let json = serde_json::to_string_pretty(&document).unwrap();
-    println!("json: {}", json);
+    let gen_doc: Document = dog.to_document("https://example.com/api").unwrap();
+    assert_eq!(document, gen_doc);
 }

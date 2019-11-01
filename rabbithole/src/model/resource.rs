@@ -1,5 +1,5 @@
 use crate::model::link::Links;
-use crate::model::relationship::Relationships;
+use crate::model::relationship::{Relationships};
 use crate::model::{Id, Meta};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -47,6 +47,10 @@ impl Attributes {
 pub enum IdentifierData {
     Single(Option<ResourceIdentifier>),
     Multiple(ResourceIdentifiers),
+}
+
+impl Default for IdentifierData {
+    fn default() -> Self { IdentifierData::Single(None) }
 }
 
 /// Resource Identifier

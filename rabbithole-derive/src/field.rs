@@ -15,7 +15,7 @@ pub(crate) fn get_field_type(item: &syn::Field) -> syn::Result<FieldType> {
                     if let (Some(field_ty), Some(syn::NestedMeta::Meta(nested_last))) =
                         (path.get_ident(), nested.last())
                     {
-                        if let Some(inner_type) = nested_last.path().get_ident() {
+                        if let Some(_inner_type) = nested_last.path().get_ident() {
                             if field_ty == "to_many" {
                                 return Ok(FieldType::ToMany);
                             } else if field_ty == "to_one" {
@@ -42,10 +42,10 @@ pub(crate) fn get_field_type(item: &syn::Field) -> syn::Result<FieldType> {
                         if field_ty == "id" {
                             return Ok(FieldType::Id);
                         } else if field_ty == "to_many" {
-                            let inner_type = get_type(&item.ty, true)?;
+                            let _inner_type = get_type(&item.ty, true)?;
                             return Ok(FieldType::ToMany);
                         } else if field_ty == "to_one" {
-                            let inner_type = get_type(&item.ty, false)?;
+                            let _inner_type = get_type(&item.ty, false)?;
                             return Ok(FieldType::ToOne);
                         } else {
                             return Err(syn::Error::new_spanned(

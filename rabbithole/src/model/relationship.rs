@@ -11,7 +11,7 @@ lazy_static! {
 }
 
 /// Relationship with another object
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct Relationship {
     pub data: IdentifierData,
     #[serde(skip_serializing_if = "RelationshipLinks::is_not_valid")]
