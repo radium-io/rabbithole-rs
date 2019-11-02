@@ -6,7 +6,7 @@ use rabbithole::model::document::{Document, DocumentItem, PrimaryDataItem};
 use rabbithole::model::link::Link;
 use rabbithole::model::relationship::Relationship;
 use rabbithole::model::resource::*;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::iter::FromIterator;

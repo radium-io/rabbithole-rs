@@ -1,5 +1,3 @@
-#![feature(impl_trait_in_bindings)]
-
 #[macro_use]
 extern crate serde_derive;
 #[macro_use]

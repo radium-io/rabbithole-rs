@@ -25,7 +25,6 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
     let ast: DeriveInput = syn::parse(input)?;
     let decorated_struct: &syn::Ident = &ast.ident;
     let struct_lifetime = &ast.generics;
-    eprintln!("gen: {:#?}", struct_lifetime);
 
     let entity_type = get_entity_type(&ast)?;
 

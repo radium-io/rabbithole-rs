@@ -1,11 +1,9 @@
-use crate::error::RabbitholeError;
 use crate::model::document::{Document, DocumentItem, Included, PrimaryDataItem};
 use crate::model::link::{Link, Links};
-use crate::model::relationship::{Relationship, RelationshipLinks, Relationships};
+use crate::model::relationship::{RelationshipLinks, Relationships};
 use crate::model::resource::{Attributes, Resource, ResourceIdentifier};
-use crate::{RbhOptionRes, RbhResult};
-use serde::{Deserialize, Deserializer, Serialize};
-use std::collections::hash_map::RandomState;
+use crate::RbhOptionRes;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 

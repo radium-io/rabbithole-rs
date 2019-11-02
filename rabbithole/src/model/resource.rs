@@ -1,5 +1,5 @@
 use crate::model::link::Links;
-use crate::model::relationship::{Relationships};
+use crate::model::relationship::Relationships;
 use crate::model::{Id, Meta};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -29,16 +29,16 @@ impl From<HashMap<String, Value>> for Attributes {
 impl Attributes {
     fn is_empty(&self) -> bool { self.0.is_empty() }
 
-    fn insert(&mut self, key: impl ToString, value: Value) -> Option<Value> {
-        let key = key.to_string();
-        if INVALID_ATTR_FIELDS.contains(&key.as_str()) {
-            None
-        } else {
-            self.0.insert(key, value)
-        }
-    }
-
-    fn get(&self, key: impl ToString) -> Option<&Value> { self.0.get(&key.to_string()) }
+    //    fn insert(&mut self, key: impl ToString, value: Value) -> Option<Value> {
+    //        let key = key.to_string();
+    //        if INVALID_ATTR_FIELDS.contains(&key.as_str()) {
+    //            None
+    //        } else {
+    //            self.0.insert(key, value)
+    //        }
+    //    }
+    //
+    //    fn get(&self, key: impl ToString) -> Option<&Value> { self.0.get(&key.to_string()) }
 }
 
 /// Valid Resource Identifier (can be None)
