@@ -25,9 +25,7 @@ pub enum DocumentItem {
 }
 
 impl Default for DocumentItem {
-    fn default() -> Self {
-        DocumentItem::PrimaryData(None)
-    }
+    fn default() -> Self { DocumentItem::PrimaryData(None) }
 }
 
 /// The specification refers to this as a top-level `document`
@@ -37,6 +35,18 @@ pub struct Document {
     pub links: Option<Links>,
     pub meta: Option<Meta>,
     pub jsonapi: Option<JsonApiInfo>,
+}
+
+impl Document {
+    pub fn single_resource(resource: Resource, included: Included) -> Self {
+        Self {
+            item: DocumentItem::PrimaryData(Some((
+                PrimaryDataItem::Single(Box::new(resource)),
+                included,
+            ))),
+            ..Default::default()
+        }
+    }
 }
 
 impl Serialize for Document {
@@ -51,10 +61,10 @@ impl Serialize for Document {
                 if !included.is_empty() {
                     state.serialize_field("included", included)?;
                 }
-            }
+            },
             DocumentItem::Errors(ref errors) => {
                 state.serialize_field("errors", errors)?;
-            }
+            },
             _ => state.serialize_field("data", &serde_json::Value::Null)?,
         }
 
@@ -117,28 +127,28 @@ impl<'de> Visitor<'de> for DocumentVisitor {
                         Ok(new_data) => jsonapi = Some(new_data),
                         Err(err) => return Err(serde::de::Error::custom(err)),
                     }
-                }
+                },
                 "jsonapi" => return Err(serde::de::Error::duplicate_field("jsonapi")),
                 "data" if data.is_none() => {
                     match serde_json::from_value::<Option<PrimaryDataItem>>(value) {
                         Ok(new_data) => data = new_data,
                         Err(err) => return Err(serde::de::Error::custom(err)),
                     }
-                }
+                },
                 "data" => return Err(serde::de::Error::duplicate_field("data")),
                 "included" if included.is_none() => {
                     match serde_json::from_value::<Included>(value) {
                         Ok(new_data) => included = Some(new_data),
                         Err(err) => return Err(serde::de::Error::custom(err)),
                     }
-                }
+                },
                 "included" => return Err(serde::de::Error::duplicate_field("included")),
                 "errors" if errors.is_none() => match serde_json::from_value::<Errors>(value) {
                     Ok(new_data) => errors = Some(new_data),
                     Err(err) => return Err(serde::de::Error::custom(err)),
                 },
                 "errors" => return Err(serde::de::Error::duplicate_field("errors")),
-                _ => {}
+                _ => {},
             }
         }
 
@@ -150,21 +160,16 @@ impl<'de> Visitor<'de> for DocumentVisitor {
                 return Err(serde::de::Error::custom(
                     "field `included` cannot exist without `data`",
                 ))
-            }
+            },
             (None, None, None) => DocumentItem::PrimaryData(None),
             _ => {
                 return Err(serde::de::Error::custom(
                     "field `data` and `errors` cannot exists in the same document",
                 ));
-            }
+            },
         };
 
-        Ok(Document {
-            item,
-            links,
-            meta,
-            jsonapi,
-        })
+        Ok(Document { item, links, meta, jsonapi })
     }
 }
 

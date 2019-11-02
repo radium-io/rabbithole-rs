@@ -15,17 +15,13 @@ pub struct RawUri(http::Uri);
 impl FromStr for RawUri {
     type Err = http::uri::InvalidUri;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(RawUri(s.parse()?))
-    }
+    fn from_str(s: &str) -> Result<Self, Self::Err> { Ok(RawUri(s.parse()?)) }
 }
 
 impl FromStr for Link {
     type Err = http::uri::InvalidUri;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Link::Raw(s.parse()?))
-    }
+    fn from_str(s: &str) -> Result<Self, Self::Err> { Ok(Link::Raw(s.parse()?)) }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
