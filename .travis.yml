@@ -10,6 +10,10 @@ jobs:
         - cargo test --all
     - stage: deploy-cargo
       script:
+        - cd ./rabbithole
         - cargo publish --dry-run
         - cargo publish --token "$CARGO_TOKEN"
+        - cd ../rabbithole-derive
+        - cargo publish --dry-run
+        -  cargo publish --token "$CARGO_TOKEN"
       if: tag IS present
