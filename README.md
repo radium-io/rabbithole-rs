@@ -1,4 +1,5 @@
 # rabbithole-rs
+[![Build Status](https://travis-ci.com/UkonnRa/rabbithole-rs.svg?branch=master)](https://travis-ci.com/UkonnRa/rabbithole-rs)
 
 > The rabbit-hole went straight on like a tunnel for some way, and then dipped suddenly down,
 > so suddenly that Alice had not a moment to think about stopping herself before she found herself falling down what seemed to be a very deep well.
@@ -20,7 +21,7 @@ Inspired a lot by [jsonapi-rust](https://github.com/michiel/jsonapi-rust), in fa
 When you are designing a RESTful API, the most troubling problem is **how to design the Data Structure**, especially how to **design the Error System**. So JSON:API
 design a Specification for the people like you to specify some rules to help you handling the design problem and free your days!
 
-Maybe the specification is L\~~O\~~N\~~G\~~ and boring, like reading a textbook, but believe me, you will learn a lot from it, just like a textbook. :)
+Maybe the specification is LONG LONG and boring, like reading a textbook, but believe me, you will learn a lot from it, just like a textbook. :)
 
 ### So why yet another JSON:API crate?
 
