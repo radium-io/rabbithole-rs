@@ -1,5 +1,5 @@
 [package]
-name = "rabbithole-rs"
+name = "rabbithole"
 version = "0.1.0"
 authors = ["Ukonn Ra <ukonnra@outlook.com>"]
 edition = "2018"
@@ -14,6 +14,7 @@ license = "MIT"
 [dependencies]
 env_logger = "~0.6"
 log = "~0.4"
+lazy_static = "*"
 
 thiserror = "~1.0"
 
