@@ -7,7 +7,8 @@ extern crate lazy_static;
 
 use crate::error::RabbitholeError;
 
-pub type RbhResult<T> = std::result::Result<T, RabbitholeError>;
+pub type RbhResult<T> = Result<T, RabbitholeError>;
+pub type RbhOptionRes<T> = Result<Option<T>, RabbitholeError>;
 
 pub mod entity;
 pub mod error;

@@ -2,76 +2,42 @@ extern crate rabbithole_derive as rbh_derive;
 extern crate serde;
 
 use rabbithole::entity::Entity;
-use rabbithole::entity::EntityExt;
-use rabbithole::error::RabbitholeError;
-use rabbithole::model::document::{Document, Included};
+use rabbithole::model::document::{Document, DocumentItem, PrimaryDataItem};
 use rabbithole::model::link::Link;
 use rabbithole::model::relationship::Relationship;
-use rabbithole::model::resource::{Attributes, IdentifierData, Resource, ResourceIdentifier};
-use rabbithole::RbhResult;
-use serde::{Deserialize, Serialize};
+use rabbithole::model::resource::*;
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
-use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
 use std::iter::FromIterator;
-use std::mem::transmute;
 
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
 #[entity(type = "humans")]
-pub struct Human {
+pub struct Human<'a> {
     #[entity(id)]
     pub passport_number: String,
     pub name: String,
     #[entity(to_one)]
-    pub only_flea: Box<Flea>,
+    #[serde(bound(deserialize = "Option<&'a Flea>: Deserialize<'de>"))]
+    pub only_flea: Option<&'a Flea>,
     pub gender: Gender,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
 #[entity(type = "dogs")]
-pub struct Dog {
+pub struct Dog<'a> {
     #[entity(id)]
     pub id: String,
     pub name: String,
-    #[entity(to_many(Flea))]
+    #[entity(to_many)]
     pub fleas: Vec<Flea>,
     #[entity(to_many)]
-    pub friends: Vec<Dog>,
+    pub friends: Vec<Dog<'a>>,
     #[entity(to_one)]
-    pub master: Box<Human>,
-    #[entity(to_one(Dog))]
-    pub best_one: Option<Box<Dog>>,
-}
-
-impl Entity for Dog {
-    fn ty(&self) -> String { unimplemented!() }
-
-    fn id(&self) -> String { unimplemented!() }
-
-    fn attributes(&self) -> Attributes { unimplemented!() }
-
-    fn relationships(
-        &self, uri: &str,
-    ) -> Result<HashMap<String, Relationship, RandomState>, RabbitholeError> {
-        unimplemented!()
-    }
-
-    fn included(&self, uri: &str) -> Result<Vec<Resource>, RabbitholeError> {
-        let mut included: Included = Default::default();
-
-        impl EntityExt<Dog> for Option<Box<Dog>> {
-            fn to_entity(&self) -> Option<&Dog> { self.as_deref() }
-        }
-
-        if let Some(field) = &self.best_one.to_entity() {
-            included.push(field.to_resource(uri)?);
-        }
-        if let Some(&field) = self.master.to_entity() {
-            included.push(field.to_resource(uri)?);
-        }
-
-        Ok(included)
-    }
+    #[serde(bound(deserialize = "Box<Human<'a>>: Deserialize<'de>"))]
+    pub master: Box<Human<'a>>,
+    #[entity(to_one)]
+    pub best_one: Option<Box<Dog<'a>>>,
 }
 
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
@@ -109,7 +75,7 @@ fn test() {
     let master = Human {
         passport_number: "number".to_string(),
         name: "master_name".to_string(),
-        only_flea: Box::new(master_flea),
+        only_flea: Some(&master_flea),
         gender: Gender::Male,
     };
 
@@ -259,6 +225,15 @@ fn test() {
     let document =
         Document::single_resource(dog_res, vec![master_res, dog_flea_a_res, dog_flea_b_res]);
 
-    let gen_doc: Document = dog.to_document("https://example.com/api").unwrap();
-    assert_eq!(document, gen_doc);
+    let gen_doc: Document = dog.to_document("https://example.com/api").unwrap().unwrap();
+    assert_eq!(document.links, gen_doc.links);
+
+    if let (
+        DocumentItem::PrimaryData(Some((PrimaryDataItem::Single(doc_res), doc_inc))),
+        DocumentItem::PrimaryData(Some((PrimaryDataItem::Single(gen_res), gen_inc))),
+    ) = (document.item, gen_doc.item)
+    {
+        assert_eq!(doc_res, gen_res);
+        assert_eq!(doc_inc, gen_inc);
+    }
 }
