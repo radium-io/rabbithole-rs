@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- `included_fields` for [Inclusion of Related Resources](https://jsonapi.org/format/#fetching-includes)
+- `sparse_fields` for [sparse fields set](https://jsonapi.org/format/#fetching-sparse-fieldsets)
+
 ## [0.1.1] - 2019-11-02
 
 ### Fixed
