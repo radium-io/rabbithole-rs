@@ -69,16 +69,17 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
 
                 Ok(Some(relat_map))
             }
-            fn included(&self, uri: &str) -> rabbithole::RbhOptionRes<rabbithole::model::document::Included> {
+            fn included(&self, uri: &str, sparse_fields: &std::collections::HashMap<String, std::collections::HashSet<String>>,
+            ) -> rabbithole::RbhOptionRes<rabbithole::model::document::Included> {
                 let mut included: rabbithole::model::document::Included = Default::default();
                 #(
-                    if let Some(res) = self.#to_ones.to_resource(uri)? {
+                    if let Some(res) = self.#to_ones.to_resource(uri, sparse_fields)? {
                         included.push(res);
                     }
                 )*
                 #(
                     for item in &self.#to_manys {
-                        if let Some(data) = item.to_resource(uri)? {
+                        if let Some(data) = item.to_resource(uri, sparse_fields)? {
                             included.push(data);
                         }
                     }

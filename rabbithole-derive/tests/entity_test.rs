@@ -8,7 +8,7 @@ use rabbithole::model::relationship::Relationship;
 use rabbithole::model::resource::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
 
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
@@ -84,7 +84,7 @@ fn test() {
         id: "number".to_string(),
         attributes: HashMap::from_iter(vec![
             ("name".into(), Value::String("master_name".into())),
-            ("gender".into(), Value::String("Male".into())),
+            //            ("gender".into(), Value::String("Male".into())),
         ])
         .into(),
         relationships: HashMap::from_iter(vec![("only_flea".into(), Relationship {
@@ -225,7 +225,17 @@ fn test() {
     let document =
         Document::single_resource(dog_res, vec![master_res, dog_flea_a_res, dog_flea_b_res]);
 
-    let gen_doc: Document = dog.to_document("https://example.com/api").unwrap().unwrap();
+    let gen_doc: Document = dog
+        .to_document(
+            "https://example.com/api",
+            &Default::default(),
+            &HashMap::from_iter(vec![(
+                "humans".into(),
+                HashSet::from_iter(vec!["name".into(), "only_flea".into()]),
+            )]),
+        )
+        .unwrap()
+        .unwrap();
     assert_eq!(document.links, gen_doc.links);
 
     if let (
