@@ -2,8 +2,11 @@
 
 ## [Unreleased]
 
-- `included_fields` for [Inclusion of Related Resources](https://jsonapi.org/format/#fetching-includes)
-- `sparse_fields` for [sparse fields set](https://jsonapi.org/format/#fetching-sparse-fieldsets)
+- `rabbithole::model::query::Query` for 
+  - [Inclusion of Related Resources](https://jsonapi.org/format/#fetching-includes)
+  - [Sparse Fields Set](https://jsonapi.org/format/#fetching-sparse-fieldsets)
+  - [Pagination](https://jsonapi.org/format/#fetching-pagination)
+  - [Filtering](https://jsonapi.org/format/#fetching-filtering)
 
 ## [0.1.1] - 2019-11-02
 

@@ -3,6 +3,7 @@ pub mod error;
 pub mod link;
 pub mod pagination;
 pub mod patch;
+pub mod query;
 pub mod relationship;
 pub mod resource;
 

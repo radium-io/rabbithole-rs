@@ -47,6 +47,13 @@ impl Document {
             ..Default::default()
         }
     }
+
+    pub fn multiple_resources(resources: Vec<Resource>, included: Included) -> Self {
+        Self {
+            item: DocumentItem::PrimaryData(Some((PrimaryDataItem::Multiple(resources), included))),
+            ..Default::default()
+        }
+    }
 }
 
 impl Serialize for Document {

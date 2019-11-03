@@ -4,7 +4,7 @@ use crate::model::{Id, Meta};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::iter::FromIterator;
 
 pub type ResourceIdentifiers = Vec<ResourceIdentifier>;
