@@ -6,7 +6,7 @@ use crate::model::resource::{Attributes, Resource, ResourceIdentifier};
 use crate::RbhOptionRes;
 use serde::Serialize;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::iter::FromIterator;
 
 pub trait Entity: Serialize {
@@ -43,12 +43,14 @@ pub trait Entity: Serialize {
         &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &Option<FieldsQuery>,
     ) -> RbhOptionRes<Included>;
 
-    fn to_document(
-        &self, uri: &str, query: &Query,
-    ) -> RbhOptionRes<Document> {
-        if let (Some(res), Some(included)) =
-            (self.to_resource(uri, &query.fields)?, self.included(uri, &query.include, &query.fields)?)
-        {
+    /// Returns a `Document` based on `query`. This function will do all of the actions databases should do in memory,
+    /// using a trivial iter way. But I still recommend you guys implement `to_document` or `to_document_async` yourself
+    /// for better performance
+    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhOptionRes<Document> {
+        if let (Some(res), Some(included)) = (
+            self.to_resource(uri, &query.fields)?,
+            self.included(uri, &query.include, &query.fields)?,
+        ) {
             Ok(Some(Document::single_resource(res, included)))
         } else {
             Ok(None)
@@ -171,6 +173,7 @@ impl<T: Entity> Entity for &T {
     }
 }
 
+#[cfg(feature = "unstable-vec-to-document")]
 impl<T: Entity> Entity for [T] {
     fn ty(&self) -> Option<String> { None }
 
@@ -195,9 +198,7 @@ impl<T: Entity> Entity for [T] {
         Ok(Some(hashmap.values().cloned().collect()))
     }
 
-    fn to_document(
-        &self, uri: &str, query: &Query,
-    ) -> RbhOptionRes<Document> {
+    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhOptionRes<Document> {
         if let Some(included) = self.included(uri, &query.include, &query.fields)? {
             let mut reses = vec![];
             for e in self {
@@ -212,6 +213,7 @@ impl<T: Entity> Entity for [T] {
     }
 }
 
+#[cfg(feature = "unstable-vec-to-document")]
 impl<T: Entity> Entity for Vec<T> {
     fn ty(&self) -> Option<String> { None }
 
@@ -227,9 +229,7 @@ impl<T: Entity> Entity for Vec<T> {
         self.as_slice().included(uri, include_query, fields_query)
     }
 
-    fn to_document(
-        &self, uri: &str, query: &Query,
-    ) -> RbhOptionRes<Document> {
-        self.as_slice().to_document(uri, &query)
+    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhOptionRes<Document> {
+        self.as_slice().to_document_automatically(uri, &query)
     }
 }

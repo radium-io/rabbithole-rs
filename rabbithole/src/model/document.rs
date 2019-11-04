@@ -19,6 +19,15 @@ pub enum PrimaryDataItem {
     Multiple(Resources),
 }
 
+impl PrimaryDataItem {
+    pub fn data(&self) -> Vec<Resource> {
+        match self {
+            PrimaryDataItem::Single(res) => vec![res.as_ref().clone()],
+            PrimaryDataItem::Multiple(vec) => vec.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum DocumentItem {
     PrimaryData(Option<(PrimaryDataItem, Included)>),

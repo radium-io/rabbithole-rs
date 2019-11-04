@@ -22,7 +22,7 @@ thiserror = "~1.0"
 lazy_static = "~1.4"
 
 [dev-dependencies]
-rabbithole = { path = "../rabbithole" }
+rabbithole = { path = "../rabbithole", features = ["unstable-vec-to-document"] }
 serde = "~1.0"
 serde_json = "~1.0"
 uuid = { version = "~0.8", features = ["serde", "v4"] }

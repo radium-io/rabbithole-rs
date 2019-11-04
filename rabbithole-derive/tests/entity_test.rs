@@ -4,6 +4,7 @@ extern crate serde;
 use rabbithole::entity::Entity;
 use rabbithole::model::document::{Document, DocumentItem, PrimaryDataItem};
 use rabbithole::model::link::Link;
+use rabbithole::model::query::Query;
 use rabbithole::model::relationship::Relationship;
 use rabbithole::model::resource::*;
 use serde::{Deserialize, Serialize};
@@ -11,7 +12,6 @@ use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
 use uuid::Uuid;
-use rabbithole::model::query::Query;
 
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
 #[entity(type = "humans")]
@@ -107,9 +107,8 @@ fn multiple_entities_test() {
     let masters = generate_masters(1);
     let (_, master) = masters.first().unwrap();
     let dogs = generate_dogs(dog_cnt, master);
-    let gen_doc = dogs
-        .to_document("https://example.com/api", &Default::default())
-        .unwrap();
+    let gen_doc =
+        dogs.to_document_automatically("https://example.com/api", &Default::default()).unwrap();
     assert!(gen_doc.is_some());
 }
 
@@ -270,16 +269,13 @@ fn general_test() {
     );
 
     let gen_doc: Document = dog
-        .to_document(
-            "https://example.com/api",
-            &Query {
-                fields: Some(HashMap::from_iter(vec![(
-                    "humans".into(),
-                    HashSet::from_iter(vec!["name".into(), "only_flea".into()]),
-                )])),
-                .. Default::default()
-            },
-        )
+        .to_document_automatically("https://example.com/api", &Query {
+            fields: Some(HashMap::from_iter(vec![(
+                "humans".into(),
+                HashSet::from_iter(vec!["name".into(), "only_flea".into()]),
+            )])),
+            ..Default::default()
+        })
         .unwrap()
         .unwrap();
     assert_eq!(document.links, gen_doc.links);

@@ -3,7 +3,7 @@ extern crate serde;
 
 use rabbithole::entity::Entity;
 use rabbithole::model::document::{Document, Included};
-use rabbithole::model::query::{FieldsQuery, IncludeQuery, Query};
+use rabbithole::model::query::Query;
 use rabbithole::model::resource::Resource;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -59,8 +59,10 @@ fn default_include_test() {
     let uri = "https://example.com/api";
 
     let master_vec = generate_masters();
-    let gen_doc =
-        master_vec.to_document("https://example.com/api", &Default::default()).unwrap().unwrap();
+    let gen_doc = master_vec
+        .to_document_automatically("https://example.com/api", &Default::default())
+        .unwrap()
+        .unwrap();
 
     let master_reses: Vec<Resource> =
         master_vec.iter().map(|h| h.to_resource(uri, &None).unwrap().unwrap()).collect();
@@ -81,7 +83,7 @@ fn only_unknown_include_test() {
 
     let master_vec = generate_masters();
     let gen_doc = master_vec
-        .to_document("https://example.com/api", &Query {
+        .to_document_automatically("https://example.com/api", &Query {
             include: Some(HashSet::from_iter(vec!["name".to_string()])),
             ..Default::default()
         })
@@ -100,7 +102,7 @@ fn not_included_fields_but_retain_attributes() {
 
     let master_vec = generate_masters();
     let gen_doc = master_vec
-        .to_document("https://example.com/api", &Query {
+        .to_document_automatically("https://example.com/api", &Query {
             include: Some(Default::default()),
             ..Default::default()
         })
@@ -121,7 +123,7 @@ fn not_foreign_attributes_but_retain_included_fields() {
 
     let master_vec = generate_masters();
     let gen_doc = master_vec
-        .to_document("https://example.com/api", &Query {
+        .to_document_automatically("https://example.com/api", &Query {
             fields: fields_query.clone(),
             ..Default::default()
         })
