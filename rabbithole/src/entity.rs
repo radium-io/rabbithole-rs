@@ -40,7 +40,7 @@ pub trait Entity: Serialize {
     ///                 item will be retained
     #[doc(hidden)]
     fn included(
-        &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &Option<FieldsQuery>,
+        &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &FieldsQuery,
     ) -> RbhOptionRes<Included>;
 
     /// Returns a `Document` based on `query`. This function will do all of the actions databases should do in memory,
@@ -93,16 +93,14 @@ pub trait Entity: Serialize {
         }
     }
 
-    fn to_resource(&self, uri: &str, fields_query: &Option<FieldsQuery>) -> RbhOptionRes<Resource> {
+    fn to_resource(&self, uri: &str, fields_query: &FieldsQuery) -> RbhOptionRes<Resource> {
         if let (Some(ty), Some(id), Some(mut attributes), Some(mut relationships), Some(links)) =
             (self.ty(), self.id(), self.attributes(), self.relationships(uri)?, self.links(uri)?)
         {
-            if let Some(fields_query) = fields_query {
-                for (k, vs) in fields_query.iter() {
-                    if &ty == k {
-                        attributes = attributes.retain(vs);
-                        relationships.retain(|k, _| vs.contains(k));
-                    }
+            for (k, vs) in fields_query.iter() {
+                if &ty == k {
+                    attributes = attributes.retain(vs);
+                    relationships.retain(|k, _| vs.contains(k));
                 }
             }
 
@@ -129,7 +127,7 @@ impl<T: Entity> Entity for Option<T> {
     }
 
     fn included(
-        &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &Option<FieldsQuery>,
+        &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &FieldsQuery,
     ) -> RbhOptionRes<Included> {
         if let Some(s) = self.as_ref() {
             s.included(uri, include_query, fields_query)
@@ -151,7 +149,7 @@ impl<T: Entity> Entity for Box<T> {
     }
 
     fn included(
-        &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &Option<FieldsQuery>,
+        &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &FieldsQuery,
     ) -> RbhOptionRes<Included> {
         self.as_ref().included(uri, include_query, fields_query)
     }
@@ -167,7 +165,7 @@ impl<T: Entity> Entity for &T {
     fn relationships(&self, uri: &str) -> RbhOptionRes<Relationships> { (*self).relationships(uri) }
 
     fn included(
-        &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &Option<FieldsQuery>,
+        &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &FieldsQuery,
     ) -> RbhOptionRes<Included> {
         (*self).included(uri, include_query, fields_query)
     }
@@ -183,7 +181,7 @@ impl<T: Entity> Entity for [T] {
     fn relationships(&self, _: &str) -> RbhOptionRes<Relationships> { Ok(None) }
 
     fn included(
-        &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &Option<FieldsQuery>,
+        &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &FieldsQuery,
     ) -> RbhOptionRes<Included> {
         let mut hashmap: HashMap<ResourceIdentifier, Resource> = Default::default();
         for e in self {
@@ -223,7 +221,7 @@ impl<T: Entity> Entity for Vec<T> {
     fn relationships(&self, _: &str) -> RbhOptionRes<Relationships> { Ok(None) }
 
     fn included(
-        &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &Option<FieldsQuery>,
+        &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &FieldsQuery,
     ) -> RbhOptionRes<Included> {
         self.as_slice().included(uri, include_query, fields_query)
     }

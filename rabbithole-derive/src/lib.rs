@@ -71,7 +71,7 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
             }
             fn included(&self, uri: &str,
                 include_query: &std::option::Option<rabbithole::model::query::IncludeQuery>,
-                fields_query: &std::option::Option<rabbithole::model::query::FieldsQuery>,
+                fields_query: &rabbithole::model::query::FieldsQuery,
             ) -> rabbithole::RbhOptionRes<rabbithole::model::document::Included> {
                 let mut included: rabbithole::model::document::Included = Default::default();
                 #(

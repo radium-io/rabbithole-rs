@@ -1,10 +1,6 @@
 #![feature(async_closure)]
-
-#[macro_use]
-extern crate rabbithole_derive;
 extern crate rabbithole_derive as rbh_derive;
 
-use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
 use serde::{Deserialize, Serialize};
@@ -60,8 +56,4 @@ fn server_start_test() {
         Ok::<_, GenericError>(service_fn(async move |req| services(req).await))
     });
     let server = Server::bind(&addr).serve(service);
-
-    if let Err(err) = block_on(server) {
-        unreachable!("error happened: {}", err);
-    }
 }

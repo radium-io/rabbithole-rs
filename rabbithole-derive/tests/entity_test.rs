@@ -270,10 +270,10 @@ fn general_test() {
 
     let gen_doc: Document = dog
         .to_document_automatically("https://example.com/api", &Query {
-            fields: Some(HashMap::from_iter(vec![(
+            fields: HashMap::from_iter(vec![(
                 "humans".into(),
                 HashSet::from_iter(vec!["name".into(), "only_flea".into()]),
-            )])),
+            )]),
             ..Default::default()
         })
         .unwrap()
