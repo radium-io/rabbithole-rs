@@ -7,8 +7,9 @@ use serde::de::{MapAccess, Visitor};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
+use std::collections::HashSet;
 
-pub type Included = Vec<Resource>;
+pub type Included = HashSet<Resource>;
 
 /// Valid data Resource (can be None)
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

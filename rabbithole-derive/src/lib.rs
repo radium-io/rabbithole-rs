@@ -47,22 +47,22 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                         self.#to_ones.to_resource_identifier(),
                         self.to_relationship_links(stringify!(#to_ones), uri)?,
                     ) {
-                        let data = IdentifierData::Single(Some(relat_id));
-                        let relat = Relationship { data, links, ..Default::default() };
+                        let data = rabbithole::model::resource::IdentifierData::Single(Some(relat_id));
+                        let relat = rabbithole::model::relationship::Relationship { data, links, ..std::default::Default::default() };
                         relat_map.insert(stringify!(#to_ones).to_string(), relat);
                     }
                 )*
 
                 #(
                     if let Some(links) = self.to_relationship_links(stringify!(#to_manys), uri)? {
-                        let mut relat_ids: ResourceIdentifiers = Default::default();
+                        let mut relat_ids: rabbithole::model::resource::ResourceIdentifiers = std::default::Default::default();
                         for item in &self.#to_manys {
                             if let Some(relat_id) = item.to_resource_identifier() {
                                 relat_ids.push(relat_id);
                             }
                         }
-                        let data = IdentifierData::Multiple(relat_ids);
-                        let relat = Relationship { data, links, meta: Default::default() };
+                        let data = rabbithole::model::resource::IdentifierData::Multiple(relat_ids);
+                        let relat = rabbithole::model::relationship::Relationship { data, links, meta: std::default::Default::default() };
                         relat_map.insert(stringify!(#to_manys).to_string(), relat);
                     }
                 )*
@@ -70,22 +70,36 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 Ok(Some(relat_map))
             }
             fn included(&self, uri: &str,
-                included_fields: &rabbithole::model::query::IncludeQuery,
-                sparse_fields: &rabbithole::model::query::FieldsQuery,
+                include_query: &std::option::Option<rabbithole::model::query::IncludeQuery>,
+                fields_query: &std::option::Option<rabbithole::model::query::FieldsQuery>,
             ) -> rabbithole::RbhOptionRes<rabbithole::model::document::Included> {
                 let mut included: rabbithole::model::document::Included = Default::default();
                 #(
-                    if included_fields.is_empty() || included_fields.contains(stringify!(#to_ones)) {
-                        if let Some(res) = self.#to_ones.to_resource(uri, sparse_fields)? {
-                            included.push(res);
+                    if let Some(included_fields) = include_query {
+                        if included_fields.contains(stringify!(#to_ones)) {
+                            if let Some(res) = self.#to_ones.to_resource(uri, fields_query)? {
+                                included.insert(res);
+                            }
+                        }
+                    } else {
+                        if let Some(res) = self.#to_ones.to_resource(uri, fields_query)? {
+                            included.insert(res);
                         }
                     }
                 )*
                 #(
-                    if included_fields.is_empty() || included_fields.contains(stringify!(#to_manys)) {
+                    if let Some(included_fields) = include_query {
+                        if included_fields.contains(stringify!(#to_manys)) {
+                            for item in &self.#to_manys {
+                                if let Some(data) = item.to_resource(uri, fields_query)? {
+                                    included.insert(data);
+                                }
+                            }
+                        }
+                    } else {
                         for item in &self.#to_manys {
-                            if let Some(data) = item.to_resource(uri, sparse_fields)? {
-                                included.push(data);
+                            if let Some(data) = item.to_resource(uri, fields_query)? {
+                                included.insert(data);
                             }
                         }
                     }

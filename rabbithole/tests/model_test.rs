@@ -6,6 +6,8 @@ use rabbithole::model::error::Error;
 use rabbithole::model::link::Links;
 use rabbithole::model::resource::*;
 use rabbithole::model::*;
+use std::collections::HashSet;
+use std::iter::FromIterator;
 
 #[test]
 fn error_from_json_string() {
@@ -137,9 +139,8 @@ fn api_document_collection_from_json_file() {
                     assert_eq!(arr.len(), 1);
 
                     assert_eq!(included.len(), 3);
-                    assert_eq!(included[0].id, "9");
-                    assert_eq!(included[1].id, "5");
-                    assert_eq!(included[2].id, "12");
+                    let ids: HashSet<&str> = included.iter().map(|inc| inc.id.as_str()).collect();
+                    assert_eq!(ids, HashSet::from_iter(vec!["9", "5", "12"]));
                 },
                 DocumentItem::PrimaryData(Some((PrimaryDataItem::Single(_), _))) => unreachable!(
                     "api_document_collection_from_json_file : Expected one Resource in a vector, \

@@ -4,7 +4,7 @@ use crate::model::{Id, Meta};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
 use std::iter::FromIterator;
 
 pub type ResourceIdentifiers = Vec<ResourceIdentifier>;
@@ -80,7 +80,7 @@ pub struct ResourceIdentifier {
 }
 
 /// JSON-API Resource
-#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct Resource {
     #[serde(rename = "type")]
     pub ty: String,
@@ -97,6 +97,19 @@ pub struct Resource {
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     #[serde(default)]
     pub meta: Meta,
+}
+
+impl PartialEq for Resource {
+    fn eq(&self, other: &Self) -> bool { self.ty == other.ty && self.id == other.id }
+}
+
+impl Eq for Resource {}
+
+impl Hash for Resource {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.ty.hash(state);
+        self.id.hash(state);
+    }
 }
 
 impl Resource {
