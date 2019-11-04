@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Added
+
+- `rabbithole::model::query::Query` for 
+  - [Inclusion of Related Resources](https://jsonapi.org/format/#fetching-includes)
+  - [Sparse Fields Set](https://jsonapi.org/format/#fetching-sparse-fieldsets)
+  - [Pagination](https://jsonapi.org/format/#fetching-pagination)
+  - [Filtering](https://jsonapi.org/format/#fetching-filtering)
+  
+### Changed
+
+- Mark the `impl<T: Entity> Entity for Vec<T>` as `unstable-vec-to-document`
+- Change `to_document` to longer `to_document_automatically` to encourage users using their own version, rather than the auto version for better performance
+
 ## [0.1.1] - 2019-11-02
 
 ### Fixed

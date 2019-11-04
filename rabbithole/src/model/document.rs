@@ -7,8 +7,9 @@ use serde::de::{MapAccess, Visitor};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
+use std::collections::HashSet;
 
-pub type Included = Vec<Resource>;
+pub type Included = HashSet<Resource>;
 
 /// Valid data Resource (can be None)
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -16,6 +17,15 @@ pub type Included = Vec<Resource>;
 pub enum PrimaryDataItem {
     Single(Box<Resource>),
     Multiple(Resources),
+}
+
+impl PrimaryDataItem {
+    pub fn data(&self) -> Vec<Resource> {
+        match self {
+            PrimaryDataItem::Single(res) => vec![res.as_ref().clone()],
+            PrimaryDataItem::Multiple(vec) => vec.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -44,6 +54,13 @@ impl Document {
                 PrimaryDataItem::Single(Box::new(resource)),
                 included,
             ))),
+            ..Default::default()
+        }
+    }
+
+    pub fn multiple_resources(resources: Vec<Resource>, included: Included) -> Self {
+        Self {
+            item: DocumentItem::PrimaryData(Some((PrimaryDataItem::Multiple(resources), included))),
             ..Default::default()
         }
     }
