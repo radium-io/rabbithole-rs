@@ -39,7 +39,7 @@ pub struct Query {
 }
 
 lazy_static! {
-    static ref KEY_REGEX: Regex = Regex::new(r#"(?P<name>\w+)\[(?P<param>[\w-_]+)\]"#).unwrap();
+    static ref KEY_REGEX: Regex = Regex::new(r#"(?P<name>\w+)\[(?P<param>[\w\-_]+)\]"#).unwrap();
 }
 
 impl Query {
@@ -55,14 +55,14 @@ impl Query {
             if key == "include" {
                 include_query_exist = true;
 
-                for v in value.split(",").filter(|s| !s.is_empty()) {
+                for v in value.split(',').filter(|s| !s.is_empty()) {
                     include_query.insert(v.to_string());
                 }
                 continue;
             }
 
             if key == "sort" {
-                for v in value.split(",").filter(|s| !s.is_empty()) {
+                for v in value.split(',').filter(|s| !s.is_empty()) {
                     sort_query.push(v.to_string());
                 }
                 continue;
@@ -75,7 +75,7 @@ impl Query {
 
                     if name == "fields" {
                         let values: HashSet<String> = value
-                            .split(",")
+                            .split(',')
                             .filter(|s| !s.is_empty())
                             .map(ToString::to_string)
                             .collect();
