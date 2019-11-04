@@ -1,6 +1,4 @@
 use http::uri::InvalidUri;
-use rsql_rs::error::ParserError;
-use std::num::ParseIntError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -21,10 +19,4 @@ impl From<http::uri::InvalidUri> for RabbitholeError {
     fn from(err: InvalidUri) -> Self { RabbitholeError::InvalidUri(err) }
 }
 
-impl From<std::num::ParseIntError> for RabbitholeError {
-    fn from(err: ParseIntError) -> Self { RabbitholeError::Unhandled(Box::new(err)) }
-}
-
-impl From<rsql_rs::error::ParserError> for RabbitholeError {
-    fn from(err: ParserError) -> Self { RabbitholeError::Unhandled(Box::new(err)) }
-}
+from_external_error!(std::num::ParseIntError, rsql_rs::error::ParserError, std::str::Utf8Error);

@@ -2,14 +2,13 @@ use crate::error::RabbitholeError;
 
 use crate::RbhResult;
 
+use percent_encoding::percent_decode_str;
 use regex::Regex;
 use rsql_rs::ast::expr::Expr;
 use rsql_rs::parser::rsql::RsqlParser;
 use rsql_rs::parser::Parser;
 use std::collections::{HashMap, HashSet};
-
 use std::str::FromStr;
-use url::Url;
 
 pub type IncludeQuery = HashSet<String>;
 pub type FieldsQuery = HashMap<String, HashSet<String>>;
@@ -43,7 +42,7 @@ lazy_static! {
 }
 
 impl Query {
-    pub fn from_url(url: Url, page_type: &str, filter_type: &str) -> RbhResult<Query> {
+    pub fn from_uri(uri: &http::Uri, page_type: &str, filter_type: &str) -> RbhResult<Query> {
         let mut include_query: IncludeQuery = Default::default();
         let mut include_query_exist = false;
         let mut sort_query: SortQuery = Default::default();
@@ -51,45 +50,55 @@ impl Query {
         let mut fields_map: FieldsQuery = Default::default();
         let mut page_map: HashMap<String, String> = Default::default();
 
-        for (key, value) in url.query_pairs() {
-            if key == "include" {
-                include_query_exist = true;
-
-                for v in value.split(',').filter(|s| !s.is_empty()) {
-                    include_query.insert(v.to_string());
+        if let Some(query_str) = uri.query() {
+            let query_str = percent_decode_str(query_str).decode_utf8()?;
+            for (key, value) in query_str.split('&').filter_map(|s| {
+                let kv_pair: Vec<&str> = s.splitn(2, '=').collect();
+                if kv_pair.len() == 2 && !kv_pair[0].is_empty() && !kv_pair[1].is_empty() {
+                    Some((kv_pair[0], kv_pair[1]))
+                } else {
+                    None
                 }
-                continue;
-            }
+            }) {
+                if key == "include" {
+                    include_query_exist = true;
 
-            if key == "sort" {
-                for v in value.split(',').filter(|s| !s.is_empty()) {
-                    sort_query.push(v.to_string());
+                    for v in value.split(',').filter(|s| !s.is_empty()) {
+                        include_query.insert(v.to_string());
+                    }
+                    continue;
                 }
-                continue;
-            }
 
-            if let Some(cap) = (&KEY_REGEX as &Regex).captures(key.as_ref()) {
-                if let (Some(name), Some(param)) = (cap.name("name"), cap.name("param")) {
-                    let name = name.as_str();
-                    let param = param.as_str();
+                if key == "sort" {
+                    for v in value.split(',').filter(|s| !s.is_empty()) {
+                        sort_query.push(v.to_string());
+                    }
+                    continue;
+                }
 
-                    if name == "fields" {
-                        let values: HashSet<String> = value
-                            .split(',')
-                            .filter(|s| !s.is_empty())
-                            .map(ToString::to_string)
-                            .collect();
-                        if let Some(origin_fields) = fields_map.get_mut(param) {
-                            for v in values {
-                                origin_fields.insert(v);
+                if let Some(cap) = (&KEY_REGEX as &Regex).captures(key.as_ref()) {
+                    if let (Some(name), Some(param)) = (cap.name("name"), cap.name("param")) {
+                        let name = name.as_str();
+                        let param = param.as_str();
+
+                        if name == "fields" {
+                            let values: HashSet<String> = value
+                                .split(',')
+                                .filter(|s| !s.is_empty())
+                                .map(ToString::to_string)
+                                .collect();
+                            if let Some(origin_fields) = fields_map.get_mut(param) {
+                                for v in values {
+                                    origin_fields.insert(v);
+                                }
+                            } else {
+                                fields_map.insert(param.into(), values);
                             }
-                        } else {
-                            fields_map.insert(param.into(), values);
+                        } else if name == "filter" && !value.is_empty() {
+                            filter_map.insert(param.into(), value.to_string());
+                        } else if name == "page" {
+                            page_map.insert(param.into(), value.to_string());
                         }
-                    } else if name == "filter" && !value.is_empty() {
-                        filter_map.insert(param.into(), value.to_string());
-                    } else if name == "page" {
-                        page_map.insert(param.into(), value.to_string());
                     }
                 }
             }

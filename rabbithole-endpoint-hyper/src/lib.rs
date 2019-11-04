@@ -1,5 +1,3 @@
-#![feature(async_closure)]
-
 #[cfg(test)]
 mod tests {
     #[test]
