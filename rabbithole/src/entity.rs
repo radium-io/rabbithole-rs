@@ -173,7 +173,6 @@ impl<T: Entity> Entity for &T {
     }
 }
 
-#[cfg(feature = "unstable-vec-to-document")]
 impl<T: Entity> Entity for [T] {
     fn ty(&self) -> Option<String> { None }
 
@@ -198,6 +197,7 @@ impl<T: Entity> Entity for [T] {
         Ok(Some(hashmap.values().cloned().collect()))
     }
 
+    #[cfg(feature = "unstable-vec-to-document")]
     fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhOptionRes<Document> {
         if let Some(included) = self.included(uri, &query.include, &query.fields)? {
             let mut reses = vec![];
@@ -213,7 +213,6 @@ impl<T: Entity> Entity for [T] {
     }
 }
 
-#[cfg(feature = "unstable-vec-to-document")]
 impl<T: Entity> Entity for Vec<T> {
     fn ty(&self) -> Option<String> { None }
 
@@ -229,6 +228,7 @@ impl<T: Entity> Entity for Vec<T> {
         self.as_slice().included(uri, include_query, fields_query)
     }
 
+    #[cfg(feature = "unstable-vec-to-document")]
     fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhOptionRes<Document> {
         self.as_slice().to_document_automatically(uri, &query)
     }

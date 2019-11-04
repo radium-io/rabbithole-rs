@@ -11,3 +11,4 @@ pub type RbhOptionRes<T> = Result<Option<T>, RabbitholeError>;
 pub mod entity;
 pub mod error;
 pub mod model;
+pub mod operation;
