@@ -1,4 +1,3 @@
-#[macro_export]
 macro_rules! from_external_error {
     () => {};
     ($head:path) => {

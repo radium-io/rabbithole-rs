@@ -107,9 +107,8 @@ fn multiple_entities_test() {
     let masters = generate_masters(1);
     let (_, master) = masters.first().unwrap();
     let dogs = generate_dogs(dog_cnt, master);
-    let gen_doc =
-        dogs.to_document_automatically("https://example.com/api", &Default::default()).unwrap();
-    assert!(gen_doc.is_some());
+    let gen_doc = dogs.to_document_automatically("https://example.com/api", &Default::default());
+    assert!(gen_doc.is_ok());
 }
 
 #[test]
@@ -276,7 +275,6 @@ fn general_test() {
             )]),
             ..Default::default()
         })
-        .unwrap()
         .unwrap();
     assert_eq!(document.links, gen_doc.links);
 

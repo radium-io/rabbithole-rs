@@ -3,31 +3,89 @@ use crate::model::link::{Link, Links};
 use crate::model::query::{FieldsQuery, IncludeQuery, Query};
 use crate::model::relationship::{RelationshipLinks, Relationships};
 use crate::model::resource::{Attributes, Resource, ResourceIdentifier};
-use crate::RbhOptionRes;
+use crate::{RbhOptionRes, RbhResult};
 use serde::Serialize;
 
 use std::collections::HashMap;
 use std::iter::FromIterator;
 
-pub trait Entity: Serialize {
+pub trait SingleEntity: Entity {
     #[doc(hidden)]
-    fn ty(&self) -> Option<String>;
+    fn ty() -> String;
     #[doc(hidden)]
-    fn id(&self) -> Option<String>;
+    fn id(&self) -> String;
     #[doc(hidden)]
-    fn attributes(&self) -> Option<Attributes>;
+    fn attributes(&self) -> Attributes;
     #[doc(hidden)]
-    fn links(&self, uri: &str) -> RbhOptionRes<Links> {
-        if let (Some(ty), Some(id)) = (self.ty(), self.id()) {
-            let slf = format!("{uri}/{ty}/{id}", uri = uri, ty = ty, id = id).parse::<Link>()?;
-            Ok(Some(HashMap::from_iter(vec![("self".into(), slf)])))
-        } else {
-            Ok(None)
-        }
-    }
-    #[doc(hidden)]
-    fn relationships(&self, uri: &str) -> RbhOptionRes<Relationships>;
+    fn relationships(&self, uri: &str) -> RbhResult<Relationships>;
 
+    #[doc(hidden)]
+    fn links(&self, uri: &str) -> RbhResult<Links> {
+        let slf = format!(
+            "{uri}/{ty}/{id}",
+            uri = uri,
+            ty = <Self as SingleEntity>::ty(),
+            id = self.id()
+        )
+        .parse::<Link>()?;
+        Ok(HashMap::from_iter(vec![("self".into(), slf)]))
+    }
+
+    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhResult<Document> {
+        Ok(Document::single_resource(
+            self.to_resource(uri, &query.fields)?.unwrap(),
+            self.included(uri, &query.include, &query.fields)?,
+        ))
+    }
+
+    fn to_resource_identifier(&self) -> Option<ResourceIdentifier> {
+        Some(ResourceIdentifier { ty: <Self as SingleEntity>::ty(), id: self.id() })
+    }
+
+    fn to_resource(&self, uri: &str, fields_query: &FieldsQuery) -> RbhOptionRes<Resource> {
+        let mut attributes = self.attributes();
+        let mut relationships = self.relationships(uri)?;
+        for (k, vs) in fields_query.iter() {
+            if &<Self as SingleEntity>::ty() == k {
+                attributes = attributes.retain(vs);
+                relationships.retain(|k, _| vs.contains(k));
+            }
+        }
+
+        Ok(Some(Resource {
+            ty: <Self as SingleEntity>::ty(),
+            id: self.id(),
+            attributes,
+            relationships,
+            links: self.links(uri)?,
+            ..Default::default()
+        }))
+    }
+
+    fn to_relationship_links(&self, field_name: &str, uri: &str) -> RbhResult<RelationshipLinks> {
+        let slf = format!(
+            "{uri}/{ty}/{id}/relationships/{field_name}",
+            uri = uri,
+            ty = <Self as SingleEntity>::ty(),
+            id = self.id(),
+            field_name = field_name
+        );
+        let slf = slf.parse::<Link>()?;
+        let related = format!(
+            "{uri}/{ty}/{id}/{field_name}",
+            uri = uri,
+            ty = <Self as SingleEntity>::ty(),
+            id = self.id(),
+            field_name = field_name
+        );
+        let related = related.parse::<Link>()?;
+        let links: RelationshipLinks =
+            HashMap::from_iter(vec![("self".into(), slf), ("related".into(), related)]).into();
+        Ok(links)
+    }
+}
+
+pub trait Entity: Serialize {
     /// Returns the `included` field of this entity
     ///
     /// `include_query`: If exists, only the `included` item whose `ty` is in the `include_query`
@@ -41,193 +99,137 @@ pub trait Entity: Serialize {
     #[doc(hidden)]
     fn included(
         &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &FieldsQuery,
-    ) -> RbhOptionRes<Included>;
+    ) -> RbhResult<Included>;
 
     /// Returns a `Document` based on `query`. This function will do all of the actions databases should do in memory,
     /// using a trivial iter way. But I still recommend you guys implement `to_document` or `to_document_async` yourself
     /// for better performance
-    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhOptionRes<Document> {
-        if let (Some(res), Some(included)) = (
-            self.to_resource(uri, &query.fields)?,
-            self.included(uri, &query.include, &query.fields)?,
-        ) {
-            Ok(Some(Document::single_resource(res, included)))
-        } else {
-            Ok(None)
-        }
+    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhResult<Document>;
+}
+
+impl<T: SingleEntity> SingleEntity for Option<T> {
+    fn ty() -> String { T::ty() }
+
+    fn id(&self) -> String { self.as_ref().map(SingleEntity::id).unwrap() }
+
+    fn attributes(&self) -> Attributes { self.as_ref().map(SingleEntity::attributes).unwrap() }
+
+    fn relationships(&self, uri: &str) -> RbhResult<Relationships> {
+        self.as_ref().map(|op| op.relationships(uri)).unwrap()
     }
 
-    fn to_relationship_links(
-        &self, field_name: &str, uri: &str,
-    ) -> RbhOptionRes<RelationshipLinks> {
-        if let (Some(ty), Some(id)) = (self.ty(), self.id()) {
-            let slf = format!(
-                "{uri}/{ty}/{id}/relationships/{field_name}",
-                uri = uri,
-                ty = ty,
-                id = id,
-                field_name = field_name
-            );
-            let slf = slf.parse::<Link>()?;
-            let related = format!(
-                "{uri}/{ty}/{id}/{field_name}",
-                uri = uri,
-                ty = ty,
-                id = id,
-                field_name = field_name
-            );
-            let related = related.parse::<Link>()?;
-            let links: RelationshipLinks =
-                HashMap::from_iter(vec![("self".into(), slf), ("related".into(), related)]).into();
-            Ok(Some(links))
-        } else {
-            Ok(None)
-        }
-    }
+    fn to_resource_identifier(&self) -> Option<ResourceIdentifier> { None }
 
-    fn to_resource_identifier(&self) -> Option<ResourceIdentifier> {
-        if let (Some(ty), Some(id)) = (self.ty(), self.id()) {
-            Some(ResourceIdentifier { ty, id })
-        } else {
-            None
-        }
-    }
-
-    fn to_resource(&self, uri: &str, fields_query: &FieldsQuery) -> RbhOptionRes<Resource> {
-        if let (Some(ty), Some(id), Some(mut attributes), Some(mut relationships), Some(links)) =
-            (self.ty(), self.id(), self.attributes(), self.relationships(uri)?, self.links(uri)?)
-        {
-            for (k, vs) in fields_query.iter() {
-                if &ty == k {
-                    attributes = attributes.retain(vs);
-                    relationships.retain(|k, _| vs.contains(k));
-                }
-            }
-
-            Ok(Some(Resource { ty, id, attributes, relationships, links, ..Default::default() }))
-        } else {
-            Ok(None)
-        }
-    }
+    fn to_resource(&self, _: &str, _: &FieldsQuery) -> RbhOptionRes<Resource> { Ok(None) }
 }
 
 impl<T: Entity> Entity for Option<T> {
-    fn ty(&self) -> Option<String> { self.as_ref().and_then(|s| s.ty()) }
-
-    fn id(&self) -> Option<String> { self.as_ref().and_then(|s| s.id()) }
-
-    fn attributes(&self) -> Option<Attributes> { self.as_ref().and_then(|s| s.attributes()) }
-
-    fn relationships(&self, uri: &str) -> RbhOptionRes<Relationships> {
-        if let Some(s) = self.as_ref() {
-            s.relationships(uri)
+    fn included(
+        &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &FieldsQuery,
+    ) -> RbhResult<Included> {
+        if let Some(s) = self {
+            s.included(uri, include_query, fields_query)
         } else {
-            Ok(None)
+            Ok(Default::default())
         }
     }
 
-    fn included(
-        &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &FieldsQuery,
-    ) -> RbhOptionRes<Included> {
-        if let Some(s) = self.as_ref() {
-            s.included(uri, include_query, fields_query)
-        } else {
-            Ok(None)
-        }
+    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhResult<Document> {
+        self.as_ref().map(|op| op.to_document_automatically(uri, query)).unwrap()
+    }
+}
+
+impl<T: SingleEntity> SingleEntity for Box<T> {
+    fn ty() -> String { T::ty() }
+
+    fn id(&self) -> String { self.as_ref().id() }
+
+    fn attributes(&self) -> Attributes { self.as_ref().attributes() }
+
+    fn relationships(&self, uri: &str) -> RbhResult<Relationships> {
+        self.as_ref().relationships(uri)
     }
 }
 
 impl<T: Entity> Entity for Box<T> {
-    fn ty(&self) -> Option<String> { self.as_ref().ty() }
-
-    fn id(&self) -> Option<String> { self.as_ref().id() }
-
-    fn attributes(&self) -> Option<Attributes> { self.as_ref().attributes() }
-
-    fn relationships(&self, uri: &str) -> RbhOptionRes<Relationships> {
-        self.as_ref().relationships(uri)
-    }
-
     fn included(
         &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &FieldsQuery,
-    ) -> RbhOptionRes<Included> {
+    ) -> RbhResult<Included> {
         self.as_ref().included(uri, include_query, fields_query)
     }
+
+    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhResult<Document> {
+        self.as_ref().to_document_automatically(uri, query)
+    }
+}
+
+impl<T: SingleEntity> SingleEntity for &T {
+    fn ty() -> String { T::ty() }
+
+    fn id(&self) -> String { (*self).id() }
+
+    fn attributes(&self) -> Attributes { (*self).attributes() }
+
+    fn relationships(&self, uri: &str) -> RbhResult<Relationships> { (*self).relationships(uri) }
 }
 
 impl<T: Entity> Entity for &T {
-    fn ty(&self) -> Option<String> { (*self).ty() }
-
-    fn id(&self) -> Option<String> { (*self).id() }
-
-    fn attributes(&self) -> Option<Attributes> { (*self).attributes() }
-
-    fn relationships(&self, uri: &str) -> RbhOptionRes<Relationships> { (*self).relationships(uri) }
-
     fn included(
         &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &FieldsQuery,
-    ) -> RbhOptionRes<Included> {
+    ) -> RbhResult<Included> {
         (*self).included(uri, include_query, fields_query)
+    }
+
+    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhResult<Document> {
+        (*self).to_document_automatically(uri, query)
     }
 }
 
-impl<T: Entity> Entity for [T] {
-    fn ty(&self) -> Option<String> { None }
-
-    fn id(&self) -> Option<String> { None }
-
-    fn attributes(&self) -> Option<Attributes> { None }
-
-    fn relationships(&self, _: &str) -> RbhOptionRes<Relationships> { Ok(None) }
-
+impl<T: SingleEntity> Entity for [T] {
     fn included(
         &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &FieldsQuery,
-    ) -> RbhOptionRes<Included> {
+    ) -> RbhResult<Included> {
         let mut hashmap: HashMap<ResourceIdentifier, Resource> = Default::default();
         for e in self {
-            if let Some(inc) = e.included(uri, include_query, fields_query)? {
-                for i in inc {
-                    hashmap.insert(ResourceIdentifier { ty: i.ty.clone(), id: i.id.clone() }, i);
-                }
+            for i in e.included(uri, include_query, fields_query)? {
+                hashmap.insert(ResourceIdentifier { ty: i.ty.clone(), id: i.id.clone() }, i);
             }
         }
 
-        Ok(Some(hashmap.values().cloned().collect()))
+        Ok(hashmap.values().cloned().collect())
     }
 
     #[cfg(feature = "unstable-vec-to-document")]
-    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhOptionRes<Document> {
-        if let Some(included) = self.included(uri, &query.include, &query.fields)? {
-            let mut reses = vec![];
-            for e in self {
-                if let Some(res) = e.to_resource(uri, &query.fields)? {
-                    reses.push(res);
-                }
+    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhResult<Document> {
+        let mut reses = vec![];
+        for e in self {
+            if let Some(res) = e.to_resource(uri, &query.fields)? {
+                reses.push(res);
             }
-            Ok(Some(Document::multiple_resources(reses, included)))
-        } else {
-            Ok(None)
         }
+        Ok(Document::multiple_resources(reses, self.included(uri, &query.include, &query.fields)?))
+    }
+
+    #[cfg(not(feature = "unstable-vec-to-document"))]
+    fn to_document_automatically(&self, _: &str, _: &Query) -> RbhResult<Document> {
+        unimplemented!()
     }
 }
 
-impl<T: Entity> Entity for Vec<T> {
-    fn ty(&self) -> Option<String> { None }
-
-    fn id(&self) -> Option<String> { None }
-
-    fn attributes(&self) -> Option<Attributes> { None }
-
-    fn relationships(&self, _: &str) -> RbhOptionRes<Relationships> { Ok(None) }
-
+impl<T: SingleEntity> Entity for Vec<T> {
     fn included(
         &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &FieldsQuery,
-    ) -> RbhOptionRes<Included> {
+    ) -> RbhResult<Included> {
         self.as_slice().included(uri, include_query, fields_query)
     }
 
     #[cfg(feature = "unstable-vec-to-document")]
-    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhOptionRes<Document> {
+    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhResult<Document> {
         self.as_slice().to_document_automatically(uri, &query)
+    }
+
+    #[cfg(not(feature = "unstable-vec-to-document"))]
+    fn to_document_automatically(&self, _: &str, _: &Query) -> RbhResult<Document> {
+        unimplemented!()
     }
 }

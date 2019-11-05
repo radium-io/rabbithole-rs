@@ -1,2 +1,2 @@
 [workspace]
-members = ["rabbithole", "rabbithole-derive", "rabbithole-endpoint-hyper"]
+members = ["rabbithole", "rabbithole-derive", "rabbithole-endpoint-actix"]
