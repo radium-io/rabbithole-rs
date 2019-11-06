@@ -1,8 +1,9 @@
-# rabbithole-rs
-[![Build Status](https://travis-ci.com/UkonnRa/rabbithole-rs.svg?branch=master)](https://travis-ci.com/UkonnRa/rabbithole-rs)
+# rabbithole-rs [![Build Status](https://travis-ci.com/UkonnRa/rabbithole-rs.svg?branch=master)](https://travis-ci.com/UkonnRa/rabbithole-rs) ![crates.io](https://img.shields.io/crates/v/rabbithole.svg)
 
 > The rabbit-hole went straight on like a tunnel for some way, and then dipped suddenly down,
 > so suddenly that Alice had not a moment to think about stopping herself before she found herself falling down what seemed to be a very deep well.
+>
+> -- <cite>Alice's Adventures in Wonderland, by Lewis Carroll</cite>
 
 ## Introduction
 
@@ -215,7 +216,7 @@ But more than extracting all the fields from databases and dropping them later, 
 So here is the point. If you don't want to write the `Vec<SingleEntity> to Document` code, just use `Entity::to_document_automatically`,
 or, you could assemble the `Document` directly from the database.
 
-#### What is `...`(other) parts?
+#### What is `...`(any other) part?
 
 - `fetch_collection` will be mapped into: `/<ty>?<query>`
 - `fetch_single` will be mapped into: `/<ty>/<id>?<query>`
