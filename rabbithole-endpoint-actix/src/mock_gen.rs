@@ -4,7 +4,7 @@ use rabbithole::model::document::Document;
 extern crate rabbithole_derive as rbh_derive;
 
 use actix_web::http::StatusCode;
-use actix_web::{web, App};
+use actix_web::App;
 use actix_web::{HttpResponse, HttpServer};
 use async_trait::async_trait;
 
@@ -14,10 +14,10 @@ use rabbithole::model::relationship::Relationship;
 
 use rabbithole::model::Id;
 use rabbithole::operation::Fetching;
-use rabbithole_endpoint_actix::ActixSettings;
 
 use serde::{Deserialize, Serialize};
 
+use rabbithole_endpoint_actix::ActixSettings;
 use uuid::Uuid;
 
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
@@ -57,7 +57,7 @@ fn generate_dogs(len: usize) -> Vec<Dog> {
 
 fn generate_masters(len: usize) -> Vec<Human> {
     let mut masters = Vec::with_capacity(len);
-    for i in 0 .. len + 1 {
+    for i in 0 ..= len {
         let uuid = Uuid::new_v4();
         let dogs = generate_dogs(i);
         masters.push(Human { id_code: uuid, name: uuid.to_string(), dogs });
@@ -126,45 +126,11 @@ impl Fetching for Human {
     }
 }
 
-fn print_type_of<T>(_: &T) {
-    println!("{}", unsafe { std::intrinsics::type_name::<T>() });
-}
 fn main() -> std::io::Result<()> {
-    let server = HttpServer::new(move || {
-        App::new()
-            .data(ActixSettings::<Human>::new("http://example.com/api/v1"))
-            .route(
-                "/api/v1/people",
-                web::get().to_async(move |req, actix_fetching: web::Data<ActixSettings<Human>>| {
-                    actix_fetching.get_ref().clone().fetch_collection(req)
-                }),
-            )
-            .route(
-                "/api/v1/people/{id}",
-                web::get().to_async(
-                    move |param, req, actix_fetching: web::Data<ActixSettings<Human>>| {
-                        actix_fetching.get_ref().clone().fetch_single(param, req)
-                    },
-                ),
-            )
-            .route(
-                "/api/v1/people/{id}/relationships/{related_fields}",
-                web::get().to_async(
-                    move |param, req, actix_fetching: web::Data<ActixSettings<Human>>| {
-                        actix_fetching.get_ref().clone().fetch_relationship(param, req)
-                    },
-                ),
-            )
-            .route(
-                "/api/v1/people/{id}/{related_fields}",
-                web::get().to_async(
-                    move |param, req, actix_fetching: web::Data<ActixSettings<Human>>| {
-                        actix_fetching.get_ref().clone().fetch_related(param, req)
-                    },
-                ),
-            )
-    });
-
-    print_type_of(&server);
-    Ok(())
+    HttpServer::new(move || {
+        let scope = Human::actix_app("http://example.com".parse::<url::Url>().unwrap(), "/api/v1");
+        App::new().data(ActixSettings::<Human>::new("http://example.com/api/v1")).service(scope)
+    })
+    .bind("127.0.0.1:1234")?
+    .run()
 }

@@ -15,8 +15,7 @@ futures-preview = { version = "=0.3.0-alpha.19", features = ["compat"] }
 futures01 = { package = "futures", version = "~0.1" }
 actix-web = "~1.0"
 actix-service = "~0.4"
-actix-server-config = "~0.1"
-actix-http = "~0.2"
+
 url = "~1.7"
 
 serde = "~1.0"

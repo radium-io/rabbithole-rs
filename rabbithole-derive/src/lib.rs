@@ -12,7 +12,7 @@ use crate::error::EntityDecoratorError;
 use crate::field::{get_field_type, FieldType};
 use proc_macro::TokenStream;
 use quote::{quote, TokenStreamExt};
-use std::collections::{HashSet};
+use std::collections::HashSet;
 use syn::DeriveInput;
 
 type FieldBundle<'a> =
@@ -118,7 +118,7 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
 
     for back in backends {
         if back == "actix" {
-            res.append_all(vec![backend::actix::generate_server(
+            res.append_all(vec![backend::actix::generate_app(
                 decorated_struct,
                 &entity_type,
                 &to_ones,
