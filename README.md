@@ -117,4 +117,109 @@ Now because of lacking the Reflection in Rust, the macro now can not check type 
 ### A high performance Server
 
 Because the API interface of JSON:API is complex, I think it's a redundant and boring work to write all the API interface following the specification yourself,
-so I will do the boring things for you! 
+so I will do the boring things for you!
+
+## My final goal to this project
+
+The final goal of the project is just like [crnk](https://www.crnk.io/) or [elide](https://elide.io), who can auto generate a bunch of API based on **JUST** the definition of the models (maybe DAOs).
+Here I want to just show what will the project look like finally.
+
+### Define the models
+
+The first step is define some *API-friendly* models.
+
+```rust
+// This is the derive crate which you can use to generate JSON:API specific traits
+extern crate rabbithole_derive as rbh_derive;
+
+#[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
+#[entity(type = "people")]
+pub struct Human {
+    #[entity(id)]
+    pub id_code: Uuid,
+    pub name: String,
+    #[entity(to_many)]
+    pub dogs: Vec<Dog>,
+}
+
+#[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
+#[entity(type = "dogs")]
+pub struct Dog {
+    #[entity(id)]
+    pub id: Uuid,
+    pub name: String,
+}
+```
+
+### Write your own DAOs
+
+`rabbithole` does not bind with any specific databases, which means you have to write your own DAOs.
+
+```rust
+#[async_trait]
+impl Fetching for Human {
+    type Error = HttpResponse;
+    type Item = Human;
+
+    async fn vec_to_document(items: &[Self::Item], query: &Query) -> Result<Document, Self::Error> {
+        ...
+    }
+
+    async fn fetch_collection(_: &Query) -> Result<Vec<Self::Item>, Self::Error> {
+        ...
+    }
+
+    async fn fetch_single(id: Id, query: &Query) -> Result<Option<Self::Item>, Self::Error> {
+        ...
+    }
+
+    async fn fetch_relationship(
+        id: Id, related_field: &str, _query: &Query,
+    ) -> Result<Relationship, Self::Error> {
+        ...
+    }
+
+    async fn fetch_related(
+        id: Id, related_field: &str, query: &Query,
+    ) -> Result<Resource, Self::Error> {
+        ...
+    }
+}
+```
+
+#### What is `Fetching` trait
+
+`Fetching` trait is a mapping of ["fetching data" part in JSON:API](https://jsonapi.org/format/#fetching), which define a several operations:
+
+- Fetching Resources
+  - Single resource: `GET /articles/1`
+  - Multiple resources: `GET /articles`
+  - Related resource: `GET /articles/1/author`, which can be both single and multiple
+- Fetching relationships
+  - Relationship: `GET /articles/1/relationships/comments`
+- Fenching with query parameters
+  - Inclusion of Related Resources (`include` part)
+  - Sparse Fieldsets (`fields[TYPE]` part)
+  - Sorting (`sort` part)
+  - Pagination (`page` part)
+
+These are all we need to know in `fetching data` part. So these operation are abstracted into `Fenching` trait.
+
+#### What is `vec_to_document` part?
+
+If you want to transform a `Vec<SingleEntity>` into `Document`, it will do a lot of things like
+[excluding un-included resources](https://jsonapi.org/format/#fetching-includes),
+[retaining sparse fields](https://jsonapi.org/format/#fetching-sparse-fieldsets),
+etc. and etc., and of course I can help you in the background (using `Entity::to_document_automatically`).
+But more than extracting all the fields from databases and dropping them later, why not just leaving them in databases?
+So here is the point. If you don't want to write the `Vec<SingleEntity> to Document` code, just use `Entity::to_document_automatically`,
+or, you could assemble the `Document` directly from the database.
+
+#### What is `...`(other) parts?
+
+- `fetch_collection` will be mapped into: `/<ty>?<query>`
+- `fetch_single` will be mapped into: `/<ty>/<id>?<query>`
+- `fetch_relationship` will be mapped into: `/<ty>/<id>/relationships/<related_field>?<query>`
+- `fetch_related` will be mapped into: `/<ty>/<id>/<related_field>?<query>`
+- `type Error` will be mapped into the error responses if possible
+- `type Item` must be a `SingleEntity`
