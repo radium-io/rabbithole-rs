@@ -1,25 +1,28 @@
+#![feature(core_intrinsics)]
+
 use rabbithole::model::document::Document;
 extern crate rabbithole_derive as rbh_derive;
 
-use actix_web::body::Body;
 use actix_web::http::StatusCode;
-use actix_web::{web, App, HttpRequest};
+use actix_web::{web, App};
 use actix_web::{HttpResponse, HttpServer};
 use async_trait::async_trait;
-use futures::compat::Future01CompatExt;
-use futures::{Future, FutureExt, TryFutureExt};
+
 use rabbithole::entity::{Entity, SingleEntity};
 use rabbithole::model::query::Query;
 use rabbithole::model::relationship::Relationship;
-use rabbithole::model::resource::Resource;
+
 use rabbithole::model::Id;
 use rabbithole::operation::Fetching;
+use rabbithole_endpoint_actix::ActixSettings;
+
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+
 use uuid::Uuid;
 
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
 #[entity(type = "people")]
+#[entity(backend(actix))]
 pub struct Human {
     #[entity(id)]
     pub id_code: Uuid,
@@ -54,7 +57,7 @@ fn generate_dogs(len: usize) -> Vec<Dog> {
 
 fn generate_masters(len: usize) -> Vec<Human> {
     let mut masters = Vec::with_capacity(len);
-    for i in 0 .. len {
+    for i in 0 .. len + 1 {
         let uuid = Uuid::new_v4();
         let dogs = generate_dogs(i);
         masters.push(Human { id_code: uuid, name: uuid.to_string(), dogs });
@@ -67,8 +70,10 @@ impl Fetching for Human {
     type Error = HttpResponse;
     type Item = Human;
 
-    async fn vec_to_document(items: &[Self::Item], query: &Query) -> Result<Document, Self::Error> {
-        if let Ok(doc) = items.to_document_automatically("http://example.com/api/v1", query) {
+    async fn vec_to_document(
+        items: &[Self::Item], uri: &str, query: &Query,
+    ) -> Result<Document, Self::Error> {
+        if let Ok(doc) = items.to_document_automatically(uri, query) {
             Ok(doc)
         } else {
             Err(HttpResponse::build(StatusCode::BAD_REQUEST).body("error"))
@@ -76,20 +81,25 @@ impl Fetching for Human {
     }
 
     async fn fetch_collection(_: &Query) -> Result<Vec<Self::Item>, Self::Error> {
-        let masters = generate_masters(3);
+        let rand = rand::random::<usize>() % 5;
+        let masters = generate_masters(rand);
         Ok(masters)
     }
 
-    async fn fetch_single(id: Id, query: &Query) -> Result<Option<Self::Item>, Self::Error> {
-        Ok(generate_masters(1).first().cloned())
+    async fn fetch_single(id: &Id, _query: &Query) -> Result<Option<Self::Item>, Self::Error> {
+        if id == "none" {
+            Ok(None)
+        } else {
+            let rand = rand::random::<usize>() % 3;
+            Ok(generate_masters(rand).first().cloned())
+        }
     }
 
     async fn fetch_relationship(
-        id: Id, related_field: &str, _query: &Query,
+        _id: &Id, related_field: &str, uri: &str, _query: &Query,
     ) -> Result<Relationship, Self::Error> {
-        if let Ok(relats) =
-            generate_masters(1).first().cloned().unwrap().relationships("http://example.com/api/v1")
-        {
+        let rand = rand::random::<usize>() % 3;
+        if let Ok(relats) = generate_masters(rand).last().cloned().unwrap().relationships(uri) {
             Ok(relats.get(related_field).cloned().unwrap())
         } else {
             Err(HttpResponse::build(StatusCode::BAD_REQUEST).body("error"))
@@ -97,45 +107,64 @@ impl Fetching for Human {
     }
 
     async fn fetch_related(
-        id: Id, related_field: &str, query: &Query,
-    ) -> Result<Resource, Self::Error> {
-        Err(HttpResponse::build(StatusCode::BAD_REQUEST).body("error"))
-    }
-}
-
-fn wrapper_fetch_collection(
-    req: HttpRequest,
-) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error> {
-    if let Ok(query) = Query::from_uri(req.uri(), "CursorBased", "Rsql") {
-        let fut = async move {
-            let vec_res = Human::fetch_collection(&query).await;
-            match vec_res {
-                //                Ok(vec) => Ok(HttpResponse::Ok().body(format!("size: {}", vec.len()))),
-                Ok(vec) => match Human::vec_to_document(&vec, &query).await {
-                    Ok(doc) => Ok(HttpResponse::Ok().json(doc)),
-                    Err(err) => Ok(err),
-                },
-                Err(err_resp) => Ok(err_resp),
+        _id: &Id, related_field: &str, uri: &str, query: &Query,
+    ) -> Result<Document, Self::Error> {
+        if related_field == "dogs" {
+            let rand = rand::random::<usize>() % 3;
+            if let Some(master) = generate_masters(rand).last() {
+                if let Ok(doc) = master.dogs.to_document_automatically(uri, query) {
+                    Ok(doc)
+                } else {
+                    Err(HttpResponse::build(StatusCode::BAD_REQUEST).body("doc parsing error"))
+                }
+            } else {
+                unreachable!()
             }
-        };
-
-        fut.boxed_local().compat()
-    } else {
-        async {
-            Ok(HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
-                .json(Value::String("Parser query error".into())))
+        } else {
+            Err(HttpResponse::build(StatusCode::BAD_REQUEST).body("unhandled related fields"))
         }
-        .boxed_local()
-        .compat()
     }
 }
 
+fn print_type_of<T>(_: &T) {
+    println!("{}", unsafe { std::intrinsics::type_name::<T>() });
+}
 fn main() -> std::io::Result<()> {
-    HttpServer::new(move || {
-        App::new().service(
-            web::resource("/api/v1/people").route(web::get().to_async(wrapper_fetch_collection)),
-        )
-    })
-    .bind("127.0.0.1:1234")?
-    .run()
+    let server = HttpServer::new(move || {
+        App::new()
+            .data(ActixSettings::<Human>::new("http://example.com/api/v1"))
+            .route(
+                "/api/v1/people",
+                web::get().to_async(move |req, actix_fetching: web::Data<ActixSettings<Human>>| {
+                    actix_fetching.get_ref().clone().fetch_collection(req)
+                }),
+            )
+            .route(
+                "/api/v1/people/{id}",
+                web::get().to_async(
+                    move |param, req, actix_fetching: web::Data<ActixSettings<Human>>| {
+                        actix_fetching.get_ref().clone().fetch_single(param, req)
+                    },
+                ),
+            )
+            .route(
+                "/api/v1/people/{id}/relationships/{related_fields}",
+                web::get().to_async(
+                    move |param, req, actix_fetching: web::Data<ActixSettings<Human>>| {
+                        actix_fetching.get_ref().clone().fetch_relationship(param, req)
+                    },
+                ),
+            )
+            .route(
+                "/api/v1/people/{id}/{related_fields}",
+                web::get().to_async(
+                    move |param, req, actix_fetching: web::Data<ActixSettings<Human>>| {
+                        actix_fetching.get_ref().clone().fetch_related(param, req)
+                    },
+                ),
+            )
+    });
+
+    print_type_of(&server);
+    Ok(())
 }

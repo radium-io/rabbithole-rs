@@ -4,13 +4,15 @@ extern crate thiserror;
 #[macro_use]
 extern crate lazy_static;
 
+mod backend;
 mod error;
 mod field;
 
 use crate::error::EntityDecoratorError;
 use crate::field::{get_field_type, FieldType};
 use proc_macro::TokenStream;
-use quote::quote;
+use quote::{quote, TokenStreamExt};
+use std::collections::{HashSet};
 use syn::DeriveInput;
 
 type FieldBundle<'a> =
@@ -26,11 +28,11 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
     let decorated_struct: &syn::Ident = &ast.ident;
     let struct_lifetime = &ast.generics;
 
-    let entity_type = get_entity_type(&ast)?;
+    let (entity_type, backends) = get_entity_type(&ast)?;
 
     let (id, attrs, to_ones, to_manys) = get_fields(&ast)?;
 
-    let res = quote! {
+    let mut res = quote! {
         impl #struct_lifetime rabbithole::entity::Entity for #decorated_struct#struct_lifetime {
             fn included(&self, uri: &str,
                 include_query: &std::option::Option<rabbithole::model::query::IncludeQuery>,
@@ -110,7 +112,21 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 Ok(relat_map)
             }
         }
+
+
     };
+
+    for back in backends {
+        if back == "actix" {
+            res.append_all(vec![backend::actix::generate_server(
+                decorated_struct,
+                &entity_type,
+                &to_ones,
+                &to_manys,
+            )]);
+        }
+    }
+
     Ok(res)
 }
 
@@ -118,32 +134,60 @@ fn get_meta(attrs: &[syn::Attribute]) -> syn::Result<Vec<syn::Meta>> {
     Ok(attrs
         .iter()
         .filter(|a| a.path.is_ident("entity"))
-        .filter_map(|a| a.parse_meta().ok())
+        .filter_map(|a| {
+            let res = a.parse_meta();
+            res.ok()
+        })
         .collect::<Vec<syn::Meta>>())
 }
 
-fn get_entity_type(ast: &syn::DeriveInput) -> syn::Result<String> {
+fn get_entity_type(ast: &syn::DeriveInput) -> syn::Result<(String, HashSet<String>)> {
+    let mut ty_opt: Option<String> = None;
+    let mut backends: HashSet<String> = Default::default();
+
     for meta in get_meta(&ast.attrs)? {
         if let syn::Meta::List(syn::MetaList { ref nested, .. }) = meta {
             if let Some(syn::NestedMeta::Meta(ref meta_item)) = nested.last() {
-                if let syn::Meta::NameValue(syn::MetaNameValue {
-                    path,
-                    lit: syn::Lit::Str(lit_str),
-                    ..
-                }) = meta_item
-                {
-                    match path.segments.last() {
+                match meta_item {
+                    syn::Meta::NameValue(syn::MetaNameValue {
+                        path,
+                        lit: syn::Lit::Str(lit_str),
+                        ..
+                    }) => match path.segments.last() {
                         Some(syn::PathSegment { ident, .. }) if ident == "type" => {
-                            return Ok(lit_str.value());
+                            ty_opt = Some(lit_str.value());
                         },
                         _ => {},
-                    }
+                    },
+                    syn::Meta::List(syn::MetaList { path, nested, .. }) => {
+                        match path.segments.last() {
+                            Some(syn::PathSegment { ident, .. }) if ident == "backend" => {
+                                for nested_backend in nested {
+                                    if let syn::NestedMeta::Meta(syn::Meta::Path(backend_path)) =
+                                        nested_backend
+                                    {
+                                        if let Some(syn::PathSegment { ident, .. }) =
+                                            backend_path.segments.last()
+                                        {
+                                            backends.insert(ident.to_string());
+                                        }
+                                    }
+                                }
+                            },
+                            _ => {},
+                        }
+                    },
+                    _ => {},
                 }
             }
         }
     }
 
-    Err(syn::Error::new_spanned(ast, EntityDecoratorError::InvalidEntityType))
+    if let Some(ty) = ty_opt {
+        Ok((ty, backends))
+    } else {
+        Err(syn::Error::new_spanned(ast, EntityDecoratorError::InvalidEntityType))
+    }
 }
 
 fn get_fields(ast: &syn::DeriveInput) -> syn::Result<FieldBundle> {

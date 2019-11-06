@@ -118,6 +118,14 @@ impl<T: SingleEntity> SingleEntity for Option<T> {
         self.as_ref().map(|op| op.relationships(uri)).unwrap()
     }
 
+    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhResult<Document> {
+        if let Some(item) = self {
+            SingleEntity::to_document_automatically(item, uri, query)
+        } else {
+            Ok(Document::none())
+        }
+    }
+
     fn to_resource_identifier(&self) -> Option<ResourceIdentifier> { None }
 
     fn to_resource(&self, _: &str, _: &FieldsQuery) -> RbhOptionRes<Resource> { Ok(None) }
