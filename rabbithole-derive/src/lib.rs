@@ -32,58 +32,22 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
 
     let res = quote! {
         impl #struct_lifetime rabbithole::entity::Entity for #decorated_struct#struct_lifetime {
-            fn ty(&self) -> std::option::Option<std::string::String> { std::option::Option::Some(#entity_type.to_string()) }
-            fn id(&self) -> std::option::Option<std::string::String> { std::option::Option::Some(self.#id.to_string()) }
-
-            fn attributes(&self) -> std::option::Option<rabbithole::model::resource::Attributes> {
-                let mut attr_map: std::collections::HashMap<String, serde_json::Value> = std::default::Default::default();
-                #(  if let Ok(json_value) = serde_json::to_value(self.#attrs.clone()) { attr_map.insert(stringify!(#attrs).to_string(), json_value); } )*
-                Some(attr_map.into())
-            }
-            fn relationships(&self, uri: &str) -> rabbithole::RbhOptionRes<rabbithole::model::relationship::Relationships> {
-                let mut relat_map: rabbithole::model::relationship::Relationships = std::default::Default::default();
-                #(
-                    if let (Some(relat_id), Some(links)) = (
-                        self.#to_ones.to_resource_identifier(),
-                        self.to_relationship_links(stringify!(#to_ones), uri)?,
-                    ) {
-                        let data = rabbithole::model::resource::IdentifierData::Single(Some(relat_id));
-                        let relat = rabbithole::model::relationship::Relationship { data, links, ..std::default::Default::default() };
-                        relat_map.insert(stringify!(#to_ones).to_string(), relat);
-                    }
-                )*
-
-                #(
-                    if let Some(links) = self.to_relationship_links(stringify!(#to_manys), uri)? {
-                        let mut relat_ids: rabbithole::model::resource::ResourceIdentifiers = std::default::Default::default();
-                        for item in &self.#to_manys {
-                            if let Some(relat_id) = item.to_resource_identifier() {
-                                relat_ids.push(relat_id);
-                            }
-                        }
-                        let data = rabbithole::model::resource::IdentifierData::Multiple(relat_ids);
-                        let relat = rabbithole::model::relationship::Relationship { data, links, meta: std::default::Default::default() };
-                        relat_map.insert(stringify!(#to_manys).to_string(), relat);
-                    }
-                )*
-
-                Ok(Some(relat_map))
-            }
             fn included(&self, uri: &str,
                 include_query: &std::option::Option<rabbithole::model::query::IncludeQuery>,
-                fields_query: &std::option::Option<rabbithole::model::query::FieldsQuery>,
-            ) -> rabbithole::RbhOptionRes<rabbithole::model::document::Included> {
+                fields_query: &rabbithole::model::query::FieldsQuery,
+            ) -> rabbithole::RbhResult<rabbithole::model::document::Included> {
+                use rabbithole::entity::SingleEntity;
                 let mut included: rabbithole::model::document::Included = Default::default();
                 #(
                     if let Some(included_fields) = include_query {
                         if included_fields.contains(stringify!(#to_ones)) {
-                            if let Some(res) = self.#to_ones.to_resource(uri, fields_query)? {
-                                included.insert(res);
+                            if let Some(inc) = self.#to_ones.to_resource(uri, fields_query)? {
+                                included.insert(inc);
                             }
                         }
                     } else {
-                        if let Some(res) = self.#to_ones.to_resource(uri, fields_query)? {
-                            included.insert(res);
+                        if let Some(inc) = self.#to_ones.to_resource(uri, fields_query)? {
+                            included.insert(inc);
                         }
                     }
                 )*
@@ -91,21 +55,60 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                     if let Some(included_fields) = include_query {
                         if included_fields.contains(stringify!(#to_manys)) {
                             for item in &self.#to_manys {
-                                if let Some(data) = item.to_resource(uri, fields_query)? {
-                                    included.insert(data);
+                                if let Some(inc) = item.to_resource(uri, fields_query)? {
+                                    included.insert(inc);
                                 }
                             }
                         }
                     } else {
                         for item in &self.#to_manys {
-                            if let Some(data) = item.to_resource(uri, fields_query)? {
-                                included.insert(data);
+                            if let Some(inc) = item.to_resource(uri, fields_query)? {
+                                included.insert(inc);
                             }
                         }
                     }
                 )*
-                Ok(Some(included))
+                Ok(included)
              }
+
+             fn to_document_automatically(&self, uri: &str, query: &rabbithole::model::query::Query) -> rabbithole::RbhResult<rabbithole::model::document::Document> {
+                 rabbithole::entity::SingleEntity::to_document_automatically(&self, uri, query)
+             }
+        }
+
+        impl #struct_lifetime rabbithole::entity::SingleEntity for #decorated_struct#struct_lifetime {
+            fn ty() -> std::string::String { #entity_type.to_string() }
+            fn id(&self) -> std::string::String { self.#id.to_string() }
+
+            fn attributes(&self) -> rabbithole::model::resource::Attributes {
+                let mut attr_map: std::collections::HashMap<String, serde_json::Value> = std::default::Default::default();
+                #(  if let Ok(json_value) = serde_json::to_value(self.#attrs.clone()) { attr_map.insert(stringify!(#attrs).to_string(), json_value); } )*
+                attr_map.into()
+            }
+            fn relationships(&self, uri: &str) -> rabbithole::RbhResult<rabbithole::model::relationship::Relationships> {
+                let mut relat_map: rabbithole::model::relationship::Relationships = std::default::Default::default();
+                #(
+                    if let Some(relat_id) = self.#to_ones.to_resource_identifier() {
+                        let data = rabbithole::model::resource::IdentifierData::Single(Some(relat_id));
+                        let relat = rabbithole::model::relationship::Relationship { data, links: self.to_relationship_links(stringify!(#to_ones), uri)?, ..std::default::Default::default() };
+                        relat_map.insert(stringify!(#to_ones).to_string(), relat);
+                    }
+                )*
+
+                #(
+                    let mut relat_ids: rabbithole::model::resource::ResourceIdentifiers = std::default::Default::default();
+                    for item in &self.#to_manys {
+                        if let Some(relat_id) = item.to_resource_identifier() {
+                            relat_ids.push(relat_id);
+                        }
+                    }
+                    let data = rabbithole::model::resource::IdentifierData::Multiple(relat_ids);
+                    let relat = rabbithole::model::relationship::Relationship { data, links: self.to_relationship_links(stringify!(#to_manys), uri)?, meta: std::default::Default::default() };
+                    relat_map.insert(stringify!(#to_manys).to_string(), relat);
+                )*
+
+                Ok(relat_map)
+            }
         }
     };
     Ok(res)
