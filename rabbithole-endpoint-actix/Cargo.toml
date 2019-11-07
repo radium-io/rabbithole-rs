@@ -4,7 +4,10 @@ version = "0.1.0"
 authors = ["UkonnRa <ukonnra@outlook.com>"]
 edition = "2018"
 
+
 [dependencies]
+env_logger = "~0.7"
+
 futures-preview = { version = "=0.3.0-alpha.19", features = ["compat"] }
 futures01 = { package = "futures", version = "~0.1" }
 actix-web = "~1.0"

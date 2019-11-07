@@ -3,8 +3,8 @@
 extern crate rabbithole_derive as rbh_derive;
 
 use actix_web::http::StatusCode;
-use actix_web::web;
 use actix_web::App;
+use actix_web::{middleware, web};
 use actix_web::{HttpResponse, HttpServer};
 use async_trait::async_trait;
 use rabbithole::model::document::Document;
@@ -18,7 +18,8 @@ use rabbithole::operation::Fetching;
 
 use serde::{Deserialize, Serialize};
 
-use rabbithole_endpoint_actix::{ActixSettings, ActixSettingsModel};
+use rabbithole_endpoint_actix::settings::ActixSettingsModel;
+use rabbithole_endpoint_actix::ActixSettings;
 use std::convert::TryInto;
 use uuid::Uuid;
 
@@ -99,7 +100,7 @@ impl Fetching for Dog {
     }
 
     async fn fetch_relationship(
-        _id: &String, related_field: &str, uri: &str, _query: &Query,
+        _id: &Id, related_field: &str, uri: &str, _query: &Query,
     ) -> Result<Relationship, Self::Error> {
         let rand = rand::random::<usize>() % 3;
         if let Ok(relats) = generate_dogs(rand).last().cloned().unwrap().relationships(uri) {
@@ -178,6 +179,9 @@ impl Fetching for Human {
 }
 
 fn main() -> std::io::Result<()> {
+    std::env::set_var("RUST_LOG", "actix_web=info");
+    env_logger::init();
+
     let mut settings = config::Config::default();
     settings.merge(config::File::with_name("config/actix.config.toml")).unwrap();
     let settings: ActixSettingsModel = settings.try_into().unwrap();
@@ -186,6 +190,7 @@ fn main() -> std::io::Result<()> {
         App::new()
             .data::<ActixSettings<Human>>(settings.clone().try_into().unwrap())
             .data::<ActixSettings<Dog>>(settings.clone().try_into().unwrap())
+            .wrap(middleware::Logger::new(r#"%a "%r" %s %b "%{Referer}i" "%{Content-Type}i" %T"#))
             .service(
                 web::scope(&settings.suffix)
                     .service(Human::actix_service())

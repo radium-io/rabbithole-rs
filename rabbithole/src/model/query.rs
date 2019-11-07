@@ -42,13 +42,15 @@ lazy_static! {
 }
 
 impl Query {
-    pub fn from_uri(uri: &http::Uri, page_type: &str, filter_type: &str) -> RbhResult<Query> {
+    pub fn from_uri(uri: &http::Uri) -> RbhResult<Query> {
         let mut include_query: IncludeQuery = Default::default();
         let mut include_query_exist = false;
         let mut sort_query: SortQuery = Default::default();
         let mut filter_map: HashMap<String, String> = Default::default();
+        let mut filter_type: Option<String> = None;
         let mut fields_map: FieldsQuery = Default::default();
         let mut page_map: HashMap<String, String> = Default::default();
+        let mut page_type: Option<String> = None;
 
         if let Some(query_str) = uri.query() {
             let query_str = percent_decode_str(query_str).decode_utf8()?;
@@ -95,9 +97,17 @@ impl Query {
                                 fields_map.insert(param.into(), values);
                             }
                         } else if name == "filter" && !value.is_empty() {
-                            filter_map.insert(param.into(), value.to_string());
+                            if param == "@type" {
+                                filter_type = Some(value.into());
+                            } else {
+                                filter_map.insert(param.into(), value.to_string());
+                            }
                         } else if name == "page" {
-                            page_map.insert(param.into(), value.to_string());
+                            if param == "@type" {
+                                page_type = Some(value.into());
+                            } else {
+                                page_map.insert(param.into(), value.to_string());
+                            }
                         }
                     }
                 }
@@ -106,8 +116,8 @@ impl Query {
 
         let include = if include_query_exist { Some(include_query) } else { None };
         let sort = sort_query;
-        let page = PageQuery::new(page_type, &page_map)?;
-        let filter = FilterQuery::new(filter_type, filter_map)?;
+        let page = PageQuery::new(&page_type.unwrap_or_else(|| "CursorBased".into()), &page_map)?;
+        let filter = FilterQuery::new(&filter_type.unwrap_or_else(|| "Rsql".into()), filter_map)?;
 
         Ok(Query { include, fields: fields_map, sort, page, filter })
     }

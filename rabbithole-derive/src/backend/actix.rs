@@ -6,7 +6,7 @@ pub fn generate_app(
     quote! {
         impl #entity_ident {
             pub fn actix_service() -> actix_web::Scope {
-                use actix_web::web;
+                use actix_web::{web, guard};
                 web::scope(#ty)
                     .service(web::resource("")
                         .route(web::get().to_async(move |req, actix_fetching: web::Data<rabbithole_endpoint_actix::ActixSettings<Self>>| actix_fetching.get_ref().clone().fetch_collection(req))))

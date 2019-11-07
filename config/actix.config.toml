@@ -1,2 +1,5 @@
 domain = "http://wonder.ukonnra.com"
 suffix = "/api/v1"
+
+[jsonapi]
+version = "1.0"
