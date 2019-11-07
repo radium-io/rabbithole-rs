@@ -1,4 +1,5 @@
 use crate::rule::Rule;
+use crate::JSON_API_HEADER;
 use std::collections::HashMap;
 
 fn extract_params_of_media_type(media_type: &str) -> HashMap<String, String> {
@@ -32,7 +33,7 @@ impl Rule<Option<String>> for AcceptHeaderShouldBeJsonApi {
 fn check_header(item: &Option<String>, error_code: u16) -> Result<(), u16> {
     if let Some(item) = item {
         let params = extract_params_of_media_type(item);
-        if item.starts_with("application/vnd.api+json")
+        if item.starts_with(JSON_API_HEADER)
             && (has_no_param(&params) || has_only_profile_param(&params))
         {
             return Ok(());

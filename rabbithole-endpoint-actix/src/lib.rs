@@ -1,18 +1,18 @@
 pub mod settings;
 
 use actix_web::http::{header, HeaderMap, StatusCode};
-use actix_web::{web, Responder};
+use actix_web::web;
 use actix_web::{HttpRequest, HttpResponse};
 use futures::{FutureExt, TryFutureExt};
 use rabbithole::entity::SingleEntity;
 
 use crate::settings::{ActixSettingsModel, JsonApiSettings};
 use actix_web::dev::HttpResponseBuilder;
-use futures::compat::Future01CompatExt;
 use rabbithole::model::query::Query;
 use rabbithole::model::version::JsonApiVersion;
 use rabbithole::operation::Fetching;
 use rabbithole::rule::RuleDispatcher;
+use rabbithole::JSON_API_HEADER;
 use serde::export::TryFrom;
 use serde_json::Value;
 use std::marker::PhantomData;
@@ -151,9 +151,7 @@ fn query_parsing_error_resp() -> HttpResponse {
 }
 
 fn check_header(api_version: &JsonApiVersion, headers: &HeaderMap) -> Result<(), HttpResponse> {
-    println!("headers: {:?}", headers);
     let content_type = headers.get(header::CONTENT_TYPE).map(|r| r.to_str().unwrap().to_string());
-    println!("content_type: {:?}", content_type);
     let accept = headers.get(header::ACCEPT).map(|r| r.to_str().unwrap().to_string());
     if let Err(err) = RuleDispatcher::ContentTypeMustBeJsonApi(api_version, &content_type) {
         return Err(new_json_api_resp(StatusCode::from_u16(err).unwrap()).finish());
@@ -167,6 +165,6 @@ fn check_header(api_version: &JsonApiVersion, headers: &HeaderMap) -> Result<(),
 
 fn new_json_api_resp(status_code: StatusCode) -> HttpResponseBuilder {
     let mut resp = HttpResponse::build(status_code);
-    resp.set_header(header::CONTENT_TYPE, "application/vnd.api+json");
+    resp.set_header(header::CONTENT_TYPE, JSON_API_HEADER);
     resp
 }
