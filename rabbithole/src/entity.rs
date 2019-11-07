@@ -37,7 +37,7 @@ pub trait SingleEntity: Entity {
         Ok(Document::single_resource(
             self.to_resource(uri, &query.fields)?.unwrap(),
             self.included(uri, &query.include, &query.fields)?,
-            Some(HashMap::from_iter(vec![Link::slf(request_path.clone())])),
+            Some(HashMap::from_iter(vec![Link::slf(uri, request_path.clone())])),
         ))
     }
 
@@ -233,7 +233,7 @@ impl<T: SingleEntity> Entity for [T] {
         Ok(Document::multiple_resources(
             reses,
             self.included(uri, &query.include, &query.fields)?,
-            Some(HashMap::from_iter(vec![Link::slf(request_path.clone().into())])),
+            Some(HashMap::from_iter(vec![Link::slf(uri, request_path.clone().into())])),
         ))
     }
 

@@ -8,6 +8,7 @@ use rabbithole::entity::SingleEntity;
 
 use crate::settings::{ActixSettingsModel, JsonApiSettings};
 use actix_web::dev::HttpResponseBuilder;
+use log::*;
 use rabbithole::error::RabbitholeError;
 use rabbithole::model::query::Query;
 use rabbithole::model::version::JsonApiVersion;
@@ -64,7 +65,7 @@ where
                                 &vec,
                                 &self.uri.to_string(),
                                 &query,
-                                &req.path().parse().unwrap(),
+                                &req.uri().into(),
                             )
                             .await
                             {
@@ -95,7 +96,7 @@ where
                         Ok(item) => match item.to_document_automatically(
                             &self.uri.to_string(),
                             &query,
-                            &req.path().parse().unwrap(),
+                            &req.uri().into(),
                         ) {
                             Ok(doc) => Ok(new_json_api_resp(StatusCode::OK).json(doc)),
                             Err(err) => Ok(new_json_api_resp(StatusCode::INTERNAL_SERVER_ERROR)
@@ -151,7 +152,7 @@ where
                         &related_field,
                         &self.uri.to_string(),
                         &query,
-                        &req.path().parse().unwrap(),
+                        &req.uri().into(),
                     )
                     .await
                     {

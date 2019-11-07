@@ -48,9 +48,7 @@ pub struct Document {
 }
 
 impl Document {
-    pub fn none() -> Self {
-        Self { item: Default::default(), links: None, meta: None, jsonapi: None }
-    }
+    pub fn none() -> Self { Default::default() }
 
     pub fn single_resource(resource: Resource, included: Included, links: Option<Links>) -> Self {
         Self {
@@ -120,7 +118,6 @@ impl<'de> Visitor<'de> for DocumentVisitor {
     where
         E: serde::de::Error,
     {
-        println!("visit_str: {}", v);
         Ok(serde_json::from_str::<Document>(v).unwrap())
     }
 
