@@ -73,8 +73,8 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 Ok(included)
              }
 
-             fn to_document_automatically(&self, uri: &str, query: &rabbithole::model::query::Query) -> rabbithole::RbhResult<rabbithole::model::document::Document> {
-                 rabbithole::entity::SingleEntity::to_document_automatically(&self, uri, query)
+             fn to_document_automatically(&self, uri: &str, query: &rabbithole::model::query::Query, request_path: &rabbithole::model::link::RawUri) -> rabbithole::RbhResult<rabbithole::model::document::Document> {
+                 rabbithole::entity::SingleEntity::to_document_automatically(&self, uri, query, request_path)
              }
         }
 

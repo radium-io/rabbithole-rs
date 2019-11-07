@@ -52,19 +52,23 @@ impl Document {
         Self { item: Default::default(), links: None, meta: None, jsonapi: None }
     }
 
-    pub fn single_resource(resource: Resource, included: Included) -> Self {
+    pub fn single_resource(resource: Resource, included: Included, links: Option<Links>) -> Self {
         Self {
             item: DocumentItem::PrimaryData(Some((
                 PrimaryDataItem::Single(Box::new(resource)),
                 included,
             ))),
+            links,
             ..Default::default()
         }
     }
 
-    pub fn multiple_resources(resources: Vec<Resource>, included: Included) -> Self {
+    pub fn multiple_resources(
+        resources: Vec<Resource>, included: Included, links: Option<Links>,
+    ) -> Self {
         Self {
             item: DocumentItem::PrimaryData(Some((PrimaryDataItem::Multiple(resources), included))),
+            links,
             ..Default::default()
         }
     }

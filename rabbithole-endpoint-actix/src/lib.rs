@@ -8,6 +8,7 @@ use rabbithole::entity::SingleEntity;
 
 use crate::settings::{ActixSettingsModel, JsonApiSettings};
 use actix_web::dev::HttpResponseBuilder;
+use rabbithole::error::RabbitholeError;
 use rabbithole::model::query::Query;
 use rabbithole::model::version::JsonApiVersion;
 use rabbithole::operation::Fetching;
@@ -53,24 +54,32 @@ where
         if let Err(err_resp) = check_header(&self.jsonapi.version, &req.headers()) {
             return futures::future::ok(err_resp).boxed_local().compat();
         }
-        let query = Query::from_uri(req.uri());
-        if query.is_err() {
-            return futures::future::ok(query_parsing_error_resp()).boxed_local().compat();
+        match Query::from_uri(req.uri()) {
+            Ok(query) => {
+                let fut = async move {
+                    let vec_res = T::fetch_collection(&query).await;
+                    match vec_res {
+                        Ok(vec) => {
+                            match T::vec_to_document(
+                                &vec,
+                                &self.uri.to_string(),
+                                &query,
+                                &req.path().parse().unwrap(),
+                            )
+                            .await
+                            {
+                                Ok(doc) => Ok(HttpResponse::Ok().json(doc)),
+                                Err(err) => Ok(err),
+                            }
+                        },
+                        Err(err_resp) => Ok(err_resp),
+                    }
+                };
+
+                fut.boxed_local().compat()
+            },
+            Err(err) => futures::future::ok(query_parsing_error_resp(err)).boxed_local().compat(),
         }
-        let query = query.unwrap();
-
-        let fut = async move {
-            let vec_res = T::fetch_collection(&query).await;
-            match vec_res {
-                Ok(vec) => match T::vec_to_document(&vec, &self.uri.to_string(), &query).await {
-                    Ok(doc) => Ok(HttpResponse::Ok().json(doc)),
-                    Err(err) => Ok(err),
-                },
-                Err(err_resp) => Ok(err_resp),
-            }
-        };
-
-        fut.boxed_local().compat()
     }
 
     pub fn fetch_single(
@@ -79,24 +88,27 @@ where
         if let Err(err_resp) = check_header(&self.jsonapi.version, &req.headers()) {
             return futures::future::ok(err_resp).boxed_local().compat();
         }
-        let query = Query::from_uri(req.uri());
-        if query.is_err() {
-            return futures::future::ok(query_parsing_error_resp()).boxed_local().compat();
+        match Query::from_uri(req.uri()) {
+            Ok(query) => {
+                let fut = async move {
+                    match T::fetch_single(&param.into_inner(), &query).await {
+                        Ok(item) => match item.to_document_automatically(
+                            &self.uri.to_string(),
+                            &query,
+                            &req.path().parse().unwrap(),
+                        ) {
+                            Ok(doc) => Ok(new_json_api_resp(StatusCode::OK).json(doc)),
+                            Err(err) => Ok(new_json_api_resp(StatusCode::INTERNAL_SERVER_ERROR)
+                                .body(format!("err inner: {}", err))),
+                        },
+                        Err(err) => Ok(err),
+                    }
+                };
+
+                fut.boxed_local().compat()
+            },
+            Err(err) => futures::future::ok(query_parsing_error_resp(err)).boxed_local().compat(),
         }
-        let query = query.unwrap();
-
-        let fut = async move {
-            match T::fetch_single(&param.into_inner(), &query).await {
-                Ok(item) => match item.to_document_automatically(&self.uri.to_string(), &query) {
-                    Ok(doc) => Ok(new_json_api_resp(StatusCode::OK).json(doc)),
-                    Err(err) => Ok(new_json_api_resp(StatusCode::INTERNAL_SERVER_ERROR)
-                        .body(format!("err inner: {}", err))),
-                },
-                Err(err) => Ok(err),
-            }
-        };
-
-        fut.boxed_local().compat()
     }
 
     pub fn fetch_relationship(
@@ -105,21 +117,22 @@ where
         if let Err(err_resp) = check_header(&self.jsonapi.version, &req.headers()) {
             return futures::future::ok(err_resp).boxed_local().compat();
         }
-        let query = Query::from_uri(req.uri());
-        if query.is_err() {
-            return futures::future::ok(query_parsing_error_resp()).boxed_local().compat();
+        match Query::from_uri(req.uri()) {
+            Ok(query) => {
+                let (id, related_field) = param.into_inner();
+                let fut = async move {
+                    match T::fetch_relationship(&id, &related_field, &self.uri.to_string(), &query)
+                        .await
+                    {
+                        Ok(item) => Ok(new_json_api_resp(StatusCode::OK).json(item)),
+                        Err(err) => Ok(err),
+                    }
+                };
+
+                fut.boxed_local().compat()
+            },
+            Err(err) => futures::future::ok(query_parsing_error_resp(err)).boxed_local().compat(),
         }
-        let query = query.unwrap();
-
-        let (id, related_field) = param.into_inner();
-        let fut = async move {
-            match T::fetch_relationship(&id, &related_field, &self.uri.to_string(), &query).await {
-                Ok(item) => Ok(new_json_api_resp(StatusCode::OK).json(item)),
-                Err(err) => Ok(err),
-            }
-        };
-
-        fut.boxed_local().compat()
     }
 
     pub fn fetch_related(
@@ -128,26 +141,33 @@ where
         if let Err(err_resp) = check_header(&self.jsonapi.version, &req.headers()) {
             return futures::future::ok(err_resp).boxed_local().compat();
         }
-        let query = Query::from_uri(req.uri());
-        if query.is_err() {
-            return futures::future::ok(query_parsing_error_resp()).boxed_local().compat();
-        }
-        let query = query.unwrap();
 
-        let (id, related_field) = param.into_inner();
-        let fut = async move {
-            match T::fetch_related(&id, &related_field, &self.uri.to_string(), &query).await {
-                Ok(item) => Ok(new_json_api_resp(StatusCode::OK).json(item)),
-                Err(err) => Ok(err),
-            }
-        };
-        fut.boxed_local().compat()
+        match Query::from_uri(req.uri()) {
+            Ok(query) => {
+                let (id, related_field) = param.into_inner();
+                let fut = async move {
+                    match T::fetch_related(
+                        &id,
+                        &related_field,
+                        &self.uri.to_string(),
+                        &query,
+                        &req.path().parse().unwrap(),
+                    )
+                    .await
+                    {
+                        Ok(item) => Ok(new_json_api_resp(StatusCode::OK).json(item)),
+                        Err(err) => Ok(err),
+                    }
+                };
+                fut.boxed_local().compat()
+            },
+            Err(err) => futures::future::ok(query_parsing_error_resp(err)).boxed_local().compat(),
+        }
     }
 }
 
-fn query_parsing_error_resp() -> HttpResponse {
-    new_json_api_resp(StatusCode::INTERNAL_SERVER_ERROR)
-        .json(Value::String("Parser query error".into()))
+fn query_parsing_error_resp(err: RabbitholeError) -> HttpResponse {
+    new_json_api_resp(StatusCode::BAD_REQUEST).json(Value::String(err.to_string()))
 }
 
 fn check_header(api_version: &JsonApiVersion, headers: &HeaderMap) -> Result<(), HttpResponse> {

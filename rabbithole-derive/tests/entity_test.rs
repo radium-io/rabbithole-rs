@@ -107,7 +107,11 @@ fn multiple_entities_test() {
     let masters = generate_masters(1);
     let (_, master) = masters.first().unwrap();
     let dogs = generate_dogs(dog_cnt, master);
-    let gen_doc = dogs.to_document_automatically("https://example.com/api", &Default::default());
+    let gen_doc = dogs.to_document_automatically(
+        "https://example.com/api",
+        &Default::default(),
+        &"https://example.com/api".parse().unwrap(),
+    );
     assert!(gen_doc.is_ok());
 }
 
@@ -265,16 +269,21 @@ fn general_test() {
     let document = Document::single_resource(
         dog_res,
         HashSet::from_iter(vec![master_res, dog_flea_a_res, dog_flea_b_res]),
+        None,
     );
 
     let gen_doc: Document = dog
-        .to_document_automatically("https://example.com/api", &Query {
-            fields: HashMap::from_iter(vec![(
-                "humans".into(),
-                HashSet::from_iter(vec!["name".into(), "only_flea".into()]),
-            )]),
-            ..Default::default()
-        })
+        .to_document_automatically(
+            "https://example.com/api",
+            &Query {
+                fields: HashMap::from_iter(vec![(
+                    "humans".into(),
+                    HashSet::from_iter(vec!["name".into(), "only_flea".into()]),
+                )]),
+                ..Default::default()
+            },
+            &"https://example.com/api".parse().unwrap(),
+        )
         .unwrap();
     assert_eq!(document.links, gen_doc.links);
 

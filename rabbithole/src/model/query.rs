@@ -38,7 +38,7 @@ pub struct Query {
 }
 
 lazy_static! {
-    static ref KEY_REGEX: Regex = Regex::new(r#"(?P<name>\w+)\[(?P<param>[\w\-_]+)\]"#).unwrap();
+    static ref KEY_REGEX: Regex = Regex::new(r#"(?P<name>\w+)\[(?P<param>[\w\-_@]+)\]"#).unwrap();
 }
 
 impl Query {

@@ -24,11 +24,19 @@ impl FromStr for Link {
     fn from_str(s: &str) -> Result<Self, Self::Err> { Ok(Link::Raw(s.parse()?)) }
 }
 
+impl From<RawUri> for Link {
+    fn from(r: RawUri) -> Self { Link::Raw(r) }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum Link {
     Raw(RawUri),
     Object { href: RawUri, meta: Meta },
+}
+
+impl Link {
+    pub fn slf(link: RawUri) -> (String, Link) { ("self".into(), link.into()) }
 }
 
 impl Serialize for RawUri {

@@ -3,6 +3,7 @@ use crate::model::document::Document;
 use crate::model::query::Query;
 use crate::model::relationship::Relationship;
 
+use crate::model::link::RawUri;
 use crate::model::Id;
 use async_trait::async_trait;
 
@@ -13,7 +14,7 @@ pub trait Fetching {
 
     /// User defined `vec_to_document` function
     async fn vec_to_document(
-        items: &[Self::Item], uri: &str, query: &Query,
+        items: &[Self::Item], uri: &str, query: &Query, request_path: &RawUri,
     ) -> Result<Document, Self::Error>;
     /// Mapping to `/<ty>?<query>`
     async fn fetch_collection(query: &Query) -> Result<Vec<Self::Item>, Self::Error>;
@@ -25,6 +26,6 @@ pub trait Fetching {
     ) -> Result<Relationship, Self::Error>;
     /// Mapping to `/<ty>/<id>/<related_field>?<query>`
     async fn fetch_related(
-        id: &Id, related_field: &str, uri: &str, query: &Query,
+        id: &Id, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
     ) -> Result<Document, Self::Error>;
 }

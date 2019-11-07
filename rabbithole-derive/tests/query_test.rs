@@ -60,7 +60,7 @@ fn default_include_test() {
 
     let master_vec = generate_masters();
     let gen_doc = master_vec
-        .to_document_automatically("https://example.com/api", &Default::default())
+        .to_document_automatically("https://example.com/api", &Default::default(), &uri.parse().unwrap())
         .unwrap();
 
     let master_reses: Vec<Resource> = master_vec
@@ -74,7 +74,7 @@ fn default_include_test() {
             manual_included.insert(d.to_resource(uri, &Default::default()).unwrap().unwrap());
         }
     }
-    let manual_doc = Document::multiple_resources(master_reses, manual_included);
+    let manual_doc = Document::multiple_resources(master_reses, manual_included, None);
     assert_eq!(gen_doc, manual_doc);
 }
 
@@ -87,14 +87,14 @@ fn only_unknown_include_test() {
         .to_document_automatically("https://example.com/api", &Query {
             include: Some(HashSet::from_iter(vec!["name".to_string()])),
             ..Default::default()
-        })
+        }, &uri.parse().unwrap())
         .unwrap();
 
     let master_reses: Vec<Resource> = master_vec
         .iter()
         .map(|h| h.to_resource(uri, &Default::default()).unwrap().unwrap())
         .collect();
-    let manual_doc = Document::multiple_resources(master_reses, Default::default());
+    let manual_doc = Document::multiple_resources(master_reses, Default::default(), None);
     assert_eq!(gen_doc, manual_doc);
 }
 
@@ -107,14 +107,14 @@ fn not_included_fields_but_retain_attributes() {
         .to_document_automatically("https://example.com/api", &Query {
             include: Some(Default::default()),
             ..Default::default()
-        })
+        }, &uri.parse().unwrap())
         .unwrap();
 
     let master_reses: Vec<Resource> = master_vec
         .iter()
         .map(|h| h.to_resource(uri, &Default::default()).unwrap().unwrap())
         .collect();
-    let manual_doc = Document::multiple_resources(master_reses, Default::default());
+    let manual_doc = Document::multiple_resources(master_reses, Default::default(), None);
     assert_eq!(gen_doc, manual_doc);
 }
 
@@ -129,7 +129,7 @@ fn not_foreign_attributes_but_retain_included_fields() {
         .to_document_automatically("https://example.com/api", &Query {
             fields: fields_query.clone(),
             ..Default::default()
-        })
+        }, &uri.parse().unwrap())
         .unwrap();
 
     let master_reses: Vec<Resource> =
@@ -140,6 +140,6 @@ fn not_foreign_attributes_but_retain_included_fields() {
             manual_included.insert(d.to_resource(uri, &Default::default()).unwrap().unwrap());
         }
     }
-    let manual_doc = Document::multiple_resources(master_reses, manual_included);
+    let manual_doc = Document::multiple_resources(master_reses, manual_included, None);
     assert_eq!(gen_doc, manual_doc);
 }

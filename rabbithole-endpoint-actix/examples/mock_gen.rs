@@ -18,6 +18,7 @@ use rabbithole::operation::Fetching;
 
 use serde::{Deserialize, Serialize};
 
+use rabbithole::model::link::RawUri;
 use rabbithole_endpoint_actix::settings::ActixSettingsModel;
 use rabbithole_endpoint_actix::ActixSettings;
 use std::convert::TryInto;
@@ -75,9 +76,9 @@ impl Fetching for Dog {
     type Item = Dog;
 
     async fn vec_to_document(
-        items: &[Self::Item], uri: &str, query: &Query,
+        items: &[Self::Item], uri: &str, query: &Query, request_path: &RawUri,
     ) -> Result<Document, Self::Error> {
-        if let Ok(doc) = items.to_document_automatically(uri, query) {
+        if let Ok(doc) = items.to_document_automatically(uri, query, request_path) {
             Ok(doc)
         } else {
             Err(HttpResponse::build(StatusCode::BAD_REQUEST).body("error"))
@@ -111,7 +112,7 @@ impl Fetching for Dog {
     }
 
     async fn fetch_related(
-        _id: &String, _related_field: &str, _uri: &str, _query: &Query,
+        _id: &String, _related_field: &str, _uri: &str, _query: &Query, _request_path: &RawUri,
     ) -> Result<Document, Self::Error> {
         Err(HttpResponse::build(StatusCode::BAD_REQUEST).body("nothing related"))
     }
@@ -123,9 +124,9 @@ impl Fetching for Human {
     type Item = Human;
 
     async fn vec_to_document(
-        items: &[Self::Item], uri: &str, query: &Query,
+        items: &[Self::Item], uri: &str, query: &Query, request_path: &RawUri,
     ) -> Result<Document, Self::Error> {
-        if let Ok(doc) = items.to_document_automatically(uri, query) {
+        if let Ok(doc) = items.to_document_automatically(uri, query, request_path) {
             Ok(doc)
         } else {
             Err(HttpResponse::build(StatusCode::BAD_REQUEST).body("error"))
@@ -159,12 +160,12 @@ impl Fetching for Human {
     }
 
     async fn fetch_related(
-        _id: &Id, related_field: &str, uri: &str, query: &Query,
+        _id: &Id, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
     ) -> Result<Document, Self::Error> {
         if related_field == "dogs" {
             let rand = rand::random::<usize>() % 3;
             if let Some(master) = generate_masters(rand).last() {
-                if let Ok(doc) = master.dogs.to_document_automatically(uri, query) {
+                if let Ok(doc) = master.dogs.to_document_automatically(uri, query, request_path) {
                     Ok(doc)
                 } else {
                     Err(HttpResponse::build(StatusCode::BAD_REQUEST).body("doc parsing error"))
