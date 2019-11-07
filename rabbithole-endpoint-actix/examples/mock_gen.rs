@@ -1,12 +1,13 @@
 #![feature(core_intrinsics)]
 
-use rabbithole::model::document::Document;
 extern crate rabbithole_derive as rbh_derive;
 
 use actix_web::http::StatusCode;
+use actix_web::web;
 use actix_web::App;
 use actix_web::{HttpResponse, HttpServer};
 use async_trait::async_trait;
+use rabbithole::model::document::Document;
 
 use rabbithole::entity::{Entity, SingleEntity};
 use rabbithole::model::query::Query;
@@ -17,7 +18,8 @@ use rabbithole::operation::Fetching;
 
 use serde::{Deserialize, Serialize};
 
-use rabbithole_endpoint_actix::ActixSettings;
+use rabbithole_endpoint_actix::{ActixSettings, ActixSettingsModel};
+use std::convert::TryInto;
 use uuid::Uuid;
 
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
@@ -33,6 +35,7 @@ pub struct Human {
 
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
 #[entity(type = "dogs")]
+#[entity(backend(actix))]
 pub struct Dog {
     #[entity(id)]
     pub id: Uuid,
@@ -63,6 +66,54 @@ fn generate_masters(len: usize) -> Vec<Human> {
         masters.push(Human { id_code: uuid, name: uuid.to_string(), dogs });
     }
     masters
+}
+
+#[async_trait]
+impl Fetching for Dog {
+    type Error = HttpResponse;
+    type Item = Dog;
+
+    async fn vec_to_document(
+        items: &[Self::Item], uri: &str, query: &Query,
+    ) -> Result<Document, Self::Error> {
+        if let Ok(doc) = items.to_document_automatically(uri, query) {
+            Ok(doc)
+        } else {
+            Err(HttpResponse::build(StatusCode::BAD_REQUEST).body("error"))
+        }
+    }
+
+    async fn fetch_collection(_query: &Query) -> Result<Vec<Self::Item>, Self::Error> {
+        let rand = rand::random::<usize>() % 5;
+        let dogs = generate_dogs(rand);
+        Ok(dogs)
+    }
+
+    async fn fetch_single(id: &String, _query: &Query) -> Result<Option<Self::Item>, Self::Error> {
+        if id == "none" {
+            Ok(None)
+        } else {
+            let rand = rand::random::<usize>() % 3;
+            Ok(generate_dogs(rand).first().cloned())
+        }
+    }
+
+    async fn fetch_relationship(
+        _id: &String, related_field: &str, uri: &str, _query: &Query,
+    ) -> Result<Relationship, Self::Error> {
+        let rand = rand::random::<usize>() % 3;
+        if let Ok(relats) = generate_dogs(rand).last().cloned().unwrap().relationships(uri) {
+            Ok(relats.get(related_field).cloned().unwrap())
+        } else {
+            Err(HttpResponse::build(StatusCode::BAD_REQUEST).body("error"))
+        }
+    }
+
+    async fn fetch_related(
+        _id: &String, _related_field: &str, _uri: &str, _query: &Query,
+    ) -> Result<Document, Self::Error> {
+        Err(HttpResponse::build(StatusCode::BAD_REQUEST).body("nothing related"))
+    }
 }
 
 #[async_trait]
@@ -127,10 +178,21 @@ impl Fetching for Human {
 }
 
 fn main() -> std::io::Result<()> {
+    let mut settings = config::Config::default();
+    settings.merge(config::File::with_name("config/actix.config.toml")).unwrap();
+    let settings: ActixSettingsModel = settings.try_into().unwrap();
+
     HttpServer::new(move || {
-        let scope = Human::actix_app("http://example.com".parse::<url::Url>().unwrap(), "/api/v1");
-        App::new().data(ActixSettings::<Human>::new("http://example.com/api/v1")).service(scope)
+        App::new()
+            .data::<ActixSettings<Human>>(settings.clone().try_into().unwrap())
+            .data::<ActixSettings<Dog>>(settings.clone().try_into().unwrap())
+            .service(
+                web::scope(&settings.suffix)
+                    .service(Human::actix_service())
+                    .service(Dog::actix_service()),
+            )
+            .default_service(web::to(HttpResponse::NotFound))
     })
-    .bind("127.0.0.1:1234")?
+    .bind("[::]:1234")?
     .run()
 }

@@ -3,7 +3,6 @@ use crate::model::document::Document;
 use crate::model::query::Query;
 use crate::model::relationship::Relationship;
 
-
 use crate::model::Id;
 use async_trait::async_trait;
 

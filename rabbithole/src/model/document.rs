@@ -49,14 +49,9 @@ pub struct Document {
 
 impl Document {
     pub fn none() -> Self {
-        Self {
-            item: Default::default(),
-            links: None,
-            meta: None,
-            jsonapi: None
-        }
+        Self { item: Default::default(), links: None, meta: None, jsonapi: None }
     }
-    
+
     pub fn single_resource(resource: Resource, included: Included) -> Self {
         Self {
             item: DocumentItem::PrimaryData(Some((
