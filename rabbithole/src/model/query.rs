@@ -1,4 +1,4 @@
-use crate::error::RabbitholeError;
+use crate::model::error;
 
 use crate::RbhResult;
 
@@ -53,7 +53,10 @@ impl Query {
         let mut page_type: Option<String> = None;
 
         if let Some(query_str) = uri.query() {
-            let query_str = percent_decode_str(query_str).decode_utf8()?;
+            let query_str = percent_decode_str(query_str)
+                .decode_utf8()
+                .map_err(|_| error::Error::InvalidUtf8String(query_str))?;
+
             for (key, value) in query_str.split('&').filter_map(|s| {
                 let kv_pair: Vec<&str> = s.splitn(2, '=').collect();
                 if kv_pair.len() == 2 && !kv_pair[0].is_empty() && !kv_pair[1].is_empty() {
@@ -134,14 +137,18 @@ impl PageQuery {
     pub fn new(ty: &str, param: &HashMap<String, String>) -> RbhResult<Option<PageQuery>> {
         if ty == "OffsetBased" {
             if let (Some(offset), Some(limit)) = (param.get("offset"), param.get("limit")) {
-                let offset = u32::from_str(offset)?;
-                let limit = u32::from_str(limit)?;
+                let offset = u32::from_str(offset)
+                    .map_err(|_| error::Error::UnmatchedFilterItem(ty, "offset", offset))?;
+                let limit = u32::from_str(limit)
+                    .map_err(|_| error::Error::UnmatchedFilterItem(ty, "limit", limit))?;
                 return Ok(Some(PageQuery::OffsetBased { offset, limit }));
             }
         } else if ty == "PageBased" {
             if let (Some(number), Some(size)) = (param.get("number"), param.get("size")) {
-                let number = u32::from_str(number)?;
-                let size = u32::from_str(size)?;
+                let number = u32::from_str(number)
+                    .map_err(|_| error::Error::UnmatchedFilterItem(ty, "number", number))?;
+                let size = u32::from_str(size)
+                    .map_err(|_| error::Error::UnmatchedFilterItem(ty, "size", size))?;
                 return Ok(Some(PageQuery::PageBased { number, size }));
             }
         } else if ty == "CursorBased" {
@@ -149,7 +156,7 @@ impl PageQuery {
                 return Ok(Some(PageQuery::CursorBased(cursor.clone())));
             }
         } else {
-            return Err(RabbitholeError::InvalidPageType(ty.to_string()));
+            return Err(error::Error::InvalidPageType(ty));
         }
 
         Ok(None)
@@ -166,12 +173,13 @@ impl FilterQuery {
         if ty == "Rsql" {
             let mut res: HashMap<String, Expr> = Default::default();
             for (k, v) in params.into_iter() {
-                let expr = RsqlParser::parse_to_node(&v)?;
+                let expr = RsqlParser::parse_to_node(&v)
+                    .map_err(|_| error::Error::UnmatchedFilterItem(ty, &k, &v))?;
                 res.insert(k, expr);
             }
             Ok(if res.is_empty() { None } else { Some(FilterQuery::Rsql(res)) })
         } else {
-            Err(RabbitholeError::InvalidFilterType(ty.to_string()))
+            Err(error::Error::InvalidFilterType(ty))
         }
     }
 }
