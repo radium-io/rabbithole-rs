@@ -8,7 +8,7 @@ use rabbithole::entity::SingleEntity;
 
 use crate::settings::{ActixSettingsModel, JsonApiSettings};
 use actix_web::dev::HttpResponseBuilder;
-use log::*;
+
 use rabbithole::error::RabbitholeError;
 use rabbithole::model::query::Query;
 use rabbithole::model::version::JsonApiVersion;

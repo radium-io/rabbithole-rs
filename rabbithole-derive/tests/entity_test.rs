@@ -3,7 +3,7 @@ extern crate serde;
 
 use rabbithole::entity::Entity;
 use rabbithole::model::document::{Document, DocumentItem, PrimaryDataItem};
-use rabbithole::model::link::Link;
+use rabbithole::model::link::{Link, RawUri};
 use rabbithole::model::query::Query;
 use rabbithole::model::relationship::Relationship;
 use rabbithole::model::resource::*;
@@ -269,7 +269,10 @@ fn general_test() {
     let document = Document::single_resource(
         dog_res,
         HashSet::from_iter(vec![master_res, dog_flea_a_res, dog_flea_b_res]),
-        None,
+        Some(HashMap::from_iter(vec![Link::slf(
+            "https://example.com",
+            "/api".parse::<RawUri>().unwrap(),
+        )])),
     );
 
     let gen_doc: Document = dog

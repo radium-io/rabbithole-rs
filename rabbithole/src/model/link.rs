@@ -6,7 +6,7 @@ use http::Uri;
 use serde::export::Formatter;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
-use std::ops::Add;
+
 use std::str::FromStr;
 
 pub type Links = HashMap<String, Link>;
