@@ -65,7 +65,7 @@ pub trait SingleEntity: Entity {
         }))
     }
 
-    fn to_relationship_links(&self, field_name: &str, uri: &str) -> RbhResult<RelationshipLinks> {
+    fn to_relationship_links(&self, field_name: &str, uri: &str) -> RelationshipLinks {
         let slf = format!(
             "{uri}/{ty}/{id}/relationships/{field_name}",
             uri = uri,
@@ -73,7 +73,7 @@ pub trait SingleEntity: Entity {
             id = self.id(),
             field_name = field_name
         );
-        let slf = slf.parse::<Link>()?;
+        let slf = slf.parse::<Link>().unwrap();
         let related = format!(
             "{uri}/{ty}/{id}/{field_name}",
             uri = uri,
@@ -81,10 +81,9 @@ pub trait SingleEntity: Entity {
             id = self.id(),
             field_name = field_name
         );
-        let related = related.parse::<Link>()?;
-        let links: RelationshipLinks =
-            HashMap::from_iter(vec![("self".into(), slf), ("related".into(), related)]).into();
-        Ok(links)
+        let related = related.parse::<Link>().unwrap();
+
+        HashMap::from_iter(vec![("self".into(), slf), ("related".into(), related)]).into()
     }
 }
 
@@ -129,7 +128,7 @@ impl<T: SingleEntity> SingleEntity for Option<T> {
         if let Some(item) = self {
             SingleEntity::to_document_automatically(item, uri, query, request_path)
         } else {
-            Ok(Document::none())
+            Ok(Document::default())
         }
     }
 

@@ -1,4 +1,4 @@
-use crate::model::link::{Link, Links};
+use crate::model::link::{Link, Links, RawUri};
 use crate::model::resource::IdentifierData;
 use crate::model::Meta;
 use std::collections::HashMap;
@@ -20,6 +20,16 @@ pub struct Relationship {
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     #[serde(default)]
     pub meta: Meta,
+}
+
+impl Relationship {
+    pub fn null(links: &Links) -> Relationship {
+        Self {
+            data: IdentifierData::Single(None),
+            links: links.clone().into(),
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]

@@ -4,12 +4,13 @@
 
 ### Added
 
-- `rabbithole::model::query::Query` for 
+- `rabbithole::model::query::Query` model for 
   - [Inclusion of Related Resources](https://jsonapi.org/format/#fetching-includes)
   - [Sparse Fields Set](https://jsonapi.org/format/#fetching-sparse-fieldsets)
   - [Pagination](https://jsonapi.org/format/#fetching-pagination)
   - [Filtering](https://jsonapi.org/format/#fetching-filtering)
 - `My final goal to this project` in `README.md`
+- Basic actix_web support (see `examples/mock_gen.rs` for more details)
   
 ### Changed
 

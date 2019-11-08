@@ -48,7 +48,7 @@ pub struct Document {
 }
 
 impl Document {
-    pub fn none() -> Self { Default::default() }
+    pub fn null(links: Option<Links>) -> Self { Self { links, ..Default::default() } }
 
     pub fn single_resource(resource: Resource, included: Included, links: Option<Links>) -> Self {
         Self {

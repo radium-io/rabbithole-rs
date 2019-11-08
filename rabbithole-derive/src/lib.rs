@@ -92,7 +92,7 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 #(
                     if let Some(relat_id) = self.#to_ones.to_resource_identifier() {
                         let data = rabbithole::model::resource::IdentifierData::Single(Some(relat_id));
-                        let relat = rabbithole::model::relationship::Relationship { data, links: self.to_relationship_links(stringify!(#to_ones), uri)?, ..std::default::Default::default() };
+                        let relat = rabbithole::model::relationship::Relationship { data, links: self.to_relationship_links(stringify!(#to_ones), uri), ..std::default::Default::default() };
                         relat_map.insert(stringify!(#to_ones).to_string(), relat);
                     }
                 )*
@@ -105,7 +105,7 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                         }
                     }
                     let data = rabbithole::model::resource::IdentifierData::Multiple(relat_ids);
-                    let relat = rabbithole::model::relationship::Relationship { data, links: self.to_relationship_links(stringify!(#to_manys), uri)?, meta: std::default::Default::default() };
+                    let relat = rabbithole::model::relationship::Relationship { data, links: self.to_relationship_links(stringify!(#to_manys), uri), ..std::default::Default::default() };
                     relat_map.insert(stringify!(#to_manys).to_string(), relat);
                 )*
 

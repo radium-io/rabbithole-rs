@@ -22,7 +22,7 @@ pub trait Fetching {
     async fn fetch_single(id: &Id, query: &Query) -> Result<Option<Self::Item>, Self::Error>;
     /// Mapping to `/<ty>/<id>/relationships/<related_field>?<query>`
     async fn fetch_relationship(
-        id: &Id, related_field: &str, uri: &str, query: &Query,
+        id: &Id, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
     ) -> Result<Relationship, Self::Error>;
     /// Mapping to `/<ty>/<id>/<related_field>?<query>`
     async fn fetch_related(

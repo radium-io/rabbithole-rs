@@ -18,10 +18,12 @@ use rabbithole::operation::Fetching;
 
 use serde::{Deserialize, Serialize};
 
-use rabbithole::model::link::RawUri;
+use rabbithole::model::link::{Link, RawUri};
 use rabbithole_endpoint_actix::settings::ActixSettingsModel;
 use rabbithole_endpoint_actix::ActixSettings;
+use std::collections::HashMap;
 use std::convert::TryInto;
+use std::iter::FromIterator;
 use uuid::Uuid;
 
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
@@ -101,20 +103,21 @@ impl Fetching for Dog {
     }
 
     async fn fetch_relationship(
-        _id: &Id, related_field: &str, uri: &str, _query: &Query,
+        _id: &Id, related_field: &str, uri: &str, _query: &Query, request_path: &RawUri,
     ) -> Result<Relationship, Self::Error> {
-        let rand = rand::random::<usize>() % 3;
-        if let Ok(relats) = generate_dogs(rand).last().cloned().unwrap().relationships(uri) {
-            Ok(relats.get(related_field).cloned().unwrap())
-        } else {
-            Err(HttpResponse::build(StatusCode::BAD_REQUEST).body("error"))
-        }
+        Err(HttpResponse::Ok().json(Document::null(Some(HashMap::from_iter(vec![Link::slf(
+            uri,
+            request_path.clone(),
+        )])))))
     }
 
     async fn fetch_related(
-        _id: &String, _related_field: &str, _uri: &str, _query: &Query, _request_path: &RawUri,
+        _id: &String, _related_field: &str, uri: &str, _query: &Query, request_path: &RawUri,
     ) -> Result<Document, Self::Error> {
-        Err(HttpResponse::build(StatusCode::BAD_REQUEST).body("nothing related"))
+        Err(HttpResponse::Ok().json(Document::null(Some(HashMap::from_iter(vec![Link::slf(
+            uri,
+            request_path.clone(),
+        )])))))
     }
 }
 
@@ -149,13 +152,14 @@ impl Fetching for Human {
     }
 
     async fn fetch_relationship(
-        _id: &Id, related_field: &str, uri: &str, _query: &Query,
+        _id: &Id, related_field: &str, uri: &str, _query: &Query, request_path: &RawUri,
     ) -> Result<Relationship, Self::Error> {
-        let rand = rand::random::<usize>() % 3;
-        if let Ok(relats) = generate_masters(rand).last().cloned().unwrap().relationships(uri) {
+        if related_field == "dogs" {
+            let rand = rand::random::<usize>() % 3;
+            let relats = generate_masters(rand).last().cloned().unwrap().relationships(uri);
             Ok(relats.get(related_field).cloned().unwrap())
         } else {
-            Err(HttpResponse::build(StatusCode::BAD_REQUEST).body("error"))
+            Err(HttpResponse::NotFound().finish())
         }
     }
 
@@ -164,17 +168,14 @@ impl Fetching for Human {
     ) -> Result<Document, Self::Error> {
         if related_field == "dogs" {
             let rand = rand::random::<usize>() % 3;
-            if let Some(master) = generate_masters(rand).last() {
-                if let Ok(doc) = master.dogs.to_document_automatically(uri, query, request_path) {
-                    Ok(doc)
-                } else {
-                    Err(HttpResponse::build(StatusCode::BAD_REQUEST).body("doc parsing error"))
-                }
+            let master = generate_masters(rand).last().unwrap();
+            if let Ok(doc) = master.dogs.to_document_automatically(uri, query, request_path) {
+                Ok(doc)
             } else {
-                unreachable!()
+                Err(HttpResponse::InternalServerError().body("doc parsing error"))
             }
         } else {
-            Err(HttpResponse::build(StatusCode::BAD_REQUEST).body("unhandled related fields"))
+            Err(HttpResponse::NotFound().finish())
         }
     }
 }
