@@ -1,4 +1,4 @@
-use crate::error::RabbitholeError;
+use crate::model::error;
 use regex::Regex;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
@@ -18,7 +18,7 @@ impl ToString for JsonApiVersion {
 }
 
 impl FromStr for JsonApiVersion {
-    type Err = RabbitholeError;
+    type Err = error::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Some(caps) = VERSION_REGEX.captures(s) {
@@ -30,7 +30,7 @@ impl FromStr for JsonApiVersion {
                 }
             }
         }
-        Err(RabbitholeError::InvalidJsonApiVersion(s.into()))
+        Err(error::Error::InvalidJsonApiVersion(s.into()))
     }
 }
 

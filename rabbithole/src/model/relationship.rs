@@ -17,7 +17,7 @@ pub struct Relationship {
     #[serde(skip_serializing_if = "RelationshipLinks::is_not_valid")]
     #[serde(default)]
     pub links: RelationshipLinks,
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    #[serde(skip_serializing_if = "Meta::is_empty")]
     #[serde(default)]
     pub meta: Meta,
 }
@@ -40,7 +40,7 @@ pub struct RelationshipLinks {
     #[serde(skip_serializing_if = "Option::is_none")]
     related: Option<Link>,
     #[serde(flatten)]
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    #[serde(skip_serializing_if = "Links::is_empty")]
     links: Links,
 }
 

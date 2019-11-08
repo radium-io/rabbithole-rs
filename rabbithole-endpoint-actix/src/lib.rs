@@ -9,14 +9,14 @@ use rabbithole::entity::SingleEntity;
 use crate::settings::{ActixSettingsModel, JsonApiSettings};
 use actix_web::dev::HttpResponseBuilder;
 
-use rabbithole::error::RabbitholeError;
+use rabbithole::model::error;
 use rabbithole::model::query::Query;
 use rabbithole::model::version::JsonApiVersion;
 use rabbithole::operation::Fetching;
 use rabbithole::rule::RuleDispatcher;
 use rabbithole::JSON_API_HEADER;
 use serde::export::TryFrom;
-use serde_json::Value;
+
 use std::marker::PhantomData;
 
 #[derive(Debug, Clone)]
@@ -173,19 +173,20 @@ where
     }
 }
 
-fn query_parsing_error_resp(err: RabbitholeError) -> HttpResponse {
-    new_json_api_resp(StatusCode::BAD_REQUEST).json(Value::String(err.to_string()))
+fn query_parsing_error_resp(err: error::Error) -> HttpResponse {
+    new_json_api_resp(
+        err.status.as_deref().and_then(|s| s.parse().ok()).unwrap_or(StatusCode::BAD_REQUEST),
+    )
+    .json(err)
 }
 
 fn check_header(api_version: &JsonApiVersion, headers: &HeaderMap) -> Result<(), HttpResponse> {
     let content_type = headers.get(header::CONTENT_TYPE).map(|r| r.to_str().unwrap().to_string());
     let accept = headers.get(header::ACCEPT).map(|r| r.to_str().unwrap().to_string());
-    if let Err(err) = RuleDispatcher::ContentTypeMustBeJsonApi(api_version, &content_type) {
-        return Err(new_json_api_resp(StatusCode::from_u16(err).unwrap()).finish());
-    }
-    if let Err(err) = RuleDispatcher::AcceptHeaderShouldBeJsonApi(api_version, &accept) {
-        return Err(new_json_api_resp(StatusCode::from_u16(err).unwrap()).finish());
-    }
+    RuleDispatcher::ContentTypeMustBeJsonApi(api_version, &content_type)
+        .map_err(query_parsing_error_resp)?;
+    RuleDispatcher::AcceptHeaderShouldBeJsonApi(api_version, &accept)
+        .map_err(query_parsing_error_resp)?;
 
     Ok(())
 }

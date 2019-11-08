@@ -156,7 +156,8 @@ impl Fetching for Human {
     ) -> Result<Relationship, Self::Error> {
         if related_field == "dogs" {
             let rand = rand::random::<usize>() % 3;
-            let relats = generate_masters(rand).last().cloned().unwrap().relationships(uri);
+            let relats =
+                generate_masters(rand).last().cloned().unwrap().relationships(uri).unwrap();
             Ok(relats.get(related_field).cloned().unwrap())
         } else {
             Err(HttpResponse::NotFound().finish())

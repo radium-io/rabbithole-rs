@@ -1,3 +1,4 @@
+use crate::model::error;
 use crate::rule::Rule;
 use crate::JSON_API_HEADER;
 use std::collections::HashMap;
@@ -22,22 +23,40 @@ fn has_only_profile_param(params: &HashMap<String, String>) -> bool {
 
 pub(crate) struct ContentTypeMustBeJsonApi;
 impl Rule<Option<String>> for ContentTypeMustBeJsonApi {
-    fn check(content_type: &Option<String>) -> Result<(), u16> { check_header(content_type, 415) }
+    fn check(content_type: &Option<String>) -> Result<(), error::Error> {
+        if is_valid(&content_type) {
+            Ok(())
+        } else {
+            Err(error::Error::InvalidContentType(
+                &format!("`{}` with optional `profile` parameter", JSON_API_HEADER),
+                content_type.as_deref().unwrap_or("nothing"),
+            ))
+        }
+    }
 }
 
 pub(crate) struct AcceptHeaderShouldBeJsonApi;
 impl Rule<Option<String>> for AcceptHeaderShouldBeJsonApi {
-    fn check(accept_header: &Option<String>) -> Result<(), u16> { check_header(accept_header, 406) }
+    fn check(accept_header: &Option<String>) -> Result<(), error::Error> {
+        if is_valid(&accept_header) {
+            Ok(())
+        } else {
+            Err(error::Error::InvalidAccept(
+                &format!("`{}` with optional `profile` parameter", JSON_API_HEADER),
+                accept_header.as_deref().unwrap_or("nothing"),
+            ))
+        }
+    }
 }
 
-fn check_header(item: &Option<String>, error_code: u16) -> Result<(), u16> {
+fn is_valid(item: &Option<String>) -> bool {
     if let Some(item) = item {
         let params = extract_params_of_media_type(item);
         if item.starts_with(JSON_API_HEADER)
             && (has_no_param(&params) || has_only_profile_param(&params))
         {
-            return Ok(());
+            return true;
         }
     }
-    Err(error_code)
+    false
 }
