@@ -1,5 +1,5 @@
 use crate::model::document::{Document, Included};
-use crate::model::link::{Link, Links};
+use crate::model::link::{Link, Links, RawUri};
 use crate::model::query::{FieldsQuery, IncludeQuery, Query};
 use crate::model::relationship::{RelationshipLinks, Relationships};
 use crate::model::resource::{Attributes, Resource, ResourceIdentifier};
@@ -31,10 +31,13 @@ pub trait SingleEntity: Entity {
         Ok(HashMap::from_iter(vec![("self".into(), slf)]))
     }
 
-    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhResult<Document> {
+    fn to_document_automatically(
+        &self, uri: &str, query: &Query, request_path: &RawUri,
+    ) -> RbhResult<Document> {
         Ok(Document::single_resource(
             self.to_resource(uri, &query.fields)?.unwrap(),
             self.included(uri, &query.include, &query.fields)?,
+            Some(HashMap::from_iter(vec![Link::slf(uri, request_path.clone())])),
         ))
     }
 
@@ -62,7 +65,7 @@ pub trait SingleEntity: Entity {
         }))
     }
 
-    fn to_relationship_links(&self, field_name: &str, uri: &str) -> RbhResult<RelationshipLinks> {
+    fn to_relationship_links(&self, field_name: &str, uri: &str) -> RelationshipLinks {
         let slf = format!(
             "{uri}/{ty}/{id}/relationships/{field_name}",
             uri = uri,
@@ -70,7 +73,7 @@ pub trait SingleEntity: Entity {
             id = self.id(),
             field_name = field_name
         );
-        let slf = slf.parse::<Link>()?;
+        let slf = slf.parse::<Link>().unwrap();
         let related = format!(
             "{uri}/{ty}/{id}/{field_name}",
             uri = uri,
@@ -78,10 +81,9 @@ pub trait SingleEntity: Entity {
             id = self.id(),
             field_name = field_name
         );
-        let related = related.parse::<Link>()?;
-        let links: RelationshipLinks =
-            HashMap::from_iter(vec![("self".into(), slf), ("related".into(), related)]).into();
-        Ok(links)
+        let related = related.parse::<Link>().unwrap();
+
+        HashMap::from_iter(vec![("self".into(), slf), ("related".into(), related)]).into()
     }
 }
 
@@ -104,7 +106,9 @@ pub trait Entity: Serialize {
     /// Returns a `Document` based on `query`. This function will do all of the actions databases should do in memory,
     /// using a trivial iter way. But I still recommend you guys implement `to_document` or `to_document_async` yourself
     /// for better performance
-    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhResult<Document>;
+    fn to_document_automatically(
+        &self, uri: &str, query: &Query, request_path: &RawUri,
+    ) -> RbhResult<Document>;
 }
 
 impl<T: SingleEntity> SingleEntity for Option<T> {
@@ -116,6 +120,16 @@ impl<T: SingleEntity> SingleEntity for Option<T> {
 
     fn relationships(&self, uri: &str) -> RbhResult<Relationships> {
         self.as_ref().map(|op| op.relationships(uri)).unwrap()
+    }
+
+    fn to_document_automatically(
+        &self, uri: &str, query: &Query, request_path: &RawUri,
+    ) -> RbhResult<Document> {
+        if let Some(item) = self {
+            SingleEntity::to_document_automatically(item, uri, query, request_path)
+        } else {
+            Ok(Document::default())
+        }
     }
 
     fn to_resource_identifier(&self) -> Option<ResourceIdentifier> { None }
@@ -134,8 +148,10 @@ impl<T: Entity> Entity for Option<T> {
         }
     }
 
-    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhResult<Document> {
-        self.as_ref().map(|op| op.to_document_automatically(uri, query)).unwrap()
+    fn to_document_automatically(
+        &self, uri: &str, query: &Query, request_path: &RawUri,
+    ) -> RbhResult<Document> {
+        self.as_ref().map(|op| op.to_document_automatically(uri, query, request_path)).unwrap()
     }
 }
 
@@ -158,8 +174,10 @@ impl<T: Entity> Entity for Box<T> {
         self.as_ref().included(uri, include_query, fields_query)
     }
 
-    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhResult<Document> {
-        self.as_ref().to_document_automatically(uri, query)
+    fn to_document_automatically(
+        &self, uri: &str, query: &Query, request_path: &RawUri,
+    ) -> RbhResult<Document> {
+        self.as_ref().to_document_automatically(uri, query, request_path)
     }
 }
 
@@ -180,8 +198,10 @@ impl<T: Entity> Entity for &T {
         (*self).included(uri, include_query, fields_query)
     }
 
-    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhResult<Document> {
-        (*self).to_document_automatically(uri, query)
+    fn to_document_automatically(
+        &self, uri: &str, query: &Query, request_path: &RawUri,
+    ) -> RbhResult<Document> {
+        (*self).to_document_automatically(uri, query, request_path)
     }
 }
 
@@ -200,18 +220,24 @@ impl<T: SingleEntity> Entity for [T] {
     }
 
     #[cfg(feature = "unstable-vec-to-document")]
-    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhResult<Document> {
+    fn to_document_automatically(
+        &self, uri: &str, query: &Query, request_path: &RawUri,
+    ) -> RbhResult<Document> {
         let mut reses = vec![];
         for e in self {
             if let Some(res) = e.to_resource(uri, &query.fields)? {
                 reses.push(res);
             }
         }
-        Ok(Document::multiple_resources(reses, self.included(uri, &query.include, &query.fields)?))
+        Ok(Document::multiple_resources(
+            reses,
+            self.included(uri, &query.include, &query.fields)?,
+            Some(HashMap::from_iter(vec![Link::slf(uri, request_path.clone().into())])),
+        ))
     }
 
     #[cfg(not(feature = "unstable-vec-to-document"))]
-    fn to_document_automatically(&self, _: &str, _: &Query) -> RbhResult<Document> {
+    fn to_document_automatically(&self, _: &str, _: &Query, _: &RawUri) -> RbhResult<Document> {
         unimplemented!()
     }
 }
@@ -224,12 +250,14 @@ impl<T: SingleEntity> Entity for Vec<T> {
     }
 
     #[cfg(feature = "unstable-vec-to-document")]
-    fn to_document_automatically(&self, uri: &str, query: &Query) -> RbhResult<Document> {
-        self.as_slice().to_document_automatically(uri, &query)
+    fn to_document_automatically(
+        &self, uri: &str, query: &Query, request_path: &RawUri,
+    ) -> RbhResult<Document> {
+        self.as_slice().to_document_automatically(uri, &query, request_path)
     }
 
     #[cfg(not(feature = "unstable-vec-to-document"))]
-    fn to_document_automatically(&self, _: &str, _: &Query) -> RbhResult<Document> {
+    fn to_document_automatically(&self, _: &str, _: &Query, _: &RawUri) -> RbhResult<Document> {
         unimplemented!()
     }
 }

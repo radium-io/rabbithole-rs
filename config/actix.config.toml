@@ -1,0 +1,5 @@
+domain = "http://localhost:1234"
+suffix = "/api/v1"
+
+[jsonapi]
+version = "1.0"

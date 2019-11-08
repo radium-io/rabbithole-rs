@@ -48,19 +48,25 @@ pub struct Document {
 }
 
 impl Document {
-    pub fn single_resource(resource: Resource, included: Included) -> Self {
+    pub fn null(links: Option<Links>) -> Self { Self { links, ..Default::default() } }
+
+    pub fn single_resource(resource: Resource, included: Included, links: Option<Links>) -> Self {
         Self {
             item: DocumentItem::PrimaryData(Some((
                 PrimaryDataItem::Single(Box::new(resource)),
                 included,
             ))),
+            links,
             ..Default::default()
         }
     }
 
-    pub fn multiple_resources(resources: Vec<Resource>, included: Included) -> Self {
+    pub fn multiple_resources(
+        resources: Vec<Resource>, included: Included, links: Option<Links>,
+    ) -> Self {
         Self {
             item: DocumentItem::PrimaryData(Some((PrimaryDataItem::Multiple(resources), included))),
+            links,
             ..Default::default()
         }
     }
@@ -112,7 +118,6 @@ impl<'de> Visitor<'de> for DocumentVisitor {
     where
         E: serde::de::Error,
     {
-        println!("visit_str: {}", v);
         Ok(serde_json::from_str::<Document>(v).unwrap())
     }
 

@@ -11,6 +11,8 @@ pub enum RabbitholeError {
     InvalidPageType(String),
     #[error("Invalid filter type: {0}, the valid types: `Rsql`")]
     InvalidFilterType(String),
+    #[error("The Version format of JSON:API is <x>.<y>, but {0} found")]
+    InvalidJsonApiVersion(String),
     #[error("Unhandled")]
     Unhandled(#[source] Box<dyn std::error::Error>),
 }
