@@ -3,8 +3,9 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct ActixSettingsModel {
-    pub domain: String,
-    pub suffix: String,
+    pub host: String,
+    pub port: u32,
+    pub path: String,
     pub jsonapi: JsonApiSettings,
 }
 

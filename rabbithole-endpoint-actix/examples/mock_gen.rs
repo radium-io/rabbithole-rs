@@ -156,8 +156,7 @@ impl Fetching for Human {
     ) -> Result<Relationship, Self::Error> {
         if related_field == "dogs" {
             let rand = rand::random::<usize>() % 3;
-            let relats =
-                generate_masters(rand).last().cloned().unwrap().relationships(uri).unwrap();
+            let relats = generate_masters(rand).last().cloned().unwrap().relationships(uri);
             Ok(relats.get(related_field).cloned().unwrap())
         } else {
             Err(HttpResponse::NotFound().finish())
@@ -189,6 +188,7 @@ fn main() -> std::io::Result<()> {
     let mut settings = config::Config::default();
     settings.merge(config::File::with_name("config/actix.config.toml")).unwrap();
     let settings: ActixSettingsModel = settings.try_into().unwrap();
+    let settings_port = settings.port;
 
     HttpServer::new(move || {
         App::new()
@@ -196,12 +196,12 @@ fn main() -> std::io::Result<()> {
             .data::<ActixSettings<Dog>>(settings.clone().try_into().unwrap())
             .wrap(middleware::Logger::new(r#"%a "%r" %s %b "%{Referer}i" "%{Content-Type}i" %T"#))
             .service(
-                web::scope(&settings.suffix)
+                web::scope(&settings.path)
                     .service(Human::actix_service())
                     .service(Dog::actix_service()),
             )
             .default_service(web::to(HttpResponse::NotFound))
     })
-    .bind("[::]:1234")?
+    .bind(format!("[::]:{}", settings_port))?
     .run()
 }

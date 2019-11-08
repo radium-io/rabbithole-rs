@@ -24,8 +24,7 @@ pub struct ActixSettings<T>
 where
     T: 'static + Fetching<Error = HttpResponse>,
 {
-    pub domain: url::Url,
-    pub suffix: String,
+    pub path: String,
     pub uri: url::Url,
     pub jsonapi: JsonApiSettings,
     _data: PhantomData<T>,
@@ -38,10 +37,10 @@ where
     type Error = url::ParseError;
 
     fn try_from(value: ActixSettingsModel) -> Result<Self, Self::Error> {
-        let ActixSettingsModel { domain, suffix, jsonapi } = value;
-        let domain = domain.parse::<url::Url>()?;
-        let uri = domain.join(&suffix)?;
-        Ok(Self { domain, suffix, uri, jsonapi, _data: PhantomData })
+        let ActixSettingsModel { host, port, path, jsonapi } = value;
+        let uri = format!("http://{}:{}", host, port).parse::<url::Url>().unwrap();
+        let uri = uri.join(&path).unwrap();
+        Ok(Self { path, uri, jsonapi, _data: PhantomData })
     }
 }
 

@@ -1,5 +1,6 @@
-domain = "http://localhost:1234"
-suffix = "/api/v1"
+host = "localhost"
+port = 1234
+path = "/api/v1"
 
 [jsonapi]
 version = "1.1"
