@@ -103,7 +103,7 @@ impl Fetching for Dog {
     }
 
     async fn fetch_relationship(
-        _id: &Id, related_field: &str, uri: &str, _query: &Query, request_path: &RawUri,
+        _id: &Id, _related_field: &str, uri: &str, _query: &Query, request_path: &RawUri,
     ) -> Result<Relationship, Self::Error> {
         Err(HttpResponse::Ok().json(Document::null(Some(HashMap::from_iter(vec![Link::slf(
             uri,
@@ -152,7 +152,7 @@ impl Fetching for Human {
     }
 
     async fn fetch_relationship(
-        _id: &Id, related_field: &str, uri: &str, _query: &Query, request_path: &RawUri,
+        _id: &Id, related_field: &str, uri: &str, _query: &Query, _request_path: &RawUri,
     ) -> Result<Relationship, Self::Error> {
         if related_field == "dogs" {
             let rand = rand::random::<usize>() % 3;
@@ -168,7 +168,8 @@ impl Fetching for Human {
     ) -> Result<Document, Self::Error> {
         if related_field == "dogs" {
             let rand = rand::random::<usize>() % 3;
-            let master = generate_masters(rand).last().unwrap();
+            let master = generate_masters(rand);
+            let master = master.last().unwrap();
             if let Ok(doc) = master.dogs.to_document_automatically(uri, query, request_path) {
                 Ok(doc)
             } else {

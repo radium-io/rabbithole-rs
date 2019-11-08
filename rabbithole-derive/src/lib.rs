@@ -87,7 +87,7 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 #(  if let Ok(json_value) = serde_json::to_value(self.#attrs.clone()) { attr_map.insert(stringify!(#attrs).to_string(), json_value); } )*
                 attr_map.into()
             }
-            fn relationships(&self, uri: &str) -> rabbithole::RbhResult<rabbithole::model::relationship::Relationships> {
+            fn relationships(&self, uri: &str) -> rabbithole::model::relationship::Relationships {
                 let mut relat_map: rabbithole::model::relationship::Relationships = std::default::Default::default();
                 #(
                     if let Some(relat_id) = self.#to_ones.to_resource_identifier() {
@@ -109,7 +109,7 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                     relat_map.insert(stringify!(#to_manys).to_string(), relat);
                 )*
 
-                Ok(relat_map)
+                relat_map
             }
         }
 

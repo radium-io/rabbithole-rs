@@ -1,4 +1,4 @@
-use crate::model::link::{Link, Links, RawUri};
+use crate::model::link::{Link, Links};
 use crate::model::resource::IdentifierData;
 use crate::model::Meta;
 use std::collections::HashMap;

@@ -17,7 +17,7 @@ pub trait SingleEntity: Entity {
     #[doc(hidden)]
     fn attributes(&self) -> Attributes;
     #[doc(hidden)]
-    fn relationships(&self, uri: &str) -> RbhResult<Relationships>;
+    fn relationships(&self, uri: &str) -> Relationships;
 
     #[doc(hidden)]
     fn links(&self, uri: &str) -> RbhResult<Links> {
@@ -47,7 +47,7 @@ pub trait SingleEntity: Entity {
 
     fn to_resource(&self, uri: &str, fields_query: &FieldsQuery) -> RbhOptionRes<Resource> {
         let mut attributes = self.attributes();
-        let mut relationships = self.relationships(uri)?;
+        let mut relationships = self.relationships(uri);
         for (k, vs) in fields_query.iter() {
             if &<Self as SingleEntity>::ty() == k {
                 attributes = attributes.retain(vs);
@@ -118,7 +118,7 @@ impl<T: SingleEntity> SingleEntity for Option<T> {
 
     fn attributes(&self) -> Attributes { self.as_ref().map(SingleEntity::attributes).unwrap() }
 
-    fn relationships(&self, uri: &str) -> RbhResult<Relationships> {
+    fn relationships(&self, uri: &str) -> Relationships {
         self.as_ref().map(|op| op.relationships(uri)).unwrap()
     }
 
@@ -162,9 +162,7 @@ impl<T: SingleEntity> SingleEntity for Box<T> {
 
     fn attributes(&self) -> Attributes { self.as_ref().attributes() }
 
-    fn relationships(&self, uri: &str) -> RbhResult<Relationships> {
-        self.as_ref().relationships(uri)
-    }
+    fn relationships(&self, uri: &str) -> Relationships { self.as_ref().relationships(uri) }
 }
 
 impl<T: Entity> Entity for Box<T> {
@@ -188,7 +186,7 @@ impl<T: SingleEntity> SingleEntity for &T {
 
     fn attributes(&self) -> Attributes { (*self).attributes() }
 
-    fn relationships(&self, uri: &str) -> RbhResult<Relationships> { (*self).relationships(uri) }
+    fn relationships(&self, uri: &str) -> Relationships { (*self).relationships(uri) }
 }
 
 impl<T: Entity> Entity for &T {

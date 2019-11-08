@@ -122,8 +122,14 @@ where
             Ok(query) => {
                 let (id, related_field) = param.into_inner();
                 let fut = async move {
-                    match T::fetch_relationship(&id, &related_field, &self.uri.to_string(), &query)
-                        .await
+                    match T::fetch_relationship(
+                        &id,
+                        &related_field,
+                        &self.uri.to_string(),
+                        &query,
+                        &req.uri().into(),
+                    )
+                    .await
                     {
                         Ok(item) => Ok(new_json_api_resp(StatusCode::OK).json(item)),
                         Err(err) => Ok(err),
