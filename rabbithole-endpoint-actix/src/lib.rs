@@ -179,6 +179,7 @@ fn query_parsing_error_resp(err: error::Error) -> HttpResponse {
     .json(err)
 }
 
+// TODO: If this check should be put into the main logic rather than web-framework specific?
 fn check_header(api_version: &JsonApiVersion, headers: &HeaderMap) -> Result<(), HttpResponse> {
     let content_type = headers.get(header::CONTENT_TYPE).map(|r| r.to_str().unwrap().to_string());
     let accept = headers.get(header::ACCEPT).map(|r| r.to_str().unwrap().to_string());

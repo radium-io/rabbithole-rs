@@ -1,5 +1,5 @@
 use crate::model::link::{Link, Links, RawUri};
-use crate::model::{Id, Meta};
+use crate::model::Meta;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -38,7 +38,7 @@ pub struct ErrorSource {
 pub struct Error {
     /// a unique identifier for this particular occurrence of the problem
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<Id>,
+    pub id: Option<String>,
     #[serde(skip_serializing_if = "ErrorLinks::is_empty")]
     pub links: ErrorLinks,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -145,15 +145,19 @@ rabbithole_errors! {
     title: "Invalid JSON API Version",
     detail: "A invalid JSON:API version: {invalid_version}",
     param: [invalid_version: String];
+}
 
+rabbithole_errors! {
     ty: InvalidContentType,
+    status: http::StatusCode::UNSUPPORTED_MEDIA_TYPE,
     code: "RBH-0301",
     title: "Invalid Content-Type Header",
     detail: "The `Content-Type` header of Request must be {header_hint}, but {invalid_header} found",
     param: [header_hint: &str, invalid_header: &str];
 
     ty: InvalidAccept,
-    code: "RBH-0301",
+    status: http::StatusCode::NOT_ACCEPTABLE,
+    code: "RBH-0302",
     title: "Invalid Accept Header",
     detail: "The `Accept` header of Request must be {header_hint}, but {invalid_header} found",
     param: [header_hint: &str, invalid_header: &str];

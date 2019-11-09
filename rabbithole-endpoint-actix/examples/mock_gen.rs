@@ -1,5 +1,3 @@
-#![feature(core_intrinsics)]
-
 extern crate rabbithole_derive as rbh_derive;
 
 use actix_web::http::StatusCode;
@@ -13,7 +11,6 @@ use rabbithole::entity::{Entity, SingleEntity};
 use rabbithole::model::query::Query;
 use rabbithole::model::relationship::Relationship;
 
-use rabbithole::model::Id;
 use rabbithole::operation::Fetching;
 
 use serde::{Deserialize, Serialize};
@@ -93,7 +90,7 @@ impl Fetching for Dog {
         Ok(dogs)
     }
 
-    async fn fetch_single(id: &String, _query: &Query) -> Result<Option<Self::Item>, Self::Error> {
+    async fn fetch_single(id: &str, _query: &Query) -> Result<Option<Self::Item>, Self::Error> {
         if id == "none" {
             Ok(None)
         } else {
@@ -103,7 +100,7 @@ impl Fetching for Dog {
     }
 
     async fn fetch_relationship(
-        _id: &Id, _related_field: &str, uri: &str, _query: &Query, request_path: &RawUri,
+        _id: &str, _related_field: &str, uri: &str, _query: &Query, request_path: &RawUri,
     ) -> Result<Relationship, Self::Error> {
         Err(HttpResponse::Ok().json(Document::null(Some(HashMap::from_iter(vec![Link::slf(
             uri,
@@ -112,7 +109,7 @@ impl Fetching for Dog {
     }
 
     async fn fetch_related(
-        _id: &String, _related_field: &str, uri: &str, _query: &Query, request_path: &RawUri,
+        _id: &str, _related_field: &str, uri: &str, _query: &Query, request_path: &RawUri,
     ) -> Result<Document, Self::Error> {
         Err(HttpResponse::Ok().json(Document::null(Some(HashMap::from_iter(vec![Link::slf(
             uri,
@@ -142,7 +139,7 @@ impl Fetching for Human {
         Ok(masters)
     }
 
-    async fn fetch_single(id: &Id, _query: &Query) -> Result<Option<Self::Item>, Self::Error> {
+    async fn fetch_single(id: &str, _query: &Query) -> Result<Option<Self::Item>, Self::Error> {
         if id == "none" {
             Ok(None)
         } else {
@@ -152,7 +149,7 @@ impl Fetching for Human {
     }
 
     async fn fetch_relationship(
-        _id: &Id, related_field: &str, uri: &str, _query: &Query, _request_path: &RawUri,
+        _id: &str, related_field: &str, uri: &str, _query: &Query, _request_path: &RawUri,
     ) -> Result<Relationship, Self::Error> {
         if related_field == "dogs" {
             let rand = rand::random::<usize>() % 3;
@@ -164,7 +161,7 @@ impl Fetching for Human {
     }
 
     async fn fetch_related(
-        _id: &Id, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
+        _id: &str, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
     ) -> Result<Document, Self::Error> {
         if related_field == "dogs" {
             let rand = rand::random::<usize>() % 3;
@@ -186,7 +183,7 @@ fn main() -> std::io::Result<()> {
     env_logger::init();
 
     let mut settings = config::Config::default();
-    settings.merge(config::File::with_name("config/actix.config.toml")).unwrap();
+    settings.merge(config::File::with_name("config/actix.config.example.toml")).unwrap();
     let settings: ActixSettingsModel = settings.try_into().unwrap();
     let settings_port = settings.port;
 

@@ -4,7 +4,6 @@ use crate::model::query::Query;
 use crate::model::relationship::Relationship;
 
 use crate::model::link::RawUri;
-use crate::model::Id;
 use async_trait::async_trait;
 
 #[async_trait]
@@ -19,16 +18,13 @@ pub trait Fetching {
     /// Mapping to `/<ty>?<query>`
     async fn fetch_collection(query: &Query) -> Result<Vec<Self::Item>, Self::Error>;
     /// Mapping to `/<ty>/<id>?<query>`
-    #[allow(clippy::ptr_arg)]
-    async fn fetch_single(id: &Id, query: &Query) -> Result<Option<Self::Item>, Self::Error>;
+    async fn fetch_single(id: &str, query: &Query) -> Result<Option<Self::Item>, Self::Error>;
     /// Mapping to `/<ty>/<id>/relationships/<related_field>?<query>`
-    #[allow(clippy::ptr_arg)]
     async fn fetch_relationship(
-        id: &Id, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
+        id: &str, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
     ) -> Result<Relationship, Self::Error>;
     /// Mapping to `/<ty>/<id>/<related_field>?<query>`
-    #[allow(clippy::ptr_arg)]
     async fn fetch_related(
-        id: &Id, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
+        id: &str, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
     ) -> Result<Document, Self::Error>;
 }
