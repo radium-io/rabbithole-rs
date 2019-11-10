@@ -85,6 +85,7 @@ impl fmt::Display for Error {
 ///     2. "02": Fields of HTTP Body
 ///     3. "03": HTTP Header part
 ///     4. "04:" Query Result
+///     5. "99": Unimplemented features
 ///   3. Specific Code(5..6): Two digits to indicate the more info about the location, just as the `title` said
 macro_rules! rabbithole_errors_inner {
     ( $(ty: $ty:ident, status: $status:expr, code: $code:expr, title: $title:expr, detail: $detail:expr, param: [$($param_arg:ident: $param_ty:ty,)*];)* ) => {
@@ -141,7 +142,7 @@ rabbithole_errors! {
     title: "Unmatched Filter Item",
     detail: "Filter type [{filter_type}] and filter item [{filter_key} = {filter_value}] are not matched",
     param: [filter_type: &str, filter_key: &str, filter_value: &str,];
-    
+
     ty: InvalidCursorContent,
     status: http::StatusCode::NOT_ACCEPTABLE,
     code: "RBH-0104",
@@ -183,4 +184,18 @@ rabbithole_errors! {
     title: "Parent Resource of Relationship Not Exist",
     detail: "The parent resource of the relationship `{target_relat}` does not exist",
     param: [target_relat: &str,];
+
+    ty: SortingNotImplemented,
+    status: http::StatusCode::NOT_IMPLEMENTED,
+    code: "RBH-9901",
+    title: "Sorting is not Implemented",
+    detail: "Sorting is not implemented, please implement it yourself",
+    param: [];
+
+    ty: PagingNotImplemented,
+    status: http::StatusCode::NOT_IMPLEMENTED,
+    code: "RBH-9902",
+    title: "Paging is not Implemented",
+    detail: "Paging is not implemented, please implement it yourself",
+    param: [];
 }

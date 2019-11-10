@@ -2,6 +2,7 @@ use crate::model::error;
 
 use crate::RbhResult;
 
+use crate::model::resource::Resource;
 use percent_encoding::percent_decode_str;
 use regex::Regex;
 use rsql_rs::ast::expr::Expr;
@@ -12,7 +13,22 @@ use std::str::FromStr;
 
 pub type IncludeQuery = HashSet<String>;
 pub type FieldsQuery = HashMap<String, HashSet<String>>;
-pub type SortQuery = Vec<String>;
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SortQuery(HashMap<String, OrderType>);
+
+impl From<HashMap<String, OrderType>> for SortQuery {
+    fn from(map: HashMap<String, OrderType>) -> Self { SortQuery(map) }
+}
+
+impl SortQuery {
+    pub fn is_empty(&self) -> bool { self.0.is_empty() }
+
+    pub fn insert(&mut self, key: String, value: OrderType) { self.0.insert(key, value); }
+
+    // TODO: Find a way to record the types of sortable fields
+    pub fn sort(&self, _: Vec<Resource>) -> Vec<Resource> { unimplemented!() }
+}
 
 #[derive(Debug, Default)]
 pub struct Query {
@@ -68,15 +84,19 @@ impl Query {
                 if key == "include" {
                     include_query_exist = true;
 
-                    for v in value.split(',').filter(|s| !s.is_empty()) {
-                        include_query.insert(v.to_string());
+                    for v in value.split(',').filter(|s| !s.is_empty()).map(ToString::to_string) {
+                        include_query.insert(v);
                     }
                     continue;
                 }
 
                 if key == "sort" {
-                    for v in value.split(',').filter(|s| !s.is_empty()) {
-                        sort_query.push(v.to_string());
+                    for v in value.split(',').filter(|s| !s.is_empty()).map(ToString::to_string) {
+                        if v.starts_with('-') {
+                            sort_query.insert(v, OrderType::Desc);
+                        } else {
+                            sort_query.insert(v, OrderType::Asc);
+                        }
                     }
                     continue;
                 }

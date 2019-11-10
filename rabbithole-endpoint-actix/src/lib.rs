@@ -39,7 +39,8 @@ where
 
 impl<T> TryFrom<ActixSettingsModel> for ActixSettings<T>
 where
-    T: 'static + Fetching,
+    T: 'static + Fetching + Send + Sync,
+    T::Item: Send + Sync,
 {
     type Error = url::ParseError;
 
@@ -53,7 +54,8 @@ where
 
 impl<T> ActixSettings<T>
 where
-    T: 'static + Fetching,
+    T: 'static + Fetching + Send + Sync,
+    T::Item: Send + Sync,
 {
     pub fn fetch_collection(
         self, req: HttpRequest,
