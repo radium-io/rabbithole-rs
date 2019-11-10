@@ -105,7 +105,6 @@ fn related_dogs_test() {
         .to_request();
     let future = test::run_on(|| app.call(req));
     let resp = test::block_on(future);
-    eprintln!("resp: {:?}", resp);
     let mut resp: ServiceResponse = resp.unwrap();
     assert!(resp.status().is_success());
 
