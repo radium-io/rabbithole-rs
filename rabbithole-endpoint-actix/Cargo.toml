@@ -1,9 +1,15 @@
 [package]
 name = "rabbithole-endpoint-actix"
-version = "0.1.0"
-authors = ["UkonnRa <ukonnra@outlook.com>"]
+version = "0.2.0"
+authors = ["Ukonn Ra <ukonnra@outlook.com>"]
 edition = "2018"
-
+description = "JSON:API Actix-web backend"
+homepage = "https://github.com/UkonnRa/rabbithole-rs"
+repository = "https://github.com/UkonnRa/rabbithole-rs.git"
+readme = "../README.md"
+keywords = ["jsonapi"]
+categories = []
+license = "MIT"
 
 [dependencies]
 env_logger = "~0.7"

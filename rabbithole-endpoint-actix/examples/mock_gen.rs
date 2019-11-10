@@ -23,8 +23,11 @@ use std::convert::TryInto;
 
 use uuid::Uuid;
 
+// rbh_derive::EntityDecorator to generate JSON:API data models
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
+// JSON:API Resource type
 #[entity(type = "people")]
+// Generate actix backend
 #[entity(backend(actix))]
 pub struct Human {
     #[entity(id)]

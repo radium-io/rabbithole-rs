@@ -91,8 +91,11 @@ For me, the second one is more beautiful.
 - [x] Basic tests
 
 - [ ] Query/Filter API
-- [ ] [Stricter type checking and error hints](#type-checking-and-error-hints-in-macro-system)
+  - [x] Query/Filter model
+  - [ ] The auto query/filter is impossible now. Need to be finished by User
+- [x] [Stricter type checking and error hints](#type-checking-and-error-hints-in-macro-system)
 - [ ] [A high performance JSON:API Server](#a-high-performance-server)
+  - [x] actix backend
 
 ## Future Works
 
@@ -156,37 +159,7 @@ pub struct Dog {
 
 `rabbithole` does not bind with any specific databases, which means you have to write your own DAOs.
 
-```rust
-#[async_trait]
-impl Fetching for Human {
-    type Error = HttpResponse;
-    type Item = Human;
-
-    async fn vec_to_document(items: &[Self::Item], query: &Query) -> Result<Document, Self::Error> {
-        ...
-    }
-
-    async fn fetch_collection(_: &Query) -> Result<Vec<Self::Item>, Self::Error> {
-        ...
-    }
-
-    async fn fetch_single(id: Id, query: &Query) -> Result<Option<Self::Item>, Self::Error> {
-        ...
-    }
-
-    async fn fetch_relationship(
-        id: Id, related_field: &str, _query: &Query,
-    ) -> Result<Relationship, Self::Error> {
-        ...
-    }
-
-    async fn fetch_related(
-        id: Id, related_field: &str, query: &Query,
-    ) -> Result<Resource, Self::Error> {
-        ...
-    }
-}
-```
+See `rabbithole-endpoint-actix/examples/mock_gen.rs` for more details.
 
 #### What is `Fetching` trait
 

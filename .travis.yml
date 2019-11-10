@@ -16,4 +16,7 @@ jobs:
         - cd ../rabbithole-derive
         - cargo publish --dry-run
         -  cargo publish --token "$CARGO_TOKEN"
+        - cd ../rabbithole-endpoint-actix
+        - cargo publish --dry-run
+        - cargo publish --token "$CARGO_TOKEN"
       if: tag IS present
