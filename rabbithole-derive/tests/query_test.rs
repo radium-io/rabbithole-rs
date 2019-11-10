@@ -60,23 +60,19 @@ fn default_include_test() {
     let uri = "https://example.com/api";
 
     let master_vec = generate_masters();
-    let gen_doc = master_vec
-        .to_document_automatically(
-            "https://example.com/api",
-            &Default::default(),
-            &uri.parse().unwrap(),
-        )
-        .unwrap();
+    let gen_doc = master_vec.to_document_automatically(
+        "https://example.com/api",
+        &Default::default(),
+        &uri.parse().unwrap(),
+    );
 
-    let master_reses: Vec<Resource> = master_vec
-        .iter()
-        .map(|h| h.to_resource(uri, &Default::default()).unwrap().unwrap())
-        .collect();
+    let master_reses: Vec<Resource> =
+        master_vec.iter().map(|h| h.to_resource(uri, &Default::default()).unwrap()).collect();
 
     let mut manual_included: Included = Default::default();
     for m in master_vec {
         for d in m.dogs {
-            manual_included.insert(d.to_resource(uri, &Default::default()).unwrap().unwrap());
+            manual_included.insert(d.to_resource(uri, &Default::default()).unwrap());
         }
     }
     let manual_doc = Document::multiple_resources(
@@ -95,21 +91,17 @@ fn only_unknown_include_test() {
     let uri = "https://example.com/api";
 
     let master_vec = generate_masters();
-    let gen_doc = master_vec
-        .to_document_automatically(
-            "https://example.com/api",
-            &Query {
-                include: Some(HashSet::from_iter(vec!["name".to_string()])),
-                ..Default::default()
-            },
-            &uri.parse().unwrap(),
-        )
-        .unwrap();
+    let gen_doc = master_vec.to_document_automatically(
+        "https://example.com/api",
+        &Query {
+            include: Some(HashSet::from_iter(vec!["name".to_string()])),
+            ..Default::default()
+        },
+        &uri.parse().unwrap(),
+    );
 
-    let master_reses: Vec<Resource> = master_vec
-        .iter()
-        .map(|h| h.to_resource(uri, &Default::default()).unwrap().unwrap())
-        .collect();
+    let master_reses: Vec<Resource> =
+        master_vec.iter().map(|h| h.to_resource(uri, &Default::default()).unwrap()).collect();
     let manual_doc = Document::multiple_resources(
         master_reses,
         Default::default(),
@@ -126,18 +118,14 @@ fn not_included_fields_but_retain_attributes() {
     let uri = "https://example.com/api";
 
     let master_vec = generate_masters();
-    let gen_doc = master_vec
-        .to_document_automatically(
-            "https://example.com/api",
-            &Query { include: Some(Default::default()), ..Default::default() },
-            &uri.parse().unwrap(),
-        )
-        .unwrap();
+    let gen_doc = master_vec.to_document_automatically(
+        "https://example.com/api",
+        &Query { include: Some(Default::default()), ..Default::default() },
+        &uri.parse().unwrap(),
+    );
 
-    let master_reses: Vec<Resource> = master_vec
-        .iter()
-        .map(|h| h.to_resource(uri, &Default::default()).unwrap().unwrap())
-        .collect();
+    let master_reses: Vec<Resource> =
+        master_vec.iter().map(|h| h.to_resource(uri, &Default::default()).unwrap()).collect();
     let manual_doc = Document::multiple_resources(
         master_reses,
         Default::default(),
@@ -156,20 +144,18 @@ fn not_foreign_attributes_but_retain_included_fields() {
         HashMap::from_iter(vec![("people".into(), HashSet::from_iter(vec!["name".into()]))]);
 
     let master_vec = generate_masters();
-    let gen_doc = master_vec
-        .to_document_automatically(
-            "https://example.com/api",
-            &Query { fields: fields_query.clone(), ..Default::default() },
-            &uri.parse().unwrap(),
-        )
-        .unwrap();
+    let gen_doc = master_vec.to_document_automatically(
+        "https://example.com/api",
+        &Query { fields: fields_query.clone(), ..Default::default() },
+        &uri.parse().unwrap(),
+    );
 
     let master_reses: Vec<Resource> =
-        master_vec.iter().map(|h| h.to_resource(uri, &fields_query).unwrap().unwrap()).collect();
+        master_vec.iter().map(|h| h.to_resource(uri, &fields_query).unwrap()).collect();
     let mut manual_included: Included = Default::default();
     for m in master_vec {
         for d in m.dogs {
-            manual_included.insert(d.to_resource(uri, &Default::default()).unwrap().unwrap());
+            manual_included.insert(d.to_resource(uri, &Default::default()).unwrap());
         }
     }
     let manual_doc = Document::multiple_resources(

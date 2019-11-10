@@ -1,11 +1,10 @@
 use crate::model::relationship::Relationships;
 use crate::model::resource::Attributes;
-use crate::model::Id;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Patch {
     pub resource_type: String,
-    pub resource_id: Id,
+    pub resource_id: String,
     pub item: PatchData,
 }
 

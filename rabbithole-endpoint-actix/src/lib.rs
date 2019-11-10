@@ -19,10 +19,17 @@ use serde::export::TryFrom;
 
 use std::marker::PhantomData;
 
+fn error_to_response(err: error::Error) -> HttpResponse {
+    new_json_api_resp(
+        err.status.as_deref().and_then(|s| s.parse().ok()).unwrap_or(StatusCode::BAD_REQUEST),
+    )
+    .json(err)
+}
+
 #[derive(Debug, Clone)]
 pub struct ActixSettings<T>
 where
-    T: 'static + Fetching<Error = HttpResponse>,
+    T: 'static + Fetching,
 {
     pub path: String,
     pub uri: url::Url,
@@ -32,7 +39,7 @@ where
 
 impl<T> TryFrom<ActixSettingsModel> for ActixSettings<T>
 where
-    T: 'static + Fetching<Error = HttpResponse>,
+    T: 'static + Fetching,
 {
     type Error = url::ParseError;
 
@@ -46,7 +53,7 @@ where
 
 impl<T> ActixSettings<T>
 where
-    T: 'static + Fetching<Error = HttpResponse>,
+    T: 'static + Fetching,
 {
     pub fn fetch_collection(
         self, req: HttpRequest,
@@ -69,16 +76,16 @@ where
                             .await
                             {
                                 Ok(doc) => Ok(HttpResponse::Ok().json(doc)),
-                                Err(err) => Ok(err),
+                                Err(err) => Ok(error_to_response(err)),
                             }
                         },
-                        Err(err_resp) => Ok(err_resp),
+                        Err(err) => Ok(error_to_response(err)),
                     }
                 };
 
                 fut.boxed_local().compat()
             },
-            Err(err) => futures::future::ok(query_parsing_error_resp(err)).boxed_local().compat(),
+            Err(err) => futures::future::ok(error_to_response(err)).boxed_local().compat(),
         }
     }
 
@@ -92,22 +99,21 @@ where
             Ok(query) => {
                 let fut = async move {
                     match T::fetch_single(&param.into_inner(), &query).await {
-                        Ok(item) => match item.to_document_automatically(
-                            &self.uri.to_string(),
-                            &query,
-                            &req.uri().into(),
-                        ) {
-                            Ok(doc) => Ok(new_json_api_resp(StatusCode::OK).json(doc)),
-                            Err(err) => Ok(new_json_api_resp(StatusCode::INTERNAL_SERVER_ERROR)
-                                .body(format!("err inner: {}", err))),
+                        Ok(item) => {
+                            let doc = item.to_document_automatically(
+                                &self.uri.to_string(),
+                                &query,
+                                &req.uri().into(),
+                            );
+                            Ok(new_json_api_resp(StatusCode::OK).json(doc))
                         },
-                        Err(err) => Ok(err),
+                        Err(err) => Ok(error_to_response(err)),
                     }
                 };
 
                 fut.boxed_local().compat()
             },
-            Err(err) => futures::future::ok(query_parsing_error_resp(err)).boxed_local().compat(),
+            Err(err) => futures::future::ok(error_to_response(err)).boxed_local().compat(),
         }
     }
 
@@ -131,13 +137,13 @@ where
                     .await
                     {
                         Ok(item) => Ok(new_json_api_resp(StatusCode::OK).json(item)),
-                        Err(err) => Ok(err),
+                        Err(err) => Ok(error_to_response(err)),
                     }
                 };
 
                 fut.boxed_local().compat()
             },
-            Err(err) => futures::future::ok(query_parsing_error_resp(err)).boxed_local().compat(),
+            Err(err) => futures::future::ok(error_to_response(err)).boxed_local().compat(),
         }
     }
 
@@ -162,30 +168,23 @@ where
                     .await
                     {
                         Ok(item) => Ok(new_json_api_resp(StatusCode::OK).json(item)),
-                        Err(err) => Ok(err),
+                        Err(err) => Ok(error_to_response(err)),
                     }
                 };
                 fut.boxed_local().compat()
             },
-            Err(err) => futures::future::ok(query_parsing_error_resp(err)).boxed_local().compat(),
+            Err(err) => futures::future::ok(error_to_response(err)).boxed_local().compat(),
         }
     }
 }
 
-fn query_parsing_error_resp(err: error::Error) -> HttpResponse {
-    new_json_api_resp(
-        err.status.as_deref().and_then(|s| s.parse().ok()).unwrap_or(StatusCode::BAD_REQUEST),
-    )
-    .json(err)
-}
-
+// TODO: If this check should be put into the main logic rather than web-framework specific?
 fn check_header(api_version: &JsonApiVersion, headers: &HeaderMap) -> Result<(), HttpResponse> {
     let content_type = headers.get(header::CONTENT_TYPE).map(|r| r.to_str().unwrap().to_string());
     let accept = headers.get(header::ACCEPT).map(|r| r.to_str().unwrap().to_string());
     RuleDispatcher::ContentTypeMustBeJsonApi(api_version, &content_type)
-        .map_err(query_parsing_error_resp)?;
-    RuleDispatcher::AcceptHeaderShouldBeJsonApi(api_version, &accept)
-        .map_err(query_parsing_error_resp)?;
+        .map_err(error_to_response)?;
+    RuleDispatcher::AcceptHeaderShouldBeJsonApi(api_version, &accept).map_err(error_to_response)?;
 
     Ok(())
 }

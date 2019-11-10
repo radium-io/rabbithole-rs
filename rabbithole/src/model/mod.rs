@@ -15,7 +15,6 @@ use std::collections::HashMap;
 
 /// Meta-data object, can contain any data
 pub type Meta = HashMap<String, Value>;
-pub type Id = String;
 
 /// Optional `JsonApiDocument` payload identifying the JSON-API version the server implements
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

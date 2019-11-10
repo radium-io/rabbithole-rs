@@ -1,8 +1,5 @@
-#![feature(core_intrinsics)]
-
 extern crate rabbithole_derive as rbh_derive;
 
-use actix_web::http::StatusCode;
 use actix_web::App;
 use actix_web::{middleware, web};
 use actix_web::{HttpResponse, HttpServer};
@@ -13,17 +10,17 @@ use rabbithole::entity::{Entity, SingleEntity};
 use rabbithole::model::query::Query;
 use rabbithole::model::relationship::Relationship;
 
-use rabbithole::model::Id;
 use rabbithole::operation::Fetching;
 
 use serde::{Deserialize, Serialize};
 
-use rabbithole::model::link::{Link, RawUri};
+use rabbithole::model::error;
+use rabbithole::model::link::RawUri;
 use rabbithole_endpoint_actix::settings::ActixSettingsModel;
 use rabbithole_endpoint_actix::ActixSettings;
-use std::collections::HashMap;
+
 use std::convert::TryInto;
-use std::iter::FromIterator;
+
 use uuid::Uuid;
 
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
@@ -74,26 +71,21 @@ fn generate_masters(len: usize) -> Vec<Human> {
 
 #[async_trait]
 impl Fetching for Dog {
-    type Error = HttpResponse;
     type Item = Dog;
 
     async fn vec_to_document(
         items: &[Self::Item], uri: &str, query: &Query, request_path: &RawUri,
-    ) -> Result<Document, Self::Error> {
-        if let Ok(doc) = items.to_document_automatically(uri, query, request_path) {
-            Ok(doc)
-        } else {
-            Err(HttpResponse::build(StatusCode::BAD_REQUEST).body("error"))
-        }
+    ) -> Result<Document, error::Error> {
+        Ok(items.to_document_automatically(uri, query, request_path))
     }
 
-    async fn fetch_collection(_query: &Query) -> Result<Vec<Self::Item>, Self::Error> {
+    async fn fetch_collection(_query: &Query) -> Result<Vec<Self::Item>, error::Error> {
         let rand = rand::random::<usize>() % 5;
         let dogs = generate_dogs(rand);
         Ok(dogs)
     }
 
-    async fn fetch_single(id: &String, _query: &Query) -> Result<Option<Self::Item>, Self::Error> {
+    async fn fetch_single(id: &str, _query: &Query) -> Result<Option<Self::Item>, error::Error> {
         if id == "none" {
             Ok(None)
         } else {
@@ -103,80 +95,74 @@ impl Fetching for Dog {
     }
 
     async fn fetch_relationship(
-        _id: &Id, _related_field: &str, uri: &str, _query: &Query, request_path: &RawUri,
-    ) -> Result<Relationship, Self::Error> {
-        Err(HttpResponse::Ok().json(Document::null(Some(HashMap::from_iter(vec![Link::slf(
-            uri,
-            request_path.clone(),
-        )])))))
+        _: &str, related_field: &str, _: &str, _: &Query, _: &RawUri,
+    ) -> Result<Relationship, error::Error> {
+        Err(error::Error::FieldNotExist(related_field, None))
     }
 
     async fn fetch_related(
-        _id: &String, _related_field: &str, uri: &str, _query: &Query, request_path: &RawUri,
-    ) -> Result<Document, Self::Error> {
-        Err(HttpResponse::Ok().json(Document::null(Some(HashMap::from_iter(vec![Link::slf(
-            uri,
-            request_path.clone(),
-        )])))))
+        _: &str, related_field: &str, _: &str, _: &Query, _: &RawUri,
+    ) -> Result<Document, error::Error> {
+        Err(error::Error::FieldNotExist(related_field, None))
     }
 }
 
 #[async_trait]
 impl Fetching for Human {
-    type Error = HttpResponse;
     type Item = Human;
 
     async fn vec_to_document(
         items: &[Self::Item], uri: &str, query: &Query, request_path: &RawUri,
-    ) -> Result<Document, Self::Error> {
-        if let Ok(doc) = items.to_document_automatically(uri, query, request_path) {
-            Ok(doc)
-        } else {
-            Err(HttpResponse::build(StatusCode::BAD_REQUEST).body("error"))
-        }
+    ) -> Result<Document, error::Error> {
+        Ok(items.to_document_automatically(uri, query, request_path))
     }
 
-    async fn fetch_collection(_: &Query) -> Result<Vec<Self::Item>, Self::Error> {
-        let rand = rand::random::<usize>() % 5;
+    async fn fetch_collection(_: &Query) -> Result<Vec<Self::Item>, error::Error> {
+        let rand = rand::random::<usize>() % 5 + 1;
         let masters = generate_masters(rand);
         Ok(masters)
     }
 
-    async fn fetch_single(id: &Id, _query: &Query) -> Result<Option<Self::Item>, Self::Error> {
+    async fn fetch_single(id: &str, _query: &Query) -> Result<Option<Self::Item>, error::Error> {
         if id == "none" {
             Ok(None)
         } else {
-            let rand = rand::random::<usize>() % 3;
+            let rand = rand::random::<usize>() % 3 + 1;
             Ok(generate_masters(rand).first().cloned())
         }
     }
 
     async fn fetch_relationship(
-        _id: &Id, related_field: &str, uri: &str, _query: &Query, _request_path: &RawUri,
-    ) -> Result<Relationship, Self::Error> {
+        id: &str, related_field: &str, uri: &str, _query: &Query, _request_path: &RawUri,
+    ) -> Result<Relationship, error::Error> {
         if related_field == "dogs" {
+            if id == "none" {
+                return Err(error::Error::ParentResourceNotExist(related_field, None));
+            }
+
             let rand = rand::random::<usize>() % 3;
             let relats = generate_masters(rand).last().cloned().unwrap().relationships(uri);
             Ok(relats.get(related_field).cloned().unwrap())
         } else {
-            Err(HttpResponse::NotFound().finish())
+            Err(error::Error::FieldNotExist(related_field, None))
         }
     }
 
     async fn fetch_related(
-        _id: &Id, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
-    ) -> Result<Document, Self::Error> {
+        id: &str, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
+    ) -> Result<Document, error::Error> {
         if related_field == "dogs" {
+            if id == "none" {
+                return Err(error::Error::ParentResourceNotExist(related_field, None));
+            }
+
             let rand = rand::random::<usize>() % 3;
             let master = generate_masters(rand);
             let master = master.last().unwrap();
-            if let Ok(doc) = master.dogs.to_document_automatically(uri, query, request_path) {
-                Ok(doc)
-            } else {
-                Err(HttpResponse::InternalServerError().body("doc parsing error"))
-            }
+            let doc = master.dogs.to_document_automatically(uri, query, request_path);
+            Ok(doc)
         } else {
-            Err(HttpResponse::NotFound().finish())
+            Err(error::Error::FieldNotExist(related_field, None))
         }
     }
 }
@@ -186,7 +172,7 @@ fn main() -> std::io::Result<()> {
     env_logger::init();
 
     let mut settings = config::Config::default();
-    settings.merge(config::File::with_name("config/actix.config.toml")).unwrap();
+    settings.merge(config::File::with_name("config/actix.config.example.toml")).unwrap();
     let settings: ActixSettingsModel = settings.try_into().unwrap();
     let settings_port = settings.port;
 

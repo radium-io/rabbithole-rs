@@ -13,6 +13,7 @@ impl Rule<Option<String>> for ContentTypeMustBeJsonApi {
         Err(error::Error::InvalidContentType(
             &format!("`{}`", JSON_API_HEADER),
             content_type.as_deref().unwrap_or("nothing"),
+            None,
         ))
     }
 }
@@ -23,9 +24,10 @@ impl Rule<Option<String>> for AcceptHeaderShouldBeJsonApi {
         if accept_header.is_some() && accept_header.as_ref().unwrap() == JSON_API_HEADER {
             Ok(())
         } else {
-            Err(error::Error::InvalidContentType(
+            Err(error::Error::InvalidAccept(
                 &format!("`{}`", JSON_API_HEADER),
                 accept_header.as_deref().unwrap_or("nothing"),
+                None,
             ))
         }
     }

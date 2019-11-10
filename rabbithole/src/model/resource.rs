@@ -1,6 +1,6 @@
 use crate::model::link::Links;
 use crate::model::relationship::Relationships;
-use crate::model::{Id, Meta};
+use crate::model::Meta;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -46,7 +46,7 @@ impl Attributes {
     //        }
     //    }
     //
-    //    fn get(&self, key: impl ToString) -> Option<&Value> { self.0.get(&key.to_string()) }
+    pub fn get(&self, key: impl ToString) -> Option<&Value> { self.0.get(&key.to_string()) }
 }
 
 /// Valid Resource Identifier (can be None)
@@ -76,7 +76,7 @@ impl Default for IdentifierData {
 pub struct ResourceIdentifier {
     #[serde(rename = "type")]
     pub ty: String,
-    pub id: Id,
+    pub id: String,
 }
 
 /// JSON-API Resource
@@ -84,7 +84,7 @@ pub struct ResourceIdentifier {
 pub struct Resource {
     #[serde(rename = "type")]
     pub ty: String,
-    pub id: Id,
+    pub id: String,
     #[serde(skip_serializing_if = "Attributes::is_empty")]
     #[serde(default)]
     pub attributes: Attributes,
