@@ -255,7 +255,7 @@ impl<T: SingleEntity> Entity for Vec<T> {
     }
 
     #[cfg(not(feature = "unstable-vec-to-document"))]
-    fn to_document_automatically(&self, _: &str, _: &Query, _: &RawUri) -> RbhResult<Document> {
+    fn to_document_automatically(&self, _: &str, _: &Query, _: &RawUri) -> Document {
         unimplemented!()
     }
 }

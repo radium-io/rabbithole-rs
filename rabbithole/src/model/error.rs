@@ -85,12 +85,13 @@ impl fmt::Display for Error {
 ///     2. "02": Fields of HTTP Body
 ///     3. "03": HTTP Header part
 ///     4. "04:" Query Result
+///     5. "99": Unimplemented features
 ///   3. Specific Code(5..6): Two digits to indicate the more info about the location, just as the `title` said
 macro_rules! rabbithole_errors_inner {
-    ( $(ty: $ty:ident, status: $status:expr, code: $code:expr, title: $title:expr, detail: $detail:expr, param: [$($param_arg:ident: $param_ty:ty),*];)* ) => {
+    ( $(ty: $ty:ident, status: $status:expr, code: $code:expr, title: $title:expr, detail: $detail:expr, param: [$($param_arg:ident: $param_ty:ty,)*];)* ) => {
         $(
             #[allow(non_snake_case)]
-            pub fn $ty($($param_arg: $param_ty),*, error_source: Option<ErrorSource>) -> Error {
+            pub fn $ty($($param_arg: $param_ty,)* error_source: Option<ErrorSource>) -> Error {
                 Self {
                     id: Some(uuid::Uuid::new_v4().to_string()),
                     status: Some($status.as_str().into()),
@@ -106,9 +107,9 @@ macro_rules! rabbithole_errors_inner {
 }
 
 macro_rules! rabbithole_errors {
-    ( $(ty: $ty:ident, status: $status:expr, code: $code:expr, title: $title:expr, detail: $detail:expr, param: [$($param_arg:ident: $param_ty:ty),*];)* ) => {
+    ( $(ty: $ty:ident, status: $status:expr, code: $code:expr, title: $title:expr, detail: $detail:expr, param: [$($param_arg:ident: $param_ty:ty,)*];)* ) => {
         impl Error {
-            rabbithole_errors_inner!($(ty: $ty, status: $status, code: $code, title: $title, detail: $detail, param: [$($param_arg: $param_ty),*];)*);
+            rabbithole_errors_inner!($(ty: $ty, status: $status, code: $code, title: $title, detail: $detail, param: [$($param_arg: $param_ty,)*];)*);
         }
     };
 }
@@ -119,61 +120,82 @@ rabbithole_errors! {
     code: "RBH-0001",
     title: "Invalid UTF-8 String",
     detail: "The String {invalid} is not a valid UTF-8 String",
-    param: [invalid: &str];
+    param: [invalid: &str,];
 
     ty: InvalidPageType,
     status: http::StatusCode::NOT_ACCEPTABLE,
     code: "RBH-0101",
     title: "Invalid Page Type",
     detail: r#"Invalid page type: {invalid}, the valid ones are: ["OffsetBased", "PageBased", "CursorBased"]"#,
-    param: [invalid: &str];
+    param: [invalid: &str,];
 
     ty: InvalidFilterType,
     status: http::StatusCode::NOT_ACCEPTABLE,
     code: "RBH-0102",
     title: "Invalid Filter Type",
     detail: r#"Invalid filter type: {invalid}, the valid ones are: ["Rsql"]"#,
-    param: [invalid: &str];
+    param: [invalid: &str,];
 
     ty: UnmatchedFilterItem,
     status: http::StatusCode::NOT_ACCEPTABLE,
     code: "RBH-0103",
     title: "Unmatched Filter Item",
     detail: "Filter type [{filter_type}] and filter item [{filter_key} = {filter_value}] are not matched",
-    param: [filter_type: &str, filter_key: &str, filter_value: &str];
+    param: [filter_type: &str, filter_key: &str, filter_value: &str,];
+
+    ty: InvalidCursorContent,
+    status: http::StatusCode::NOT_ACCEPTABLE,
+    code: "RBH-0104",
+    title: "Invalid Cursor Content",
+    detail: r#"The content of `page[cursor]` is not acceptable, please use a valid cursor"#,
+    param: [];
 
     ty: InvalidJsonApiVersion,
     status: http::StatusCode::NOT_ACCEPTABLE,
     code: "RBH-0201",
     title: "Invalid JSON API Version",
     detail: "A invalid JSON:API version: {invalid_version}",
-    param: [invalid_version: String];
+    param: [invalid_version: String,];
 
     ty: InvalidContentType,
     status: http::StatusCode::UNSUPPORTED_MEDIA_TYPE,
     code: "RBH-0301",
     title: "Invalid Content-Type Header",
     detail: "The `Content-Type` header of Request must be {header_hint}, but {invalid_header} found",
-    param: [header_hint: &str, invalid_header: &str];
+    param: [header_hint: &str, invalid_header: &str,];
 
     ty: InvalidAccept,
     status: http::StatusCode::NOT_ACCEPTABLE,
     code: "RBH-0302",
     title: "Invalid Accept Header",
     detail: "The `Accept` header of Request must be {header_hint}, but {invalid_header} found",
-    param: [header_hint: &str, invalid_header: &str];
+    param: [header_hint: &str, invalid_header: &str,];
 
     ty: FieldNotExist,
     status: http::StatusCode::NOT_FOUND,
     code: "RBH-0401",
     title: "Field Not Exist",
     detail: "Field `{field}` does not exist",
-    param: [field: &str];
+    param: [field: &str,];
 
     ty: ParentResourceNotExist,
     status: http::StatusCode::NOT_FOUND,
     code: "RBH-0402",
     title: "Parent Resource of Relationship Not Exist",
     detail: "The parent resource of the relationship `{target_relat}` does not exist",
-    param: [target_relat: &str];
+    param: [target_relat: &str,];
+
+    ty: SortingNotImplemented,
+    status: http::StatusCode::NOT_IMPLEMENTED,
+    code: "RBH-9901",
+    title: "Sorting is not Implemented",
+    detail: "Sorting is not implemented, please implement it yourself",
+    param: [];
+
+    ty: PagingNotImplemented,
+    status: http::StatusCode::NOT_IMPLEMENTED,
+    code: "RBH-9902",
+    title: "Paging is not Implemented",
+    detail: "Paging is not implemented, please implement it yourself",
+    param: [];
 }

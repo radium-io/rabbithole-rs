@@ -35,6 +35,8 @@ serde_derive = "~1.0"
 http = "~0.1"
 url = "~2.1"
 percent-encoding = "~2.1"
+base64 = "~0.11"
+
 uuid = { version = "~0.8", features = ["v4", "serde"] }
 rsql-rs = "~0.2"
 async-trait = "~0.1"

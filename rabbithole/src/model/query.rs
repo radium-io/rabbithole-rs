@@ -2,6 +2,7 @@ use crate::model::error;
 
 use crate::RbhResult;
 
+use crate::model::resource::Resource;
 use percent_encoding::percent_decode_str;
 use regex::Regex;
 use rsql_rs::ast::expr::Expr;
@@ -12,7 +13,22 @@ use std::str::FromStr;
 
 pub type IncludeQuery = HashSet<String>;
 pub type FieldsQuery = HashMap<String, HashSet<String>>;
-pub type SortQuery = Vec<String>;
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SortQuery(HashMap<String, OrderType>);
+
+impl From<HashMap<String, OrderType>> for SortQuery {
+    fn from(map: HashMap<String, OrderType>) -> Self { SortQuery(map) }
+}
+
+impl SortQuery {
+    pub fn is_empty(&self) -> bool { self.0.is_empty() }
+
+    pub fn insert(&mut self, key: String, value: OrderType) { self.0.insert(key, value); }
+
+    // TODO: Find a way to record the types of sortable fields
+    pub fn sort(&self, _: Vec<Resource>) -> Vec<Resource> { unimplemented!() }
+}
 
 #[derive(Debug, Default)]
 pub struct Query {
@@ -68,15 +84,19 @@ impl Query {
                 if key == "include" {
                     include_query_exist = true;
 
-                    for v in value.split(',').filter(|s| !s.is_empty()) {
-                        include_query.insert(v.to_string());
+                    for v in value.split(',').filter(|s| !s.is_empty()).map(ToString::to_string) {
+                        include_query.insert(v);
                     }
                     continue;
                 }
 
                 if key == "sort" {
-                    for v in value.split(',').filter(|s| !s.is_empty()) {
-                        sort_query.push(v.to_string());
+                    for v in value.split(',').filter(|s| !s.is_empty()).map(ToString::to_string) {
+                        if v.starts_with('-') {
+                            sort_query.insert(v, OrderType::Desc);
+                        } else {
+                            sort_query.insert(v, OrderType::Asc);
+                        }
                     }
                     continue;
                 }
@@ -127,11 +147,26 @@ impl Query {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
+pub enum OrderType {
+    Asc,
+    Desc,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
+pub struct CursorBasedData {
+    field: String,
+    order_type: OrderType,
+    target_id: String,
+    is_look_after: bool,
+    limit: u32,
+}
+
 #[derive(Debug)]
 pub enum PageQuery {
     OffsetBased { offset: u32, limit: u32 },
     PageBased { number: u32, size: u32 },
-    CursorBased(String),
+    CursorBased(CursorBasedData),
 }
 
 impl PageQuery {
@@ -154,7 +189,14 @@ impl PageQuery {
             }
         } else if ty == "CursorBased" {
             if let Some(cursor) = param.get("cursor") {
-                return Ok(Some(PageQuery::CursorBased(cursor.clone())));
+                let cursor =
+                    base64::decode(cursor).map_err(|_| error::Error::InvalidCursorContent(None))?;
+                let cursor = String::from_utf8(cursor)
+                    .map_err(|_| error::Error::InvalidCursorContent(None))?;
+                let cursor: CursorBasedData = serde_json::from_str(&cursor)
+                    .map_err(|_| error::Error::InvalidCursorContent(None))?;
+
+                return Ok(Some(PageQuery::CursorBased(cursor)));
             }
         } else {
             return Err(error::Error::InvalidPageType(ty, None));
@@ -181,6 +223,36 @@ impl FilterQuery {
             Ok(if res.is_empty() { None } else { Some(FilterQuery::Rsql(res)) })
         } else {
             Err(error::Error::InvalidFilterType(ty, None))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::model::query::{CursorBasedData, OrderType, PageQuery, Query};
+    use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
+
+    #[test]
+    fn cursor_des_test() {
+        let ori_cursor = CursorBasedData {
+            field: "field".to_string(),
+            order_type: OrderType::Asc,
+            target_id: "target_id".to_string(),
+            is_look_after: true,
+            limit: 10,
+        };
+
+        let ori_cursor_str: String = serde_json::to_string(&ori_cursor).unwrap();
+        let ori_cursor_str = base64::encode_config(&ori_cursor_str, base64::URL_SAFE_NO_PAD);
+        let uri = format!("page[@type]=CursorBased&page[cursor]={}", ori_cursor_str);
+        let uri = percent_encode(uri.as_bytes(), NON_ALPHANUMERIC);
+        let uri = format!("/?{}", uri.to_string());
+        let uri: http::Uri = uri.parse().unwrap();
+        let query = Query::from_uri(&uri).unwrap();
+        if let Some(PageQuery::CursorBased(cursor)) = query.page {
+            assert_eq!(cursor, ori_cursor);
+        } else {
+            unreachable!();
         }
     }
 }
