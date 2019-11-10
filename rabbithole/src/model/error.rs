@@ -96,7 +96,7 @@ macro_rules! rabbithole_errors_inner {
                     code: Some($code.into()),
                     title: Some($title.into()),
                     detail: Some(format!($detail, $($param_arg = $param_arg),*)),
-                    source: error_source.unwrap_or_else(|| Default::default()),
+                    source: error_source.unwrap_or(Default::default()),
                     ..Default::default()
                 }
             }
