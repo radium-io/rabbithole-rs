@@ -32,6 +32,10 @@ pub struct ErrorSource {
     pub parameter: Option<String>,
 }
 
+impl ErrorSource {
+    pub(crate) fn is_empty(&self) -> bool { self.pointer.is_none() && self.parameter.is_none() }
+}
+
 /// JSON-API Error
 /// All fields are optional
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
@@ -53,8 +57,9 @@ pub struct Error {
     pub title: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub source: Option<ErrorSource>,
+    #[serde(skip_serializing_if = "ErrorSource::is_empty")]
+    #[serde(default)]
+    pub source: ErrorSource,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub meta: Option<Meta>,
 }
@@ -78,36 +83,28 @@ impl fmt::Display for Error {
 ///     1. "01": URL Query part
 ///     2. "02": Fields of HTTP Body
 ///     3. "03": HTTP Header part
+///     4. "04:" Query Result
 ///   3. Specific Code(5..6): Two digits to indicate the more info about the location, just as the `title` said
 macro_rules! rabbithole_errors_inner {
     ( $(ty: $ty:ident, status: $status:expr, code: $code:expr, title: $title:expr, detail: $detail:expr, param: [$($param_arg:ident: $param_ty:ty),*];)* ) => {
         $(
             #[allow(non_snake_case)]
-            pub fn $ty($($param_arg: $param_ty),*) -> Error {
+            pub fn $ty($($param_arg: $param_ty),*, error_source: Option<ErrorSource>) -> Error {
                 Self {
                     id: Some(uuid::Uuid::new_v4().to_string()),
                     status: Some($status.as_str().into()),
                     code: Some($code.into()),
                     title: Some($title.into()),
                     detail: Some(format!($detail, $($param_arg = $param_arg),*)),
+                    source: error_source.unwrap_or_else(|| Default::default()),
                     ..Default::default()
                 }
             }
         )*
     };
-
-    ( $(ty: $ty:ident, code: $code:expr, title: $title:expr, detail: $detail:expr, param: [$($param_arg:ident: $param_ty:ty),*];)* ) => {
-        rabbithole_errors!($(ty: $ty, status: http::StatusCode::NOT_ACCEPTABLE, code: $code, title: $title, detail: $detail, param: [$($param_arg: $param_ty),*];)*);
-    };
 }
 
 macro_rules! rabbithole_errors {
-    ( $(ty: $ty:ident, code: $code:expr, title: $title:expr, detail: $detail:expr, param: [$($param_arg:ident: $param_ty:ty),*];)* ) => {
-        impl Error {
-            rabbithole_errors_inner!($(ty: $ty, status: http::StatusCode::NOT_ACCEPTABLE, code: $code, title: $title, detail: $detail, param: [$($param_arg: $param_ty),*];)*);
-        }
-    };
-
     ( $(ty: $ty:ident, status: $status:expr, code: $code:expr, title: $title:expr, detail: $detail:expr, param: [$($param_arg:ident: $param_ty:ty),*];)* ) => {
         impl Error {
             rabbithole_errors_inner!($(ty: $ty, status: $status, code: $code, title: $title, detail: $detail, param: [$($param_arg: $param_ty),*];)*);
@@ -117,37 +114,40 @@ macro_rules! rabbithole_errors {
 
 rabbithole_errors! {
     ty: InvalidUtf8String,
+    status: http::StatusCode::NOT_ACCEPTABLE,
     code: "RBH-0001",
     title: "Invalid UTF-8 String",
     detail: "The String {invalid} is not a valid UTF-8 String",
     param: [invalid: &str];
 
     ty: InvalidPageType,
+    status: http::StatusCode::NOT_ACCEPTABLE,
     code: "RBH-0101",
     title: "Invalid Page Type",
     detail: r#"Invalid page type: {invalid}, the valid ones are: ["OffsetBased", "PageBased", "CursorBased"]"#,
     param: [invalid: &str];
 
     ty: InvalidFilterType,
+    status: http::StatusCode::NOT_ACCEPTABLE,
     code: "RBH-0102",
     title: "Invalid Filter Type",
     detail: r#"Invalid filter type: {invalid}, the valid ones are: ["Rsql"]"#,
     param: [invalid: &str];
 
     ty: UnmatchedFilterItem,
+    status: http::StatusCode::NOT_ACCEPTABLE,
     code: "RBH-0103",
     title: "Unmatched Filter Item",
     detail: "Filter type [{filter_type}] and filter item [{filter_key} = {filter_value}] are not matched",
     param: [filter_type: &str, filter_key: &str, filter_value: &str];
 
     ty: InvalidJsonApiVersion,
+    status: http::StatusCode::NOT_ACCEPTABLE,
     code: "RBH-0201",
     title: "Invalid JSON API Version",
     detail: "A invalid JSON:API version: {invalid_version}",
     param: [invalid_version: String];
-}
 
-rabbithole_errors! {
     ty: InvalidContentType,
     status: http::StatusCode::UNSUPPORTED_MEDIA_TYPE,
     code: "RBH-0301",
@@ -161,4 +161,25 @@ rabbithole_errors! {
     title: "Invalid Accept Header",
     detail: "The `Accept` header of Request must be {header_hint}, but {invalid_header} found",
     param: [header_hint: &str, invalid_header: &str];
+
+    ty: RelatedFieldNotExist,
+    status: http::StatusCode::NOT_FOUND,
+    code: "RBH-0401",
+    title: "Related Field Not Exist",
+    detail: "Related field {field} does not exist",
+    param: [field: &str];
+
+    ty: ParentResourceNotExist,
+    status: http::StatusCode::NOT_FOUND,
+    code: "RBH-0402",
+    title: "Parent Resource of Relationship Not Exist",
+    detail: "The parent resource of the relationship {target_relat} does not exist",
+    param: [target_relat: &str];
+
+    ty: RelationshipFieldNotExist,
+    status: http::StatusCode::NOT_FOUND,
+    code: "RBH-0403",
+    title: "Relationship Field Not Exist",
+    detail: "Relationship field {field} does not exist",
+    param: [field: &str];
 }

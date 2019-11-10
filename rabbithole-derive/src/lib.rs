@@ -37,18 +37,18 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
             fn included(&self, uri: &str,
                 include_query: &std::option::Option<rabbithole::model::query::IncludeQuery>,
                 fields_query: &rabbithole::model::query::FieldsQuery,
-            ) -> rabbithole::RbhResult<rabbithole::model::document::Included> {
+            ) -> rabbithole::model::document::Included {
                 use rabbithole::entity::SingleEntity;
                 let mut included: rabbithole::model::document::Included = Default::default();
                 #(
                     if let Some(included_fields) = include_query {
                         if included_fields.contains(stringify!(#to_ones)) {
-                            if let Some(inc) = self.#to_ones.to_resource(uri, fields_query)? {
+                            if let Some(inc) = self.#to_ones.to_resource(uri, fields_query) {
                                 included.insert(inc);
                             }
                         }
                     } else {
-                        if let Some(inc) = self.#to_ones.to_resource(uri, fields_query)? {
+                        if let Some(inc) = self.#to_ones.to_resource(uri, fields_query) {
                             included.insert(inc);
                         }
                     }
@@ -57,23 +57,23 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                     if let Some(included_fields) = include_query {
                         if included_fields.contains(stringify!(#to_manys)) {
                             for item in &self.#to_manys {
-                                if let Some(inc) = item.to_resource(uri, fields_query)? {
+                                if let Some(inc) = item.to_resource(uri, fields_query) {
                                     included.insert(inc);
                                 }
                             }
                         }
                     } else {
                         for item in &self.#to_manys {
-                            if let Some(inc) = item.to_resource(uri, fields_query)? {
+                            if let Some(inc) = item.to_resource(uri, fields_query) {
                                 included.insert(inc);
                             }
                         }
                     }
                 )*
-                Ok(included)
+                included
              }
 
-             fn to_document_automatically(&self, uri: &str, query: &rabbithole::model::query::Query, request_path: &rabbithole::model::link::RawUri) -> rabbithole::RbhResult<rabbithole::model::document::Document> {
+             fn to_document_automatically(&self, uri: &str, query: &rabbithole::model::query::Query, request_path: &rabbithole::model::link::RawUri) -> rabbithole::model::document::Document {
                  rabbithole::entity::SingleEntity::to_document_automatically(&self, uri, query, request_path)
              }
         }

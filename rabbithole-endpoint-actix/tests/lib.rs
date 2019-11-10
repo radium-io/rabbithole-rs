@@ -6,91 +6,70 @@ pub mod v1_1;
 macro_rules! fetching_init {
     () => {
         use rabbithole::entity::{Entity, SingleEntity};
-        use std::iter::FromIterator;
 
         #[async_trait::async_trait]
         impl rabbithole::operation::Fetching for Dog {
-            type Error = actix_web::HttpResponse;
             type Item = Dog;
 
             async fn vec_to_document(
                 items: &[Self::Item], uri: &str, query: &rabbithole::model::query::Query,
                 request_path: &rabbithole::model::link::RawUri,
-            ) -> Result<rabbithole::model::document::Document, Self::Error> {
-                if let Ok(doc) = items.to_document_automatically(uri, query, request_path) {
-                    Ok(doc)
-                } else {
-                    Err(actix_web::HttpResponse::build(actix_web::http::StatusCode::BAD_REQUEST)
-                        .body("error"))
-                }
+            ) -> Result<rabbithole::model::document::Document, rabbithole::model::error::Error>
+            {
+                Ok(items.to_document_automatically(uri, query, request_path))
             }
 
             async fn fetch_collection(
                 _query: &rabbithole::model::query::Query,
-            ) -> Result<Vec<Self::Item>, Self::Error> {
+            ) -> Result<Vec<Self::Item>, rabbithole::model::error::Error> {
                 Ok(Default::default())
             }
 
             async fn fetch_single(
                 id: &str, _query: &rabbithole::model::query::Query,
-            ) -> Result<Option<Self::Item>, Self::Error> {
+            ) -> Result<Option<Self::Item>, rabbithole::model::error::Error> {
                 if id == "none" {
                     Ok(None)
                 } else {
-                    let rand = rand::random::<usize>() % 3 + 1;
+                    let rand = rand::random::<usize>() % 3;
                     Ok(generate_dogs(rand).first().cloned())
                 }
             }
 
             async fn fetch_relationship(
-                _id: &str, _related_field: &str, uri: &str,
-                _query: &rabbithole::model::query::Query,
-                request_path: &rabbithole::model::link::RawUri,
-            ) -> Result<rabbithole::model::relationship::Relationship, Self::Error> {
-                Err(actix_web::HttpResponse::Ok().json(
-                    rabbithole::model::document::Document::null(Some(
-                        std::collections::HashMap::from_iter(vec![
-                            rabbithole::model::link::Link::slf(uri, request_path.clone()),
-                        ]),
-                    )),
-                ))
+                _: &str, related_field: &str, _: &str, _: &rabbithole::model::query::Query,
+                _: &rabbithole::model::link::RawUri,
+            ) -> Result<
+                rabbithole::model::relationship::Relationship,
+                rabbithole::model::error::Error,
+            > {
+                Err(rabbithole::model::error::Error::RelationshipFieldNotExist(related_field, None))
             }
 
             async fn fetch_related(
-                _id: &str, _related_field: &str, uri: &str,
-                _query: &rabbithole::model::query::Query,
-                request_path: &rabbithole::model::link::RawUri,
-            ) -> Result<rabbithole::model::document::Document, Self::Error> {
-                Err(actix_web::HttpResponse::Ok().json(
-                    rabbithole::model::document::Document::null(Some(
-                        std::collections::HashMap::from_iter(vec![
-                            rabbithole::model::link::Link::slf(uri, request_path.clone()),
-                        ]),
-                    )),
-                ))
+                _: &str, related_field: &str, _: &str, _: &rabbithole::model::query::Query,
+                _: &rabbithole::model::link::RawUri,
+            ) -> Result<rabbithole::model::document::Document, rabbithole::model::error::Error>
+            {
+                Err(rabbithole::model::error::Error::RelatedFieldNotExist(related_field, None))
             }
         }
 
         #[async_trait::async_trait]
         impl rabbithole::operation::Fetching for Human {
-            type Error = actix_web::HttpResponse;
             type Item = Human;
 
             async fn vec_to_document(
                 items: &[Self::Item], uri: &str, query: &rabbithole::model::query::Query,
                 request_path: &rabbithole::model::link::RawUri,
-            ) -> Result<rabbithole::model::document::Document, Self::Error> {
-                if let Ok(doc) = items.to_document_automatically(uri, query, request_path) {
-                    Ok(doc)
-                } else {
-                    Err(actix_web::HttpResponse::build(actix_web::http::StatusCode::BAD_REQUEST)
-                        .body("error"))
-                }
+            ) -> Result<rabbithole::model::document::Document, rabbithole::model::error::Error>
+            {
+                Ok(items.to_document_automatically(uri, query, request_path))
             }
 
             async fn fetch_collection(
                 _: &rabbithole::model::query::Query,
-            ) -> Result<Vec<Self::Item>, Self::Error> {
+            ) -> Result<Vec<Self::Item>, rabbithole::model::error::Error> {
                 let rand = rand::random::<usize>() % 5 + 1;
                 let masters = generate_masters(rand);
                 Ok(masters)
@@ -98,7 +77,7 @@ macro_rules! fetching_init {
 
             async fn fetch_single(
                 id: &str, _query: &rabbithole::model::query::Query,
-            ) -> Result<Option<Self::Item>, Self::Error> {
+            ) -> Result<Option<Self::Item>, rabbithole::model::error::Error> {
                 if id == "none" {
                     Ok(None)
                 } else {
@@ -108,36 +87,51 @@ macro_rules! fetching_init {
             }
 
             async fn fetch_relationship(
-                _id: &str, related_field: &str, uri: &str,
-                _query: &rabbithole::model::query::Query,
+                id: &str, related_field: &str, uri: &str, _query: &rabbithole::model::query::Query,
                 _request_path: &rabbithole::model::link::RawUri,
-            ) -> Result<rabbithole::model::relationship::Relationship, Self::Error> {
+            ) -> Result<
+                rabbithole::model::relationship::Relationship,
+                rabbithole::model::error::Error,
+            > {
                 if related_field == "dogs" {
-                    let rand = rand::random::<usize>() % 3 + 1;
+                    if id == "none" {
+                        return Err(rabbithole::model::error::Error::ParentResourceNotExist(
+                            related_field,
+                            None,
+                        ));
+                    }
+
+                    let rand = rand::random::<usize>() % 3;
                     let relats = generate_masters(rand).last().cloned().unwrap().relationships(uri);
                     Ok(relats.get(related_field).cloned().unwrap())
                 } else {
-                    Err(actix_web::HttpResponse::NotFound().finish())
+                    Err(rabbithole::model::error::Error::RelationshipFieldNotExist(
+                        related_field,
+                        None,
+                    ))
                 }
             }
 
             async fn fetch_related(
-                _id: &str, related_field: &str, uri: &str, query: &rabbithole::model::query::Query,
+                id: &str, related_field: &str, uri: &str, query: &rabbithole::model::query::Query,
                 request_path: &rabbithole::model::link::RawUri,
-            ) -> Result<rabbithole::model::document::Document, Self::Error> {
+            ) -> Result<rabbithole::model::document::Document, rabbithole::model::error::Error>
+            {
                 if related_field == "dogs" {
-                    let rand = rand::random::<usize>() % 3 + 1;
+                    if id == "none" {
+                        return Err(rabbithole::model::error::Error::ParentResourceNotExist(
+                            related_field,
+                            None,
+                        ));
+                    }
+
+                    let rand = rand::random::<usize>() % 3;
                     let master = generate_masters(rand);
                     let master = master.last().unwrap();
-                    if let Ok(doc) = master.dogs.to_document_automatically(uri, query, request_path)
-                    {
-                        Ok(doc)
-                    } else {
-                        Err(actix_web::HttpResponse::InternalServerError()
-                            .body("doc parsing error"))
-                    }
+                    let doc = master.dogs.to_document_automatically(uri, query, request_path);
+                    Ok(doc)
                 } else {
-                    Err(actix_web::HttpResponse::NotFound().finish())
+                    Err(rabbithole::model::error::Error::RelatedFieldNotExist(related_field, None))
                 }
             }
         }

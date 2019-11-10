@@ -30,7 +30,7 @@ impl FromStr for JsonApiVersion {
                 }
             }
         }
-        Err(error::Error::InvalidJsonApiVersion(s.into()))
+        Err(error::Error::InvalidJsonApiVersion(s.into(), None))
     }
 }
 

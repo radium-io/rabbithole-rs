@@ -55,7 +55,7 @@ impl Query {
         if let Some(query_str) = uri.query() {
             let query_str = percent_decode_str(query_str)
                 .decode_utf8()
-                .map_err(|_| error::Error::InvalidUtf8String(query_str))?;
+                .map_err(|_| error::Error::InvalidUtf8String(query_str, None))?;
 
             for (key, value) in query_str.split('&').filter_map(|s| {
                 let kv_pair: Vec<&str> = s.splitn(2, '=').collect();
@@ -138,17 +138,17 @@ impl PageQuery {
         if ty == "OffsetBased" {
             if let (Some(offset), Some(limit)) = (param.get("offset"), param.get("limit")) {
                 let offset = u32::from_str(offset)
-                    .map_err(|_| error::Error::UnmatchedFilterItem(ty, "offset", offset))?;
+                    .map_err(|_| error::Error::UnmatchedFilterItem(ty, "offset", offset, None))?;
                 let limit = u32::from_str(limit)
-                    .map_err(|_| error::Error::UnmatchedFilterItem(ty, "limit", limit))?;
+                    .map_err(|_| error::Error::UnmatchedFilterItem(ty, "limit", limit, None))?;
                 return Ok(Some(PageQuery::OffsetBased { offset, limit }));
             }
         } else if ty == "PageBased" {
             if let (Some(number), Some(size)) = (param.get("number"), param.get("size")) {
                 let number = u32::from_str(number)
-                    .map_err(|_| error::Error::UnmatchedFilterItem(ty, "number", number))?;
+                    .map_err(|_| error::Error::UnmatchedFilterItem(ty, "number", number, None))?;
                 let size = u32::from_str(size)
-                    .map_err(|_| error::Error::UnmatchedFilterItem(ty, "size", size))?;
+                    .map_err(|_| error::Error::UnmatchedFilterItem(ty, "size", size, None))?;
                 return Ok(Some(PageQuery::PageBased { number, size }));
             }
         } else if ty == "CursorBased" {
@@ -156,7 +156,7 @@ impl PageQuery {
                 return Ok(Some(PageQuery::CursorBased(cursor.clone())));
             }
         } else {
-            return Err(error::Error::InvalidPageType(ty));
+            return Err(error::Error::InvalidPageType(ty, None));
         }
 
         Ok(None)
@@ -174,12 +174,12 @@ impl FilterQuery {
             let mut res: HashMap<String, Expr> = Default::default();
             for (k, v) in params.into_iter() {
                 let expr = RsqlParser::parse_to_node(&v)
-                    .map_err(|_| error::Error::UnmatchedFilterItem(ty, &k, &v))?;
+                    .map_err(|_| error::Error::UnmatchedFilterItem(ty, &k, &v, None))?;
                 res.insert(k, expr);
             }
             Ok(if res.is_empty() { None } else { Some(FilterQuery::Rsql(res)) })
         } else {
-            Err(error::Error::InvalidFilterType(ty))
+            Err(error::Error::InvalidFilterType(ty, None))
         }
     }
 }
