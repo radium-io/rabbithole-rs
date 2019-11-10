@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.2.1] - 2019-11-10
+
+## Fixed
+
+- Publish error: all dependencies must have a version specified when publishing.
+
 ## [0.2.0] - 2019-11-10
 
 The most important and bothering thing is that [`attributes` cannot be sorted](https://github.com/UkonnRa/rabbithole-rs/issues/1)
