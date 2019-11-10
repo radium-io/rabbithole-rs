@@ -7,8 +7,9 @@ use serde::de::{MapAccess, Visitor};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
+use std::collections::HashSet;
 
-pub type Included = Vec<Resource>;
+pub type Included = HashSet<Resource>;
 
 /// Valid data Resource (can be None)
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -16,6 +17,15 @@ pub type Included = Vec<Resource>;
 pub enum PrimaryDataItem {
     Single(Box<Resource>),
     Multiple(Resources),
+}
+
+impl PrimaryDataItem {
+    pub fn data(&self) -> Vec<Resource> {
+        match self {
+            PrimaryDataItem::Single(res) => vec![res.as_ref().clone()],
+            PrimaryDataItem::Multiple(vec) => vec.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -38,12 +48,25 @@ pub struct Document {
 }
 
 impl Document {
-    pub fn single_resource(resource: Resource, included: Included) -> Self {
+    pub fn null(links: Option<Links>) -> Self { Self { links, ..Default::default() } }
+
+    pub fn single_resource(resource: Resource, included: Included, links: Option<Links>) -> Self {
         Self {
             item: DocumentItem::PrimaryData(Some((
                 PrimaryDataItem::Single(Box::new(resource)),
                 included,
             ))),
+            links,
+            ..Default::default()
+        }
+    }
+
+    pub fn multiple_resources(
+        resources: Vec<Resource>, included: Included, links: Option<Links>,
+    ) -> Self {
+        Self {
+            item: DocumentItem::PrimaryData(Some((PrimaryDataItem::Multiple(resources), included))),
+            links,
             ..Default::default()
         }
     }
@@ -95,7 +118,6 @@ impl<'de> Visitor<'de> for DocumentVisitor {
     where
         E: serde::de::Error,
     {
-        println!("visit_str: {}", v);
         Ok(serde_json::from_str::<Document>(v).unwrap())
     }
 

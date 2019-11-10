@@ -1,0 +1,32 @@
+[package]
+name = "rabbithole-endpoint-actix"
+version = "0.2.0"
+authors = ["Ukonn Ra <ukonnra@outlook.com>"]
+edition = "2018"
+description = "JSON:API Actix-web backend"
+homepage = "https://github.com/UkonnRa/rabbithole-rs"
+repository = "https://github.com/UkonnRa/rabbithole-rs.git"
+readme = "../README.md"
+keywords = ["jsonapi"]
+categories = []
+license = "MIT"
+
+[dependencies]
+env_logger = "~0.7"
+log = "~0.4"
+
+futures-preview = { version = "=0.3.0-alpha.19", features = ["compat"] }
+futures01 = { package = "futures", version = "~0.1" }
+actix-web = "~1.0"
+
+url = "~1.7"
+
+serde = "~1.0"
+serde_json = "~1.0"
+uuid = "~0.8"
+async-trait = "~0.1"
+rand = "~0.7"
+config = "~0.9"
+
+rabbithole = { path = "../rabbithole", features = ["unstable-vec-to-document"] }
+rabbithole-derive = { path = "../rabbithole-derive" }

@@ -2,15 +2,24 @@ use crate::model::Meta;
 use core::fmt;
 use serde::de::Visitor;
 
+use http::Uri;
 use serde::export::Formatter;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
+
 use std::str::FromStr;
 
 pub type Links = HashMap<String, Link>;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct RawUri(http::Uri);
+
+impl RawUri {
+    fn append_to(self, base_url: &str) -> RawUri {
+        let base = base_url.parse::<url::Url>().unwrap().join(&self.0.to_string()).unwrap();
+        RawUri(base.to_string().parse::<http::Uri>().unwrap())
+    }
+}
 
 impl FromStr for RawUri {
     type Err = http::uri::InvalidUri;
@@ -24,11 +33,29 @@ impl FromStr for Link {
     fn from_str(s: &str) -> Result<Self, Self::Err> { Ok(Link::Raw(s.parse()?)) }
 }
 
+impl From<RawUri> for Link {
+    fn from(r: RawUri) -> Self { Link::Raw(r) }
+}
+
+impl From<http::Uri> for RawUri {
+    fn from(uri: Uri) -> Self { RawUri(uri) }
+}
+
+impl From<&http::Uri> for RawUri {
+    fn from(uri: &Uri) -> Self { RawUri(uri.clone()) }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum Link {
     Raw(RawUri),
     Object { href: RawUri, meta: Meta },
+}
+
+impl Link {
+    pub fn slf(url: &str, link: RawUri) -> (String, Link) {
+        ("self".into(), link.append_to(url).into())
+    }
 }
 
 impl Serialize for RawUri {

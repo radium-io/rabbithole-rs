@@ -3,11 +3,13 @@ extern crate serde_derive;
 #[macro_use]
 extern crate lazy_static;
 
-use crate::error::RabbitholeError;
+use crate::model::error::Error;
 
-pub type RbhResult<T> = Result<T, RabbitholeError>;
-pub type RbhOptionRes<T> = Result<Option<T>, RabbitholeError>;
+pub type RbhResult<T> = Result<T, Error>;
+pub type RbhOptionRes<T> = Result<Option<T>, Error>;
+pub const JSON_API_HEADER: &str = "application/vnd.api+json";
 
 pub mod entity;
-pub mod error;
 pub mod model;
+pub mod operation;
+pub mod rule;
