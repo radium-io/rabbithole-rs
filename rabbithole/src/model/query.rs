@@ -59,7 +59,7 @@ impl Query {
 
             for (key, value) in query_str.split('&').filter_map(|s| {
                 let kv_pair: Vec<&str> = s.splitn(2, '=').collect();
-                if kv_pair.len() == 2 && !kv_pair[0].is_empty() && !kv_pair[1].is_empty() {
+                if kv_pair.len() == 2 && !kv_pair[0].is_empty() {
                     Some((kv_pair[0], kv_pair[1]))
                 } else {
                     None
@@ -122,7 +122,8 @@ impl Query {
         let page = PageQuery::new(&page_type.unwrap_or_else(|| "CursorBased".into()), &page_map)?;
         let filter = FilterQuery::new(&filter_type.unwrap_or_else(|| "Rsql".into()), filter_map)?;
 
-        Ok(Query { include, fields: fields_map, sort, page, filter })
+        let query = Query { include, fields: fields_map, sort, page, filter };
+        Ok(query)
     }
 }
 

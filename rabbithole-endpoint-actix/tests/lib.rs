@@ -31,7 +31,7 @@ macro_rules! fetching_init {
                 if id == "none" {
                     Ok(None)
                 } else {
-                    let rand = rand::random::<usize>() % 3;
+                    let rand = rand::random::<usize>() % 3 + 1;
                     Ok(generate_dogs(rand).first().cloned())
                 }
             }
@@ -43,7 +43,7 @@ macro_rules! fetching_init {
                 rabbithole::model::relationship::Relationship,
                 rabbithole::model::error::Error,
             > {
-                Err(rabbithole::model::error::Error::RelationshipFieldNotExist(related_field, None))
+                Err(rabbithole::model::error::Error::FieldNotExist(related_field, None))
             }
 
             async fn fetch_related(
@@ -51,7 +51,7 @@ macro_rules! fetching_init {
                 _: &rabbithole::model::link::RawUri,
             ) -> Result<rabbithole::model::document::Document, rabbithole::model::error::Error>
             {
-                Err(rabbithole::model::error::Error::RelatedFieldNotExist(related_field, None))
+                Err(rabbithole::model::error::Error::FieldNotExist(related_field, None))
             }
         }
 
@@ -101,14 +101,11 @@ macro_rules! fetching_init {
                         ));
                     }
 
-                    let rand = rand::random::<usize>() % 3;
+                    let rand = rand::random::<usize>() % 3 + 1;
                     let relats = generate_masters(rand).last().cloned().unwrap().relationships(uri);
                     Ok(relats.get(related_field).cloned().unwrap())
                 } else {
-                    Err(rabbithole::model::error::Error::RelationshipFieldNotExist(
-                        related_field,
-                        None,
-                    ))
+                    Err(rabbithole::model::error::Error::FieldNotExist(related_field, None))
                 }
             }
 
@@ -117,21 +114,20 @@ macro_rules! fetching_init {
                 request_path: &rabbithole::model::link::RawUri,
             ) -> Result<rabbithole::model::document::Document, rabbithole::model::error::Error>
             {
+                if id == "none" {
+                    return Err(rabbithole::model::error::Error::ParentResourceNotExist(
+                        related_field,
+                        None,
+                    ));
+                }
                 if related_field == "dogs" {
-                    if id == "none" {
-                        return Err(rabbithole::model::error::Error::ParentResourceNotExist(
-                            related_field,
-                            None,
-                        ));
-                    }
-
-                    let rand = rand::random::<usize>() % 3;
+                    let rand = rand::random::<usize>() % 3 + 1;
                     let master = generate_masters(rand);
                     let master = master.last().unwrap();
                     let doc = master.dogs.to_document_automatically(uri, query, request_path);
                     Ok(doc)
                 } else {
-                    Err(rabbithole::model::error::Error::RelatedFieldNotExist(related_field, None))
+                    Err(rabbithole::model::error::Error::FieldNotExist(related_field, None))
                 }
             }
         }
@@ -183,7 +179,7 @@ macro_rules! classes_init {
 
         fn generate_masters(len: usize) -> Vec<Human> {
             let mut masters = Vec::with_capacity(len);
-            for i in 0 ..= len {
+            for i in 1 ..= len {
                 let uuid = uuid::Uuid::new_v4();
                 let dogs = generate_dogs(i);
                 masters.push(Human { id_code: uuid, name: uuid.to_string(), dogs });

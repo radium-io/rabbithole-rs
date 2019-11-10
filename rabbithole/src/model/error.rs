@@ -44,6 +44,7 @@ pub struct Error {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     #[serde(skip_serializing_if = "ErrorLinks::is_empty")]
+    #[serde(default)]
     pub links: ErrorLinks,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
@@ -162,24 +163,17 @@ rabbithole_errors! {
     detail: "The `Accept` header of Request must be {header_hint}, but {invalid_header} found",
     param: [header_hint: &str, invalid_header: &str];
 
-    ty: RelatedFieldNotExist,
+    ty: FieldNotExist,
     status: http::StatusCode::NOT_FOUND,
     code: "RBH-0401",
-    title: "Related Field Not Exist",
-    detail: "Related field {field} does not exist",
+    title: "Field Not Exist",
+    detail: "Field `{field}` does not exist",
     param: [field: &str];
 
     ty: ParentResourceNotExist,
     status: http::StatusCode::NOT_FOUND,
     code: "RBH-0402",
     title: "Parent Resource of Relationship Not Exist",
-    detail: "The parent resource of the relationship {target_relat} does not exist",
+    detail: "The parent resource of the relationship `{target_relat}` does not exist",
     param: [target_relat: &str];
-
-    ty: RelationshipFieldNotExist,
-    status: http::StatusCode::NOT_FOUND,
-    code: "RBH-0403",
-    title: "Relationship Field Not Exist",
-    detail: "Relationship field {field} does not exist",
-    param: [field: &str];
 }

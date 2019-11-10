@@ -1,6 +1,5 @@
 extern crate rabbithole_derive as rbh_derive;
 
-
 use actix_web::App;
 use actix_web::{middleware, web};
 use actix_web::{HttpResponse, HttpServer};
@@ -15,9 +14,8 @@ use rabbithole::operation::Fetching;
 
 use serde::{Deserialize, Serialize};
 
-
 use rabbithole::model::error;
-use rabbithole::model::link::{RawUri};
+use rabbithole::model::link::RawUri;
 use rabbithole_endpoint_actix::settings::ActixSettingsModel;
 use rabbithole_endpoint_actix::ActixSettings;
 
@@ -99,13 +97,13 @@ impl Fetching for Dog {
     async fn fetch_relationship(
         _: &str, related_field: &str, _: &str, _: &Query, _: &RawUri,
     ) -> Result<Relationship, error::Error> {
-        Err(error::Error::RelationshipFieldNotExist(related_field, None))
+        Err(error::Error::FieldNotExist(related_field, None))
     }
 
     async fn fetch_related(
         _: &str, related_field: &str, _: &str, _: &Query, _: &RawUri,
     ) -> Result<Document, error::Error> {
-        Err(error::Error::RelatedFieldNotExist(related_field, None))
+        Err(error::Error::FieldNotExist(related_field, None))
     }
 }
 
@@ -146,7 +144,7 @@ impl Fetching for Human {
             let relats = generate_masters(rand).last().cloned().unwrap().relationships(uri);
             Ok(relats.get(related_field).cloned().unwrap())
         } else {
-            Err(error::Error::RelationshipFieldNotExist(related_field, None))
+            Err(error::Error::FieldNotExist(related_field, None))
         }
     }
 
@@ -164,7 +162,7 @@ impl Fetching for Human {
             let doc = master.dogs.to_document_automatically(uri, query, request_path);
             Ok(doc)
         } else {
-            Err(error::Error::RelatedFieldNotExist(related_field, None))
+            Err(error::Error::FieldNotExist(related_field, None))
         }
     }
 }

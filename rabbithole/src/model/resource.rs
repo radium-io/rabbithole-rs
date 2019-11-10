@@ -46,7 +46,7 @@ impl Attributes {
     //        }
     //    }
     //
-    //    fn get(&self, key: impl ToString) -> Option<&Value> { self.0.get(&key.to_string()) }
+    pub fn get(&self, key: impl ToString) -> Option<&Value> { self.0.get(&key.to_string()) }
 }
 
 /// Valid Resource Identifier (can be None)
