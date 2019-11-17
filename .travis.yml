@@ -12,15 +12,16 @@ jobs:
         - cargo test --all --all-features
     - stage: deploy-cargo
       script:
+        - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
         - cd ./rabbithole-derive
-        - cargo publish --dry-run
-        - cargo publish --token "$CARGO_TOKEN"
+        - cargo publish --dry-run --allow-dirty
+        - cargo publish --allow-dirty --token "$CARGO_TOKEN"
 
         - cd ../rabbithole
-        - cargo publish --dry-run
-        - cargo publish --token "$CARGO_TOKEN"
+        - cargo publish --dry-run --allow-dirty
+        - cargo publish --allow-dirty --token "$CARGO_TOKEN"
 
         - cd ../rabbithole-endpoint-actix
-        - cargo publish --dry-run
-        - cargo publish --token "$CARGO_TOKEN"
+        - cargo publish --dry-run --allow-dirty
+        - cargo publish --allow-dirty --token "$CARGO_TOKEN"
       if: tag IS present
