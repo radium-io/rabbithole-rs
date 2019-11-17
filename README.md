@@ -90,12 +90,27 @@ For me, the second one is more beautiful.
 - [x] Basic Macro System
 - [x] Basic tests
 
-- [ ] Query/Filter API
+- [x] Query/Filter API
   - [x] Query/Filter model
-  - [ ] The auto query/filter is impossible now. Need to be finished by User
+  - [x] (Partial Finished) The auto query/filter is possible now
 - [x] [Stricter type checking and error hints](#type-checking-and-error-hints-in-macro-system)
 - [ ] [A high performance JSON:API Server](#a-high-performance-server)
   - [x] actix backend
+  - [ ] (maybe) Hyper backend
+  
+### Some Problems
+
+#### [Query with Relationship Path does not work](https://github.com/UkonnRa/rabbithole-rs/issues/2)
+
+See the issue for detail.
+
+#### The lack of extra `meta` and `links` fields when using Page Query
+
+In specification, when using `page` query,
+- the `meta` object should add a `totalPage` field
+- the `links` object should add `prev`, `next`, `first` and `last` links
+but `rabbithole` cannot handle it automatically, users should add these fields by implementing
+in `Fetching::vec_to_document` manually。
 
 ## Future Works
 

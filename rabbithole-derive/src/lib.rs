@@ -23,6 +23,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
     inner_derive(input).unwrap_or_else(|err| err.to_compile_error()).into()
 }
 
+#[allow(clippy::cognitive_complexity)]
 fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
     let ast: DeriveInput = syn::parse(input)?;
     let decorated_struct: &syn::Ident = &ast.ident;
@@ -35,21 +36,30 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
     let mut res = quote! {
         impl #struct_lifetime rabbithole::entity::Entity for #decorated_struct#struct_lifetime {
             fn included(&self, uri: &str,
-                include_query: &std::option::Option<rabbithole::model::query::IncludeQuery>,
-                fields_query: &rabbithole::model::query::FieldsQuery,
-            ) -> rabbithole::model::document::Included {
+                include_query: &std::option::Option<rabbithole::query::IncludeQuery>,
+                fields_query: &rabbithole::query::FieldsQuery,
+            ) -> rabbithole::RbhResult<rabbithole::model::document::Included> {
                 use rabbithole::entity::SingleEntity;
+                use std::convert::TryInto;
                 let mut included: rabbithole::model::document::Included = Default::default();
+
+                if let Some(included_fields) = include_query {
+                    for inc in included_fields {
+                        if inc.contains('.') {
+                            return Err(rabbithole::model::error::Error::RelationshipPathNotSupported(&inc, None));
+                        }
+                    }
+                }
                 #(
                     if let Some(included_fields) = include_query {
                         if included_fields.contains(stringify!(#to_ones)) {
                             if let Some(inc) = self.#to_ones.to_resource(uri, fields_query) {
-                                included.insert(inc);
+                                included.insert(inc.id.clone(), inc);
                             }
                         }
                     } else {
                         if let Some(inc) = self.#to_ones.to_resource(uri, fields_query) {
-                            included.insert(inc);
+                            included.insert(inc.id.clone(), inc);
                         }
                     }
                 )*
@@ -58,22 +68,22 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                         if included_fields.contains(stringify!(#to_manys)) {
                             for item in &self.#to_manys {
                                 if let Some(inc) = item.to_resource(uri, fields_query) {
-                                    included.insert(inc);
+                                    included.insert(inc.id.clone(), inc);
                                 }
                             }
                         }
                     } else {
                         for item in &self.#to_manys {
                             if let Some(inc) = item.to_resource(uri, fields_query) {
-                                included.insert(inc);
+                                included.insert(inc.id.clone(), inc);
                             }
                         }
                     }
                 )*
-                included
+                Ok(included)
              }
 
-             fn to_document_automatically(&self, uri: &str, query: &rabbithole::model::query::Query, request_path: &rabbithole::model::link::RawUri) -> rabbithole::model::document::Document {
+             fn to_document_automatically(&self, uri: &str, query: &rabbithole::query::Query, request_path: &rabbithole::model::link::RawUri) -> rabbithole::RbhResult<rabbithole::model::document::Document> {
                  rabbithole::entity::SingleEntity::to_document_automatically(&self, uri, query, request_path)
              }
         }
@@ -87,6 +97,7 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 #(  if let Ok(json_value) = serde_json::to_value(self.#attrs.clone()) { attr_map.insert(stringify!(#attrs).to_string(), json_value); } )*
                 attr_map.into()
             }
+
             fn relationships(&self, uri: &str) -> rabbithole::model::relationship::Relationships {
                 let mut relat_map: rabbithole::model::relationship::Relationships = std::default::Default::default();
                 #(
@@ -210,7 +221,9 @@ fn get_fields(ast: &syn::DeriveInput) -> syn::Result<FieldBundle> {
                 },
                 (FieldType::ToOne, Some(ident)) => to_ones.push(ident),
                 (FieldType::ToMany, Some(ident)) => to_manys.push(ident),
-                (FieldType::Plain, Some(ident)) => attrs.push(ident),
+                (FieldType::Plain, Some(ident)) => {
+                    attrs.push(ident);
+                },
                 _ => {
                     return Err(syn::Error::new_spanned(n, EntityDecoratorError::FieldWithoutName))
                 },

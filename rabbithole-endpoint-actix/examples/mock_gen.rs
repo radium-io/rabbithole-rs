@@ -4,23 +4,17 @@ use actix_web::App;
 use actix_web::{middleware, web};
 use actix_web::{HttpResponse, HttpServer};
 use async_trait::async_trait;
-use rabbithole::model::document::Document;
 
 use rabbithole::entity::{Entity, SingleEntity};
-use rabbithole::model::query::Query;
-use rabbithole::model::relationship::Relationship;
-
-use rabbithole::operation::Fetching;
-
-use serde::{Deserialize, Serialize};
-
 use rabbithole::model::error;
 use rabbithole::model::link::RawUri;
+use rabbithole::model::relationship::Relationship;
+use rabbithole::operation::Fetching;
+use rabbithole::query::Query;
 use rabbithole_endpoint_actix::settings::ActixSettingsModel;
 use rabbithole_endpoint_actix::ActixSettings;
-
+use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
-
 use uuid::Uuid;
 
 // rbh_derive::EntityDecorator to generate JSON:API data models
@@ -76,12 +70,6 @@ fn generate_masters(len: usize) -> Vec<Human> {
 impl Fetching for Dog {
     type Item = Dog;
 
-    async fn vec_to_document(
-        items: &[Self::Item], uri: &str, query: &Query, request_path: &RawUri,
-    ) -> Result<Document, error::Error> {
-        Ok(items.to_document_automatically(uri, query, request_path))
-    }
-
     async fn fetch_collection(_query: &Query) -> Result<Vec<Self::Item>, error::Error> {
         let rand = rand::random::<usize>() % 5;
         let dogs = generate_dogs(rand);
@@ -105,7 +93,7 @@ impl Fetching for Dog {
 
     async fn fetch_related(
         _: &str, related_field: &str, _: &str, _: &Query, _: &RawUri,
-    ) -> Result<Document, error::Error> {
+    ) -> Result<serde_json::Value, error::Error> {
         Err(error::Error::FieldNotExist(related_field, None))
     }
 }
@@ -113,12 +101,6 @@ impl Fetching for Dog {
 #[async_trait]
 impl Fetching for Human {
     type Item = Human;
-
-    async fn vec_to_document(
-        items: &[Self::Item], uri: &str, query: &Query, request_path: &RawUri,
-    ) -> Result<Document, error::Error> {
-        Ok(items.to_document_automatically(uri, query, request_path))
-    }
 
     async fn fetch_collection(_: &Query) -> Result<Vec<Self::Item>, error::Error> {
         let rand = rand::random::<usize>() % 5 + 1;
@@ -153,7 +135,7 @@ impl Fetching for Human {
 
     async fn fetch_related(
         id: &str, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
-    ) -> Result<Document, error::Error> {
+    ) -> Result<serde_json::Value, error::Error> {
         if related_field == "dogs" {
             if id == "none" {
                 return Err(error::Error::ParentResourceNotExist(related_field, None));
@@ -162,8 +144,8 @@ impl Fetching for Human {
             let rand = rand::random::<usize>() % 3;
             let master = generate_masters(rand);
             let master = master.last().unwrap();
-            let doc = master.dogs.to_document_automatically(uri, query, request_path);
-            Ok(doc)
+            serde_json::to_value(master.dogs.to_document_automatically(uri, query, request_path))
+                .map_err(|err| error::Error::InvalidJson(&err, None))
         } else {
             Err(error::Error::FieldNotExist(related_field, None))
         }

@@ -4,12 +4,12 @@ extern crate serde;
 use rabbithole::entity::Entity;
 use rabbithole::model::document::{Document, DocumentItem, PrimaryDataItem};
 use rabbithole::model::link::{Link, RawUri};
-use rabbithole::model::query::Query;
 use rabbithole::model::relationship::Relationship;
 use rabbithole::model::resource::*;
+use rabbithole::query::Query;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::{HashMap, HashSet};
+
 use std::iter::FromIterator;
 use uuid::Uuid;
 
@@ -50,11 +50,21 @@ pub struct Flea {
     pub name: String,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub enum Gender {
     Male,
     Female,
     Unknown,
+}
+
+impl ToString for Gender {
+    fn to_string(&self) -> String {
+        match self {
+            Gender::Male => "Male".into(),
+            Gender::Female => "Female".into(),
+            Gender::Unknown => "Unknown".into(),
+        }
+    }
 }
 
 fn generate_fleas(len: usize) -> Vec<Flea> {
@@ -126,10 +136,12 @@ fn general_test() {
     };
 
     let master_res = Resource {
-        ty: "humans".to_string(),
-        id: "number".to_string(),
-        attributes: HashMap::from_iter(vec![("name".into(), Value::String("master_name".into()))])
-            .into(),
+        id: ResourceIdentifier::new("humans", "number"),
+        attributes: HashMap::from_iter(vec![(
+            "name".to_string(),
+            serde_json::Value::String("master_name".into()),
+        )])
+        .into(),
         relationships: HashMap::from_iter(vec![("only_flea".into(), Relationship {
             data: IdentifierData::Single(Some(ResourceIdentifier {
                 ty: "fleas".to_string(),
@@ -160,10 +172,12 @@ fn general_test() {
     let dog_flea_a = Flea { id: "a".to_string(), name: "dog_flea_a".to_string() };
 
     let dog_flea_a_res = Resource {
-        ty: "fleas".to_string(),
-        id: "a".to_string(),
-        attributes: HashMap::from_iter(vec![("name".into(), Value::String("dog_flea_a".into()))])
-            .into(),
+        id: ResourceIdentifier::new("fleas", "a"),
+        attributes: HashMap::from_iter(vec![(
+            "name".to_string(),
+            serde_json::Value::String("dog_flea_a".into()),
+        )])
+        .into(),
         links: HashMap::from_iter(vec![(
             "self".into(),
             "https://example.com/api/fleas/a".parse::<Link>().unwrap(),
@@ -174,10 +188,12 @@ fn general_test() {
     let dog_flea_b = Flea { id: "b".to_string(), name: "dog_flea_b".to_string() };
 
     let dog_flea_b_res = Resource {
-        ty: "fleas".to_string(),
-        id: "b".to_string(),
-        attributes: HashMap::from_iter(vec![("name".into(), Value::String("dog_flea_b".into()))])
-            .into(),
+        id: ResourceIdentifier::new("fleas", "b"),
+        attributes: HashMap::from_iter(vec![(
+            "name".to_string(),
+            serde_json::Value::String("dog_flea_b".into()),
+        )])
+        .into(),
         links: HashMap::from_iter(vec![(
             "self".into(),
             "https://example.com/api/fleas/b".parse::<Link>().unwrap(),
@@ -195,10 +211,12 @@ fn general_test() {
     };
 
     let dog_res = Resource {
-        ty: "dogs".to_string(),
-        id: "1".to_string(),
-        attributes: HashMap::from_iter(vec![("name".into(), Value::String("dog_name".into()))])
-            .into(),
+        id: ResourceIdentifier::new("dogs", "1"),
+        attributes: HashMap::from_iter(vec![(
+            "name".to_string(),
+            serde_json::Value::String("dog_name".into()),
+        )])
+        .into(),
         relationships: HashMap::from_iter(vec![
             ("friends".into(), Relationship {
                 data: IdentifierData::Multiple(Default::default()),
@@ -267,24 +285,30 @@ fn general_test() {
 
     let document = Document::single_resource(
         dog_res,
-        HashSet::from_iter(vec![master_res, dog_flea_a_res, dog_flea_b_res]),
+        HashMap::from_iter(vec![
+            (master_res.id.clone(), master_res),
+            (dog_flea_a_res.id.clone(), dog_flea_a_res),
+            (dog_flea_b_res.id.clone(), dog_flea_b_res),
+        ]),
         Some(HashMap::from_iter(vec![Link::slf(
             "https://example.com",
             "/api".parse::<RawUri>().unwrap(),
         )])),
     );
 
-    let gen_doc: Document = dog.to_document_automatically(
-        "https://example.com/api",
-        &Query {
-            fields: HashMap::from_iter(vec![(
-                "humans".into(),
-                HashSet::from_iter(vec!["name".into(), "only_flea".into()]),
-            )]),
-            ..Default::default()
-        },
-        &"https://example.com/api".parse().unwrap(),
-    );
+    let gen_doc: Document = dog
+        .to_document_automatically(
+            "https://example.com/api",
+            &Query {
+                fields: HashMap::from_iter(vec![(
+                    "humans".into(),
+                    HashSet::from_iter(vec!["name".into(), "only_flea".into()]),
+                )]),
+                ..Default::default()
+            },
+            &"https://example.com/api".parse().unwrap(),
+        )
+        .unwrap();
     assert_eq!(document.links, gen_doc.links);
 
     if let (
@@ -293,6 +317,12 @@ fn general_test() {
     ) = (document.item, gen_doc.item)
     {
         assert_eq!(doc_res, gen_res);
-        assert_eq!(doc_inc, gen_inc);
+        for (doc_key, doc_val) in doc_inc {
+            if let Some(gen_val) = gen_inc.get(&doc_key) {
+                assert_eq!(&doc_val, gen_val);
+            } else {
+                unreachable!("doc_key [{:?}] cannot be found in gen_inc", doc_key);
+            }
+        }
     }
 }

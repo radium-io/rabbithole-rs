@@ -1,3 +1,6 @@
+#![feature(associated_type_defaults)]
+#![feature(step_trait)]
+
 #[macro_use]
 extern crate serde_derive;
 #[macro_use]
@@ -12,4 +15,5 @@ pub const JSON_API_HEADER: &str = "application/vnd.api+json";
 pub mod entity;
 pub mod model;
 pub mod operation;
+pub mod query;
 pub mod rule;

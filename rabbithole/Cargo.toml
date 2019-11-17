@@ -1,6 +1,6 @@
 [package]
 name = "rabbithole"
-version = "0.2.2"
+version = "0.3.0"
 authors = ["Ukonn Ra <ukonnra@outlook.com>"]
 edition = "2018"
 description = "JSON:API Data Structure & Query implementation"
@@ -11,14 +11,11 @@ keywords = ["jsonapi"]
 categories = []
 license = "MIT"
 
+
 [features]
 default = []
-
-# This feature will unlock the `to_document_automatically` function of `vec` and `[T]`
-# But this feature is unstable, and I **RECOMMAND** you to impl your own version's of
-# `vec-to-document`
-unstable-vec-to-document = []
-
+page_cursor = []
+filter_rsql = []
 
 [dependencies]
 env_logger = "~0.6"
@@ -40,3 +37,6 @@ base64 = "~0.11"
 uuid = { version = "~0.8", features = ["v4", "serde"] }
 rsql-rs = "~0.2"
 async-trait = "~0.1"
+
+[dev-dependencies]
+rabbithole-derive = { path = "../rabbithole-derive", version = "~0.3" }

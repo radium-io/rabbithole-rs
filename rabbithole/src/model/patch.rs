@@ -1,5 +1,6 @@
 use crate::model::relationship::Relationships;
-use crate::model::resource::Attributes;
+use crate::model::resource::{Attributes};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Patch {

@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2019-11-17
+
+### Changed
+
+- Support `IncludeQuery`, `FieldsQuery`, `SortQuery`, `PageQuery` and `FilterQuery`
+- `PageQuery`:
+  - Support `CursorBased`, `PageBased` and `OffsetBased`
+  - The type of `PageQuery` are auto-recognized, checking `OffsetBased` first, then `PageBased`, then `CursorBased`
+- `FilterQuery`:
+  - Support `Rsql`
+- Pretty and extendable Error System, most of the StatusCode in Error System are based on Specification
+- See [project panel](https://github.com/UkonnRa/rabbithole-rs/projects/2) for the detail of **Fetching Operation**
+
 ## [0.2.2] - 2019-11-10
 
 ## [0.2.1] - 2019-11-10

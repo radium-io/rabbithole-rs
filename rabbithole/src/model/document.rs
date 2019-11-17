@@ -1,17 +1,18 @@
 use crate::model::error::Errors;
 use crate::model::link::Links;
-use crate::model::resource::{Resource, Resources};
+
+use crate::model::resource::{Resource, ResourceIdentifier, Resources};
 use crate::model::{JsonApiInfo, Meta};
 use core::fmt;
 use serde::de::{MapAccess, Visitor};
+
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
-use std::collections::HashSet;
+use std::collections::HashMap;
 
-pub type Included = HashSet<Resource>;
+pub type Included = HashMap<ResourceIdentifier, Resource>;
 
-/// Valid data Resource (can be None)
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum PrimaryDataItem {
@@ -39,12 +40,23 @@ impl Default for DocumentItem {
 }
 
 /// The specification refers to this as a top-level `document`
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Document {
     pub item: DocumentItem,
     pub links: Option<Links>,
     pub meta: Option<Meta>,
     pub jsonapi: Option<JsonApiInfo>,
+}
+
+impl Default for Document {
+    fn default() -> Self {
+        Self {
+            item: Default::default(),
+            links: Default::default(),
+            meta: Default::default(),
+            jsonapi: Default::default(),
+        }
+    }
 }
 
 impl Document {
@@ -82,7 +94,10 @@ impl Serialize for Document {
             DocumentItem::PrimaryData(Some((ref data, ref included))) => {
                 state.serialize_field("data", data)?;
                 if !included.is_empty() {
-                    state.serialize_field("included", included)?;
+                    state.serialize_field(
+                        "included",
+                        &included.values().collect::<Vec<&Resource>>(),
+                    )?;
                 }
             },
             DocumentItem::Errors(ref errors) => {
@@ -159,8 +174,12 @@ impl<'de> Visitor<'de> for DocumentVisitor {
                 },
                 "data" => return Err(serde::de::Error::duplicate_field("data")),
                 "included" if included.is_none() => {
-                    match serde_json::from_value::<Included>(value) {
-                        Ok(new_data) => included = Some(new_data),
+                    match serde_json::from_value::<Vec<Resource>>(value) {
+                        Ok(new_data) => {
+                            let new_data: Included =
+                                new_data.into_iter().map(|r| (r.id.clone(), r)).collect();
+                            included = Some(new_data);
+                        },
                         Err(err) => return Err(serde::de::Error::custom(err)),
                     }
                 },

@@ -1,6 +1,6 @@
 [package]
 name = "rabbithole-derive"
-version = "0.2.2"
+version = "0.3.0"
 authors = ["Ukonn Ra <ukonnra@outlook.com>"]
 edition = "2018"
 description = "The macro system helping users to model the relationship of their data"
@@ -22,7 +22,7 @@ thiserror = "~1.0"
 lazy_static = "~1.4"
 
 [dev-dependencies]
-rabbithole = { path = "../rabbithole", features = ["unstable-vec-to-document"], version = "~0.2" }
+rabbithole = { path = "../rabbithole", version = "~0.3" }
 serde = "~1.0"
 serde_json = "~1.0"
 uuid = { version = "~0.8", features = ["serde", "v4"] }

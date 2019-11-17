@@ -119,14 +119,36 @@ rabbithole_errors! {
     status: http::StatusCode::NOT_ACCEPTABLE,
     code: "RBH-0001",
     title: "Invalid UTF-8 String",
-    detail: "The String {invalid} is not a valid UTF-8 String",
-    param: [invalid: &str,];
+    detail: "Invalid UTF-8 String found: {err}",
+    param: [err: &std::string::FromUtf8Error,];
 
-    ty: InvalidPageType,
+    ty: NotUtf8String,
+    status: http::StatusCode::NOT_ACCEPTABLE,
+    code: "RBH-0002",
+    title: "Not an UTF-8 String",
+    detail: "String `{invalid}` cannot be decoded as UTF-8 correctly: {err}",
+    param: [invalid: &str,  err: &std::str::Utf8Error,];
+
+    ty: InvalidJson,
+    status: http::StatusCode::NOT_ACCEPTABLE,
+    code: "RBH-0003",
+    title: "Invalid JSON Content",
+    detail: "An error found when parsing JSON: {invalid}",
+    param: [invalid: &serde_json::Error,];
+
+
+    ty: RelationshipPathNotSupported,
+    status: http::StatusCode::BAD_REQUEST,
+    code: "RBH-0004",
+    title: "Relationship Path Not Supported",
+    detail: "The relationship path in Query `{relat_path}` is not supported yet",
+    param: [relat_path: &str,];
+
+    ty: InvalidPaginationType,
     status: http::StatusCode::NOT_ACCEPTABLE,
     code: "RBH-0101",
-    title: "Invalid Page Type",
-    detail: r#"Invalid page type: {invalid}, the valid ones are: ["OffsetBased", "PageBased", "CursorBased"]"#,
+    title: "Invalid Pagination Type",
+    detail: r#"Invalid pagination type: {invalid}, the valid ones are: ["OffsetBased", "PageBased", "CursorBased"]"#,
     param: [invalid: &str,];
 
     ty: InvalidFilterType,
@@ -140,7 +162,7 @@ rabbithole_errors! {
     status: http::StatusCode::NOT_ACCEPTABLE,
     code: "RBH-0103",
     title: "Unmatched Filter Item",
-    detail: "Filter type [{filter_type}] and filter item [{filter_key} = {filter_value}] are not matched",
+    detail: "Filter type `[{filter_type}]` and filter item [{filter_key} = {filter_value}] are not matched",
     param: [filter_type: &str, filter_key: &str, filter_value: &str,];
 
     ty: InvalidCursorContent,
@@ -149,6 +171,20 @@ rabbithole_errors! {
     title: "Invalid Cursor Content",
     detail: r#"The content of `page[cursor]` is not acceptable, please use a valid cursor"#,
     param: [];
+
+    ty: LackOfPaginationParams,
+    status: http::StatusCode::NOT_ACCEPTABLE,
+    code: "RBH-0105",
+    title: "Lack of Pagination Item",
+    detail: "Pagination type `[{page_type}]` need ALL of the parameters: [{params:?}]",
+    param: [page_type: &str, params: &[&str],];
+
+    ty: UnsupportedRsqlComparison,
+    status: http::StatusCode::NOT_ACCEPTABLE,
+    code: "RBH-0106",
+    title: "Unsupported RSQL Comparison",
+    detail: "Comparison `{comparison:?}` with {param_cnt} parameter(s) is not supported now",
+    param: [comparison: &[String], param_cnt: usize,];
 
     ty: InvalidJsonApiVersion,
     status: http::StatusCode::NOT_ACCEPTABLE,
@@ -178,24 +214,38 @@ rabbithole_errors! {
     detail: "Field `{field}` does not exist",
     param: [field: &str,];
 
-    ty: ParentResourceNotExist,
+    ty: FieldNotMatch,
     status: http::StatusCode::NOT_FOUND,
     code: "RBH-0402",
+    title: "Field Not Exist",
+    detail: "The type of `{field}` is not match: comparing `{slf}` and `{other}`",
+    param: [field: &str, slf: &str, other: &str,];
+
+    ty: ParentResourceNotExist,
+    status: http::StatusCode::NOT_FOUND,
+    code: "RBH-0404",
     title: "Parent Resource of Relationship Not Exist",
     detail: "The parent resource of the relationship `{target_relat}` does not exist",
     param: [target_relat: &str,];
 
-    ty: SortingNotImplemented,
+    ty: CursorPaginationNotImplemented,
     status: http::StatusCode::NOT_IMPLEMENTED,
     code: "RBH-9901",
-    title: "Sorting is not Implemented",
-    detail: "Sorting is not implemented, please implement it yourself",
+    title: "Cursor Based Pagination is not Implemented",
+    detail: "Please use `#[feature(page_cursor)]` to unlock it",
     param: [];
 
-    ty: PagingNotImplemented,
+    ty: RsqlFilterNotImplemented,
     status: http::StatusCode::NOT_IMPLEMENTED,
     code: "RBH-9902",
-    title: "Paging is not Implemented",
-    detail: "Paging is not implemented, please implement it yourself",
+    title: "RSQL Filter is not Implemented",
+    detail: "Please use `#[feature(filter_rsql)]` to unlock it",
+    param: [];
+
+    ty: RsqlFilterOnRelatedNotImplemented,
+    status: http::StatusCode::NOT_IMPLEMENTED,
+    code: "RBH-9903",
+    title: "RSQL Filter on Related Field is not Implemented",
+    detail: "The auto-generated RSQL Filter cannot handle related fields, please implement it manually",
     param: [];
 }

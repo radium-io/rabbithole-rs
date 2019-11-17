@@ -4,10 +4,11 @@ extern crate serde;
 use rabbithole::entity::{Entity, SingleEntity};
 use rabbithole::model::document::{Document, Included};
 use rabbithole::model::link::{Link, RawUri};
-use rabbithole::model::query::Query;
 use rabbithole::model::resource::Resource;
+use rabbithole::query::Query;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::convert::TryInto;
 use std::iter::FromIterator;
 use uuid::Uuid;
 
@@ -72,7 +73,9 @@ fn default_include_test() {
     let mut manual_included: Included = Default::default();
     for m in master_vec {
         for d in m.dogs {
-            manual_included.insert(d.to_resource(uri, &Default::default()).unwrap());
+            let d_res: Resource =
+                d.to_resource(uri, &Default::default()).unwrap().try_into().unwrap();
+            manual_included.insert(d_res.id.clone(), d_res);
         }
     }
     let manual_doc = Document::multiple_resources(
@@ -83,7 +86,7 @@ fn default_include_test() {
             "/api".parse::<RawUri>().unwrap(),
         )])),
     );
-    assert_eq!(gen_doc, manual_doc);
+    assert_eq!(gen_doc.unwrap(), manual_doc);
 }
 
 #[test]
@@ -110,7 +113,7 @@ fn only_unknown_include_test() {
             "/api".parse::<RawUri>().unwrap(),
         )])),
     );
-    assert_eq!(gen_doc, manual_doc);
+    assert_eq!(gen_doc.unwrap(), manual_doc);
 }
 
 #[test]
@@ -134,7 +137,7 @@ fn not_included_fields_but_retain_attributes() {
             "/api".parse::<RawUri>().unwrap(),
         )])),
     );
-    assert_eq!(gen_doc, manual_doc);
+    assert_eq!(gen_doc.unwrap(), manual_doc);
 }
 
 #[test]
@@ -155,7 +158,9 @@ fn not_foreign_attributes_but_retain_included_fields() {
     let mut manual_included: Included = Default::default();
     for m in master_vec {
         for d in m.dogs {
-            manual_included.insert(d.to_resource(uri, &Default::default()).unwrap());
+            let d_res: Resource =
+                d.to_resource(uri, &Default::default()).unwrap().try_into().unwrap();
+            manual_included.insert(d_res.id.clone(), d_res);
         }
     }
     let manual_doc = Document::multiple_resources(
@@ -166,5 +171,5 @@ fn not_foreign_attributes_but_retain_included_fields() {
             "/api".parse::<RawUri>().unwrap(),
         )])),
     );
-    assert_eq!(gen_doc, manual_doc);
+    assert_eq!(gen_doc.unwrap(), manual_doc);
 }

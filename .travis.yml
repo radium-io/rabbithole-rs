@@ -1,13 +1,16 @@
 language: rust
-cache: cargo
 dist: xenial
 rust: nightly
+
+before_script:
+  - cargo update
+  - rustup update
 
 jobs:
   include:
     - stage: test
       script:
-        - cargo test --all
+        - cargo test --all --all-features --verbose
     - stage: deploy-cargo
       script:
         - cd ./rabbithole

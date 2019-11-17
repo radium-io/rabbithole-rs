@@ -1,6 +1,6 @@
 [package]
 name = "rabbithole-endpoint-actix"
-version = "0.2.2"
+version = "0.3.0"
 authors = ["Ukonn Ra <ukonnra@outlook.com>"]
 edition = "2018"
 description = "JSON:API Actix-web backend"
@@ -28,5 +28,5 @@ async-trait = "~0.1"
 rand = "~0.7"
 config = "~0.9"
 
-rabbithole = { path = "../rabbithole", features = ["unstable-vec-to-document"], version = "~0.2" }
-rabbithole-derive = { path = "../rabbithole-derive", version = "~0.2" }
+rabbithole = { path = "../rabbithole", version = "~0.3" }
+rabbithole-derive = { path = "../rabbithole-derive", version = "~0.3" }

@@ -10,13 +10,13 @@ use crate::settings::{ActixSettingsModel, JsonApiSettings};
 use actix_web::dev::HttpResponseBuilder;
 
 use rabbithole::model::error;
-use rabbithole::model::query::Query;
 use rabbithole::model::version::JsonApiVersion;
 use rabbithole::operation::Fetching;
 use rabbithole::rule::RuleDispatcher;
 use rabbithole::JSON_API_HEADER;
 use serde::export::TryFrom;
 
+use rabbithole::query::Query;
 use std::marker::PhantomData;
 
 fn error_to_response(err: error::Error) -> HttpResponse {
@@ -102,12 +102,14 @@ where
                 let fut = async move {
                     match T::fetch_single(&param.into_inner(), &query).await {
                         Ok(item) => {
-                            let doc = item.to_document_automatically(
+                            match item.to_document_automatically(
                                 &self.uri.to_string(),
                                 &query,
                                 &req.uri().into(),
-                            );
-                            Ok(new_json_api_resp(StatusCode::OK).json(doc))
+                            ) {
+                                Ok(doc) => Ok(new_json_api_resp(StatusCode::OK).json(doc)),
+                                Err(err) => Ok(error_to_response(err)),
+                            }
                         },
                         Err(err) => Ok(error_to_response(err)),
                     }

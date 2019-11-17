@@ -12,21 +12,21 @@ macro_rules! fetching_init {
             type Item = Dog;
 
             async fn vec_to_document(
-                items: &[Self::Item], uri: &str, query: &rabbithole::model::query::Query,
+                items: &[Self::Item], uri: &str, query: &rabbithole::query::Query,
                 request_path: &rabbithole::model::link::RawUri,
             ) -> Result<rabbithole::model::document::Document, rabbithole::model::error::Error>
             {
-                Ok(items.to_document_automatically(uri, query, request_path))
+                Ok(items.to_document_automatically(uri, query, request_path)?)
             }
 
             async fn fetch_collection(
-                _query: &rabbithole::model::query::Query,
+                _query: &rabbithole::query::Query,
             ) -> Result<Vec<Self::Item>, rabbithole::model::error::Error> {
                 Ok(Default::default())
             }
 
             async fn fetch_single(
-                id: &str, _query: &rabbithole::model::query::Query,
+                id: &str, _query: &rabbithole::query::Query,
             ) -> Result<Option<Self::Item>, rabbithole::model::error::Error> {
                 if id == "none" {
                     Ok(None)
@@ -37,7 +37,7 @@ macro_rules! fetching_init {
             }
 
             async fn fetch_relationship(
-                _: &str, related_field: &str, _: &str, _: &rabbithole::model::query::Query,
+                _: &str, related_field: &str, _: &str, _: &rabbithole::query::Query,
                 _: &rabbithole::model::link::RawUri,
             ) -> Result<
                 rabbithole::model::relationship::Relationship,
@@ -47,10 +47,9 @@ macro_rules! fetching_init {
             }
 
             async fn fetch_related(
-                _: &str, related_field: &str, _: &str, _: &rabbithole::model::query::Query,
+                _: &str, related_field: &str, _: &str, _: &rabbithole::query::Query,
                 _: &rabbithole::model::link::RawUri,
-            ) -> Result<rabbithole::model::document::Document, rabbithole::model::error::Error>
-            {
+            ) -> Result<serde_json::Value, rabbithole::model::error::Error> {
                 Err(rabbithole::model::error::Error::FieldNotExist(related_field, None))
             }
         }
@@ -60,15 +59,15 @@ macro_rules! fetching_init {
             type Item = Human;
 
             async fn vec_to_document(
-                items: &[Self::Item], uri: &str, query: &rabbithole::model::query::Query,
+                items: &[Self::Item], uri: &str, query: &rabbithole::query::Query,
                 request_path: &rabbithole::model::link::RawUri,
             ) -> Result<rabbithole::model::document::Document, rabbithole::model::error::Error>
             {
-                Ok(items.to_document_automatically(uri, query, request_path))
+                Ok(items.to_document_automatically(uri, query, request_path)?)
             }
 
             async fn fetch_collection(
-                _: &rabbithole::model::query::Query,
+                _: &rabbithole::query::Query,
             ) -> Result<Vec<Self::Item>, rabbithole::model::error::Error> {
                 let rand = rand::random::<usize>() % 5 + 1;
                 let masters = generate_masters(rand);
@@ -76,7 +75,7 @@ macro_rules! fetching_init {
             }
 
             async fn fetch_single(
-                id: &str, _query: &rabbithole::model::query::Query,
+                id: &str, _query: &rabbithole::query::Query,
             ) -> Result<Option<Self::Item>, rabbithole::model::error::Error> {
                 if id == "none" {
                     Ok(None)
@@ -87,7 +86,7 @@ macro_rules! fetching_init {
             }
 
             async fn fetch_relationship(
-                id: &str, related_field: &str, uri: &str, _query: &rabbithole::model::query::Query,
+                id: &str, related_field: &str, uri: &str, _query: &rabbithole::query::Query,
                 _request_path: &rabbithole::model::link::RawUri,
             ) -> Result<
                 rabbithole::model::relationship::Relationship,
@@ -110,10 +109,9 @@ macro_rules! fetching_init {
             }
 
             async fn fetch_related(
-                id: &str, related_field: &str, uri: &str, query: &rabbithole::model::query::Query,
+                id: &str, related_field: &str, uri: &str, query: &rabbithole::query::Query,
                 request_path: &rabbithole::model::link::RawUri,
-            ) -> Result<rabbithole::model::document::Document, rabbithole::model::error::Error>
-            {
+            ) -> Result<serde_json::Value, rabbithole::model::error::Error> {
                 if id == "none" {
                     return Err(rabbithole::model::error::Error::ParentResourceNotExist(
                         related_field,
@@ -124,8 +122,12 @@ macro_rules! fetching_init {
                     let rand = rand::random::<usize>() % 3 + 1;
                     let master = generate_masters(rand);
                     let master = master.last().unwrap();
-                    let doc = master.dogs.to_document_automatically(uri, query, request_path);
-                    Ok(doc)
+                    serde_json::to_value(master.dogs.to_document_automatically(
+                        uri,
+                        query,
+                        request_path,
+                    )?)
+                    .map_err(|err| rabbithole::model::error::Error::InvalidJson(&err, None))
                 } else {
                     Err(rabbithole::model::error::Error::FieldNotExist(related_field, None))
                 }
@@ -200,7 +202,6 @@ macro_rules! init_app {
             .unwrap();
         let settings: rabbithole_endpoint_actix::settings::ActixSettingsModel =
             settings.try_into().unwrap();
-        let _settings_port = settings.port;
 
         (
             settings.path.clone(),

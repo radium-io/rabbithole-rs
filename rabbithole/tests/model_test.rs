@@ -6,6 +6,7 @@ use rabbithole::model::error::Error;
 use rabbithole::model::link::Links;
 use rabbithole::model::resource::*;
 use rabbithole::model::*;
+
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
@@ -32,6 +33,7 @@ fn error_from_json_string() {
 #[test]
 fn single_resource_from_json_string() {
     let _ = env_logger::try_init();
+
     let serialized =
         r#"{ "id" :"1", "type" : "post", "attributes" : {}, "relationships" : {}, "links" : {} }"#;
     let data: Result<Resource, serde_json::Error> = serde_json::from_str(serialized);
@@ -139,7 +141,8 @@ fn api_document_collection_from_json_file() {
                     assert_eq!(arr.len(), 1);
 
                     assert_eq!(included.len(), 3);
-                    let ids: HashSet<&str> = included.iter().map(|inc| inc.id.as_str()).collect();
+                    let ids: HashSet<&str> =
+                        included.iter().map(|(inc_id, _)| inc_id.id.as_str()).collect();
                     assert_eq!(ids, HashSet::from_iter(vec!["9", "5", "12"]));
                 },
                 DocumentItem::PrimaryData(Some((PrimaryDataItem::Single(_), _))) => unreachable!(
@@ -172,6 +175,7 @@ fn api_document_collection_from_json_file() {
 #[test]
 fn can_deserialize_jsonapi_example_resource_001() {
     let _ = env_logger::try_init();
+
     let s = crate::read_json_file("data/resource_001.json");
     let data: Result<Resource, serde_json::Error> = serde_json::from_str(&s);
     if let Err(err) = data {
@@ -243,7 +247,8 @@ fn can_deserialize_jsonapi_example_jsonapi_info() {
 #[test]
 fn it_omits_empty_document_and_primary_data_keys() {
     let _ = env_logger::try_init();
-    let resource = Resource { ty: "test".into(), id: "123".into(), ..Default::default() };
+
+    let resource = Resource { id: ResourceIdentifier::new("test", "123"), ..Default::default() };
     let doc = Document {
         item: DocumentItem::PrimaryData(Some((
             PrimaryDataItem::Single(Box::new(resource)),
