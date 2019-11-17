@@ -4,6 +4,12 @@
 
 ## [0.3.0] - 2019-11-17
 
+### Fixed
+
+The publish sequence in Travis CI
+
+## [0.3.0] - 2019-11-17
+
 ### Changed
 
 - Support `IncludeQuery`, `FieldsQuery`, `SortQuery`, `PageQuery` and `FilterQuery`

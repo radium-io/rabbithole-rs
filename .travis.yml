@@ -3,22 +3,23 @@ dist: xenial
 rust: nightly
 
 before_script:
-  - cargo update
   - rustup update
 
 jobs:
   include:
     - stage: test
       script:
-        - cargo test --all --all-features --verbose
+        - cargo test --all --all-features
     - stage: deploy-cargo
       script:
-        - cd ./rabbithole
+        - cd ./rabbithole-derive
         - cargo publish --dry-run
         - cargo publish --token "$CARGO_TOKEN"
-        - cd ../rabbithole-derive
+
+        - cd ../rabbithole
         - cargo publish --dry-run
-        -  cargo publish --token "$CARGO_TOKEN"
+        - cargo publish --token "$CARGO_TOKEN"
+
         - cd ../rabbithole-endpoint-actix
         - cargo publish --dry-run
         - cargo publish --token "$CARGO_TOKEN"

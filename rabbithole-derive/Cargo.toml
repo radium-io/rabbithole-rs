@@ -1,6 +1,6 @@
 [package]
 name = "rabbithole-derive"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Ukonn Ra <ukonnra@outlook.com>"]
 edition = "2018"
 description = "The macro system helping users to model the relationship of their data"
