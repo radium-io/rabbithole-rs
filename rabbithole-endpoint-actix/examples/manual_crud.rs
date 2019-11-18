@@ -8,9 +8,15 @@ use async_trait::async_trait;
 
 use rabbithole::operation::*;
 
+use rabbithole::model::error;
+use rabbithole::model::error::Error;
+
+use rabbithole::model::resource::AttributeField;
+use rabbithole::query::Query;
 use rabbithole_endpoint_actix::settings::ActixSettingsModel;
 use rabbithole_endpoint_actix::ActixSettings;
 use serde::{Deserialize, Serialize};
+
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::sync::Mutex;
@@ -23,15 +29,6 @@ impl Operation for DogService {
     type Item = Dog;
 }
 
-#[async_trait]
-impl Fetching for DogService {}
-#[async_trait]
-impl Creating for DogService {}
-#[async_trait]
-impl Updating for DogService {}
-#[async_trait]
-impl Deleting for DogService {}
-
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
 #[entity(type = "dogs")]
 #[entity(service(DogService))]
@@ -41,6 +38,41 @@ pub struct Dog {
     pub id: Uuid,
     pub name: String,
 }
+
+#[async_trait]
+impl Fetching for DogService {
+    async fn fetch_collection(&self, _query: &Query) -> Result<Vec<Dog>, Error> {
+        Ok(self.0.values().cloned().collect())
+    }
+
+    async fn fetch_single(&self, id: &str, _query: &Query) -> Result<Option<Dog>, Error> {
+        Ok(self.0.get(id).map(Clone::clone))
+    }
+}
+#[async_trait]
+impl Creating for DogService {
+    async fn create(&mut self, data: &ResourceDataWrapper) -> Result<Dog, Error> {
+        let ResourceDataWrapper { data } = data;
+        if let AttributeField(serde_json::Value::String(name)) =
+            data.attributes.get_field("name")?
+        {
+            let dog = Dog { id: Uuid::new_v4(), name: name.clone() };
+            self.0.insert(dog.id.clone().to_string(), dog.clone());
+            Ok(dog)
+        } else {
+            Err(error::Error {
+                status: Some("400".into()),
+                code: Some("1".into()),
+                title: Some("Wrong field type".into()),
+                ..Default::default()
+            })
+        }
+    }
+}
+#[async_trait]
+impl Updating for DogService {}
+#[async_trait]
+impl Deleting for DogService {}
 
 fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");

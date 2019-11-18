@@ -26,24 +26,28 @@ pub trait Fetching: Operation {
         Ok(items.to_document_automatically(uri, query, request_path)?)
     }
     /// Mapping to `/<ty>?<query>`
-    async fn fetch_collection(&self, _query: &Query) -> Result<Vec<Self::Item>, error::Error> {
+    #[allow(unused_variables)]
+    async fn fetch_collection(&self, query: &Query) -> Result<Vec<Self::Item>, error::Error> {
         Err(error::Error::OperationNotImplemented("fetch_collection", None))
     }
     /// Mapping to `/<ty>/<id>?<query>`
+    #[allow(unused_variables)]
     async fn fetch_single(
-        &self, _id: &str, _query: &Query,
+        &self, id: &str, query: &Query,
     ) -> Result<Option<Self::Item>, error::Error> {
         Err(error::Error::OperationNotImplemented("fetch_single", None))
     }
     /// Mapping to `/<ty>/<id>/relationships/<related_field>?<query>`
+    #[allow(unused_variables)]
     async fn fetch_relationship(
-        &self, _id: &str, _related_field: &str, _uri: &str, _query: &Query, _request_path: &RawUri,
+        &self, id: &str, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
     ) -> Result<Relationship, error::Error> {
         Err(error::Error::OperationNotImplemented("fetch_relationship", None))
     }
     /// Mapping to `/<ty>/<id>/<related_field>?<query>`
+    #[allow(unused_variables)]
     async fn fetch_related(
-        &self, _id: &str, _related_field: &str, _uri: &str, _query: &Query, _request_path: &RawUri,
+        &self, id: &str, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
     ) -> Result<serde_json::Value, error::Error> {
         Err(error::Error::OperationNotImplemented("fetch_related", None))
     }
@@ -62,7 +66,8 @@ pub struct IdentifierDataWrapper {
 #[async_trait]
 pub trait Creating: Operation {
     /// Mapping to `POST /<ty>`
-    async fn create(&mut self, _data: &ResourceDataWrapper) -> RbhResult<Self::Item> {
+    #[allow(unused_variables)]
+    async fn create(&mut self, data: &ResourceDataWrapper) -> RbhResult<Self::Item> {
         Err(error::Error::OperationNotImplemented("create", None))
     }
 }
@@ -70,26 +75,30 @@ pub trait Creating: Operation {
 #[async_trait]
 pub trait Updating: Operation {
     /// Mapping to `PATCH /<ty>/<id>`
+    #[allow(unused_variables)]
     async fn update_resource(
-        &mut self, _id: &str, _data: &ResourceDataWrapper,
+        &mut self, id: &str, data: &ResourceDataWrapper,
     ) -> RbhResult<Self::Item> {
         Err(error::Error::OperationNotImplemented("update_resource", None))
     }
     /// Mapping to `PATCH /<ty>/<id>/relationships/<field>`
+    #[allow(unused_variables)]
     async fn replace_relationship(
-        &mut self, _id_field: &(String, String), _data: &IdentifierDataWrapper,
+        &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
     ) -> RbhResult<Self::Item> {
         Err(error::Error::OperationNotImplemented("replace_relationship", None))
     }
     /// Mapping to `POST /<ty>/<id>/relationships/<field>`
+    #[allow(unused_variables)]
     async fn add_relationship(
-        &mut self, _id_field: &(String, String), _data: &IdentifierDataWrapper,
+        &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
     ) -> RbhResult<Self::Item> {
         Err(error::Error::OperationNotImplemented("add_relationship", None))
     }
     /// Mapping to `DELETE /<ty>/<id>/relationships/<field>`
+    #[allow(unused_variables)]
     async fn remove_relationship(
-        &mut self, _id_field: &(String, String), _data: &IdentifierDataWrapper,
+        &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
     ) -> RbhResult<Self::Item> {
         Err(error::Error::OperationNotImplemented("remove_relationship", None))
     }
@@ -98,7 +107,8 @@ pub trait Updating: Operation {
 #[async_trait]
 pub trait Deleting: Operation {
     /// Mapping to `DELETE /<ty>/<id>`
-    async fn delete_resource(&mut self, _id: &str) -> RbhResult<()> {
+    #[allow(unused_variables)]
+    async fn delete_resource(&mut self, id: &str) -> RbhResult<()> {
         Err(error::Error::OperationNotImplemented("delete_resource", None))
     }
 }
