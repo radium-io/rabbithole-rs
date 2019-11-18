@@ -1,21 +1,29 @@
 use quote::quote;
 
-pub fn generate_app(
-    entity_ident: &syn::Ident, ty: &str, _to_ones: &[&syn::Ident], _to_manys: &[&syn::Ident],
-) -> proc_macro2::TokenStream {
+pub fn generate_app(service: &syn::Ident, ty: &str) -> proc_macro2::TokenStream {
     quote! {
-        impl #entity_ident {
+        impl #service {
             pub fn actix_service() -> actix_web::Scope {
                 use actix_web::{web, guard};
                 web::scope(#ty)
                     .service(web::resource("")
-                        .route(web::get().to_async(move |req, actix_fetching: web::Data<rabbithole_endpoint_actix::ActixSettings<Self>>| actix_fetching.get_ref().clone().fetch_collection(req))))
+                            .route(web::get().to_async(move |req, service: web::Data<std::sync::Mutex<#service>>, actix_operation: web::Data<rabbithole_endpoint_actix::ActixSettings<Self>>| rabbithole_endpoint_actix::ActixSettings::<Self>::fetch_collection(actix_operation.into_inner(), service.clone(), req)))
+                            .route(web::post().to_async(move |body, req, service: web::Data<std::sync::Mutex<#service>>, actix_operation: web::Data<rabbithole_endpoint_actix::ActixSettings<Self>>| rabbithole_endpoint_actix::ActixSettings::<Self>::create(actix_operation.into_inner(), service.clone(), req, body)))
+                            .route(web::patch().to_async(move |body, params, service: web::Data<std::sync::Mutex<#service>>, req, actix_operation: web::Data<rabbithole_endpoint_actix::ActixSettings<Self>>| rabbithole_endpoint_actix::ActixSettings::<Self>::update_resource(actix_operation.into_inner(), service.clone(), req, params, body)))
+                            .route(web::delete().to_async(move |params, req, service: web::Data<std::sync::Mutex<#service>>, actix_operation: web::Data<rabbithole_endpoint_actix::ActixSettings<Self>>| rabbithole_endpoint_actix::ActixSettings::<Self>::delete_resource(actix_operation.into_inner(), service.clone(), params, req)))
+                        )
                     .service(web::resource("/{id}")
-                        .route(web::get().to_async(move |param, req, actix_fetching: web::Data<rabbithole_endpoint_actix::ActixSettings<Self>>| actix_fetching.get_ref().clone().fetch_single(param, req))))
+                            .route(web::get().to_async(move |param, req, service: web::Data<std::sync::Mutex<#service>>, actix_operation: web::Data<rabbithole_endpoint_actix::ActixSettings<Self>>| rabbithole_endpoint_actix::ActixSettings::<Self>::fetch_single(actix_operation.into_inner(), service, param, req)))
+                        )
                     .service(web::resource("/{id}/relationships/{related_fields}")
-                        .route(web::get().to_async(move |param, req, actix_fetching: web::Data<rabbithole_endpoint_actix::ActixSettings<Self>>| actix_fetching.get_ref().clone().fetch_relationship(param, req))))
+                            .route(web::get().to_async(move |param, req, service: web::Data<std::sync::Mutex<#service>>, actix_operation: web::Data<rabbithole_endpoint_actix::ActixSettings<Self>>| rabbithole_endpoint_actix::ActixSettings::<Self>::fetch_relationship(actix_operation.into_inner(), service.clone(), param, req)))
+                            .route(web::patch().to_async(move |param, body, req, service: web::Data<std::sync::Mutex<#service>>, actix_operation: web::Data<rabbithole_endpoint_actix::ActixSettings<Self>>| rabbithole_endpoint_actix::ActixSettings::<Self>::replace_relationship(actix_operation.into_inner(), service.clone(), param, body, req)))
+                            .route(web::post().to_async(move |param, body, req, service: web::Data<std::sync::Mutex<#service>>, actix_operation: web::Data<rabbithole_endpoint_actix::ActixSettings<Self>>| rabbithole_endpoint_actix::ActixSettings::<Self>::add_relationship(actix_operation.into_inner(), service.clone(), param, body, req)))
+                            .route(web::delete().to_async(move |param, body, req, service: web::Data<std::sync::Mutex<#service>>, actix_operation: web::Data<rabbithole_endpoint_actix::ActixSettings<Self>>| rabbithole_endpoint_actix::ActixSettings::<Self>::remove_relationship(actix_operation.into_inner(), service.clone(), param, body, req)))
+                        )
                     .service(web::resource("/{id}/{related_fields}")
-                        .route(web::get().to_async(move |param, req, actix_fetching: web::Data<rabbithole_endpoint_actix::ActixSettings<Self>>| actix_fetching.get_ref().clone().fetch_related(param, req))))
+                            .route(web::get().to_async(move |param, req, service: web::Data<std::sync::Mutex<#service>>, actix_operation: web::Data<rabbithole_endpoint_actix::ActixSettings<Self>>| rabbithole_endpoint_actix::ActixSettings::<Self>::fetch_related(actix_operation.into_inner(), service.clone(), param, req)))
+                        )
             }
         }
     }

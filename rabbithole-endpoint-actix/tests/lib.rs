@@ -7,27 +7,31 @@ macro_rules! fetching_init {
     () => {
         use rabbithole::entity::{Entity, SingleEntity};
 
-        #[async_trait::async_trait]
-        impl rabbithole::operation::Fetching for Dog {
+        #[derive(Default)]
+        pub struct DogService;
+
+        impl rabbithole::operation::Operation for DogService {
             type Item = Dog;
+        }
 
-            async fn vec_to_document(
-                items: &[Self::Item], uri: &str, query: &rabbithole::query::Query,
-                request_path: &rabbithole::model::link::RawUri,
-            ) -> Result<rabbithole::model::document::Document, rabbithole::model::error::Error>
-            {
-                Ok(items.to_document_automatically(uri, query, request_path)?)
-            }
+        #[async_trait::async_trait]
+        impl rabbithole::operation::Creating for DogService {}
+        #[async_trait::async_trait]
+        impl rabbithole::operation::Updating for DogService {}
+        #[async_trait::async_trait]
+        impl rabbithole::operation::Deleting for DogService {}
 
+        #[async_trait::async_trait]
+        impl rabbithole::operation::Fetching for DogService {
             async fn fetch_collection(
-                _query: &rabbithole::query::Query,
-            ) -> Result<Vec<Self::Item>, rabbithole::model::error::Error> {
+                &self, _query: &rabbithole::query::Query,
+            ) -> Result<Vec<Dog>, rabbithole::model::error::Error> {
                 Ok(Default::default())
             }
 
             async fn fetch_single(
-                id: &str, _query: &rabbithole::query::Query,
-            ) -> Result<Option<Self::Item>, rabbithole::model::error::Error> {
+                &self, id: &str, _query: &rabbithole::query::Query,
+            ) -> Result<Option<Dog>, rabbithole::model::error::Error> {
                 if id == "none" {
                     Ok(None)
                 } else {
@@ -37,7 +41,7 @@ macro_rules! fetching_init {
             }
 
             async fn fetch_relationship(
-                _: &str, related_field: &str, _: &str, _: &rabbithole::query::Query,
+                &self, _: &str, related_field: &str, _: &str, _: &rabbithole::query::Query,
                 _: &rabbithole::model::link::RawUri,
             ) -> Result<
                 rabbithole::model::relationship::Relationship,
@@ -47,36 +51,40 @@ macro_rules! fetching_init {
             }
 
             async fn fetch_related(
-                _: &str, related_field: &str, _: &str, _: &rabbithole::query::Query,
+                &self, _: &str, related_field: &str, _: &str, _: &rabbithole::query::Query,
                 _: &rabbithole::model::link::RawUri,
             ) -> Result<serde_json::Value, rabbithole::model::error::Error> {
                 Err(rabbithole::model::error::Error::FieldNotExist(related_field, None))
             }
         }
 
-        #[async_trait::async_trait]
-        impl rabbithole::operation::Fetching for Human {
+        #[derive(Default)]
+        pub struct HumanService;
+
+        impl rabbithole::operation::Operation for HumanService {
             type Item = Human;
+        }
 
-            async fn vec_to_document(
-                items: &[Self::Item], uri: &str, query: &rabbithole::query::Query,
-                request_path: &rabbithole::model::link::RawUri,
-            ) -> Result<rabbithole::model::document::Document, rabbithole::model::error::Error>
-            {
-                Ok(items.to_document_automatically(uri, query, request_path)?)
-            }
+        #[async_trait::async_trait]
+        impl rabbithole::operation::Creating for HumanService {}
+        #[async_trait::async_trait]
+        impl rabbithole::operation::Updating for HumanService {}
+        #[async_trait::async_trait]
+        impl rabbithole::operation::Deleting for HumanService {}
 
+        #[async_trait::async_trait]
+        impl rabbithole::operation::Fetching for HumanService {
             async fn fetch_collection(
-                _: &rabbithole::query::Query,
-            ) -> Result<Vec<Self::Item>, rabbithole::model::error::Error> {
+                &self, _: &rabbithole::query::Query,
+            ) -> Result<Vec<Human>, rabbithole::model::error::Error> {
                 let rand = rand::random::<usize>() % 5 + 1;
                 let masters = generate_masters(rand);
                 Ok(masters)
             }
 
             async fn fetch_single(
-                id: &str, _query: &rabbithole::query::Query,
-            ) -> Result<Option<Self::Item>, rabbithole::model::error::Error> {
+                &self, id: &str, _query: &rabbithole::query::Query,
+            ) -> Result<Option<Human>, rabbithole::model::error::Error> {
                 if id == "none" {
                     Ok(None)
                 } else {
@@ -86,7 +94,7 @@ macro_rules! fetching_init {
             }
 
             async fn fetch_relationship(
-                id: &str, related_field: &str, uri: &str, _query: &rabbithole::query::Query,
+                &self, id: &str, related_field: &str, uri: &str, _query: &rabbithole::query::Query,
                 _request_path: &rabbithole::model::link::RawUri,
             ) -> Result<
                 rabbithole::model::relationship::Relationship,
@@ -109,7 +117,7 @@ macro_rules! fetching_init {
             }
 
             async fn fetch_related(
-                id: &str, related_field: &str, uri: &str, query: &rabbithole::query::Query,
+                &self, id: &str, related_field: &str, uri: &str, query: &rabbithole::query::Query,
                 request_path: &rabbithole::model::link::RawUri,
             ) -> Result<serde_json::Value, rabbithole::model::error::Error> {
                 if id == "none" {
@@ -144,6 +152,7 @@ macro_rules! classes_init {
         )]
         #[entity(type = "people")]
         #[entity(backend(actix))]
+        #[entity(service(HumanService))]
         pub struct Human {
             #[entity(id)]
             pub id_code: uuid::Uuid,
@@ -157,6 +166,7 @@ macro_rules! classes_init {
         )]
         #[entity(type = "dogs")]
         #[entity(backend(actix))]
+        #[entity(service(DogService))]
         pub struct Dog {
             #[entity(id)]
             pub id: uuid::Uuid,
@@ -207,16 +217,18 @@ macro_rules! init_app {
             settings.path.clone(),
             test::init_service(
                 actix_web::App::new()
-                    .data::<rabbithole_endpoint_actix::ActixSettings<Human>>(
+                    .register_data(web::Data::new(std::sync::Mutex::new(HumanService::default())))
+                    .register_data(web::Data::new(std::sync::Mutex::new(DogService::default())))
+                    .data::<rabbithole_endpoint_actix::ActixSettings<HumanService>>(
                         settings.clone().try_into().unwrap(),
                     )
-                    .data::<rabbithole_endpoint_actix::ActixSettings<Dog>>(
+                    .data::<rabbithole_endpoint_actix::ActixSettings<DogService>>(
                         settings.clone().try_into().unwrap(),
                     )
                     .service(
                         web::scope(&settings.path)
-                            .service(Human::actix_service())
-                            .service(Dog::actix_service()),
+                            .service(HumanService::actix_service())
+                            .service(DogService::actix_service()),
                     )
                     .default_service(web::to(actix_web::HttpResponse::NotFound)),
             ),

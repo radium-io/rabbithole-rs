@@ -29,7 +29,7 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
     let decorated_struct: &syn::Ident = &ast.ident;
     let struct_lifetime = &ast.generics;
 
-    let (entity_type, backends) = get_entity_type(&ast)?;
+    let (entity_type, backends, service) = get_entity_type(&ast)?;
 
     let (id, attrs, to_ones, to_manys) = get_fields(&ast)?;
 
@@ -129,12 +129,7 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
 
     for back in backends {
         if back == "actix" {
-            res.append_all(vec![backend::actix::generate_app(
-                decorated_struct,
-                &entity_type,
-                &to_ones,
-                &to_manys,
-            )]);
+            res.append_all(vec![backend::actix::generate_app(&service, &entity_type)]);
         }
     }
 
@@ -152,9 +147,10 @@ fn get_meta(attrs: &[syn::Attribute]) -> syn::Result<Vec<syn::Meta>> {
         .collect::<Vec<syn::Meta>>())
 }
 
-fn get_entity_type(ast: &syn::DeriveInput) -> syn::Result<(String, HashSet<String>)> {
+fn get_entity_type(ast: &syn::DeriveInput) -> syn::Result<(String, HashSet<String>, syn::Ident)> {
     let mut ty_opt: Option<String> = None;
     let mut backends: HashSet<String> = Default::default();
+    let mut service: Option<syn::Ident> = None;
 
     for meta in get_meta(&ast.attrs)? {
         if let syn::Meta::List(syn::MetaList { ref nested, .. }) = meta {
@@ -185,6 +181,19 @@ fn get_entity_type(ast: &syn::DeriveInput) -> syn::Result<(String, HashSet<Strin
                                     }
                                 }
                             },
+                            Some(syn::PathSegment { ident, .. }) if ident == "service" => {
+                                for nested_service in nested {
+                                    if let syn::NestedMeta::Meta(syn::Meta::Path(service_path)) =
+                                    nested_service
+                                    {
+                                        if let Some(syn::PathSegment { ident, .. }) =
+                                        service_path.segments.last()
+                                        {
+                                            service = Some(ident.clone());
+                                        }
+                                    }
+                                }
+                            },
                             _ => {},
                         }
                     },
@@ -194,11 +203,15 @@ fn get_entity_type(ast: &syn::DeriveInput) -> syn::Result<(String, HashSet<Strin
         }
     }
 
-    if let Some(ty) = ty_opt {
-        Ok((ty, backends))
-    } else {
-        Err(syn::Error::new_spanned(ast, EntityDecoratorError::InvalidEntityType))
+    if ty_opt.is_none() {
+        return Err(syn::Error::new_spanned(ast, EntityDecoratorError::InvalidEntityType));
     }
+    
+    if service.is_none() {
+        return Err(syn::Error::new_spanned(ast, EntityDecoratorError::LackOfService));
+    }
+    
+    Ok((ty_opt.unwrap(), backends, service.unwrap()))
 }
 
 fn get_fields(ast: &syn::DeriveInput) -> syn::Result<FieldBundle> {

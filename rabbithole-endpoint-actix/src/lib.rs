@@ -11,13 +11,16 @@ use actix_web::dev::HttpResponseBuilder;
 
 use rabbithole::model::error;
 use rabbithole::model::version::JsonApiVersion;
-use rabbithole::operation::Fetching;
+use rabbithole::operation::{
+    Creating, Deleting, Fetching, IdentifierDataWrapper, Operation, ResourceDataWrapper, Updating,
+};
 use rabbithole::rule::RuleDispatcher;
 use rabbithole::JSON_API_HEADER;
 use serde::export::TryFrom;
 
 use rabbithole::query::Query;
 use std::marker::PhantomData;
+use std::sync::{Arc, Mutex};
 
 fn error_to_response(err: error::Error) -> HttpResponse {
     new_json_api_resp(
@@ -27,10 +30,7 @@ fn error_to_response(err: error::Error) -> HttpResponse {
 }
 
 #[derive(Debug, Clone)]
-pub struct ActixSettings<T>
-where
-    T: 'static + Fetching,
-{
+pub struct ActixSettings<T> {
     pub path: String,
     pub uri: url::Url,
     pub jsonapi: JsonApiSettings,
@@ -39,7 +39,7 @@ where
 
 impl<T> TryFrom<ActixSettingsModel> for ActixSettings<T>
 where
-    T: 'static + Fetching + Send + Sync,
+    T: 'static + Operation + Send + Sync,
     T::Item: Send + Sync,
 {
     type Error = url::ParseError;
@@ -52,26 +52,93 @@ where
     }
 }
 
+macro_rules! single_step_operation {
+    ($fn_name:ident, $( $param:ident => $ty:ty ),+) => {
+        pub fn $fn_name(this: Arc<Self>, service: actix_web::web::Data<std::sync::Mutex<T>>, req: actix_web::HttpRequest, $($param: $ty),+) -> impl futures01::Future<Item = actix_web::HttpResponse, Error = actix_web::Error> {
+            if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
+                return futures::future::ok(err_resp).boxed_local().compat();
+            }
+
+            let fut = async move {
+                match service.lock().unwrap().$fn_name($(&$param.into_inner()),+).await {
+                    Ok(item) => {
+                        let resource =
+                            item.to_resource(&this.uri.to_string(), &Default::default()).unwrap();
+                        Ok(actix_web::HttpResponse::Ok().json(rabbithole::operation::ResourceDataWrapper { data: resource }))
+                    },
+                    Err(err) => Ok(error_to_response(err)),
+                }
+            };
+            fut.boxed_local().compat()
+        }
+    };
+}
+
+impl<T> ActixSettings<T>
+where
+    T: 'static + Updating + Send + Sync,
+    T::Item: SingleEntity + Send + Sync,
+{
+    single_step_operation!(update_resource, params => web::Path<String>, body => web::Json<ResourceDataWrapper>);
+
+    single_step_operation!(replace_relationship, params => web::Path<(String, String)>, body => web::Json<IdentifierDataWrapper>);
+
+    single_step_operation!(add_relationship, params => web::Path<(String, String)>, body => web::Json<IdentifierDataWrapper>);
+
+    single_step_operation!(remove_relationship, params => web::Path<(String, String)>, body => web::Json<IdentifierDataWrapper>);
+}
+
+impl<T> ActixSettings<T>
+where
+    T: 'static + Deleting + Send + Sync,
+    T::Item: Send + Sync,
+{
+    pub fn delete_resource(
+        this: Arc<Self>, service: web::Data<Mutex<T>>, params: web::Path<String>,
+        req: actix_web::HttpRequest,
+    ) -> impl futures01::Future<Item = actix_web::HttpResponse, Error = actix_web::Error> {
+        if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
+            return futures::future::ok(err_resp).boxed_local().compat();
+        }
+
+        let fut = async move {
+            match service.lock().unwrap().delete_resource(&params.into_inner()).await {
+                Ok(()) => Ok(actix_web::HttpResponse::Ok().finish()),
+                Err(err) => Ok(error_to_response(err)),
+            }
+        };
+        fut.boxed_local().compat()
+    }
+}
+
+impl<T> ActixSettings<T>
+where
+    T: 'static + Creating + Send + Sync,
+    T::Item: SingleEntity + Send + Sync,
+{
+    single_step_operation!(create, body => web::Json<ResourceDataWrapper>);
+}
+
 impl<T> ActixSettings<T>
 where
     T: 'static + Fetching + Send + Sync,
     T::Item: Send + Sync,
 {
     pub fn fetch_collection(
-        self, req: HttpRequest,
+        this: Arc<Self>, service: web::Data<Mutex<T>>, req: HttpRequest,
     ) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error> {
-        if let Err(err_resp) = check_header(&self.jsonapi.version, &req.headers()) {
+        if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return futures::future::ok(err_resp).boxed_local().compat();
         }
         match Query::from_uri(req.uri()) {
             Ok(query) => {
                 let fut = async move {
-                    let vec_res = T::fetch_collection(&query).await;
+                    let vec_res = service.lock().unwrap().fetch_collection(&query).await;
                     match vec_res {
                         Ok(vec) => {
                             match T::vec_to_document(
                                 &vec,
-                                &self.uri.to_string(),
+                                &this.uri.to_string(),
                                 &query,
                                 &req.uri().into(),
                             )
@@ -92,18 +159,18 @@ where
     }
 
     pub fn fetch_single(
-        self, param: web::Path<String>, req: HttpRequest,
+        this: Arc<Self>, service: web::Data<Mutex<T>>, param: web::Path<String>, req: HttpRequest,
     ) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error> {
-        if let Err(err_resp) = check_header(&self.jsonapi.version, &req.headers()) {
+        if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return futures::future::ok(err_resp).boxed_local().compat();
         }
         match Query::from_uri(req.uri()) {
             Ok(query) => {
                 let fut = async move {
-                    match T::fetch_single(&param.into_inner(), &query).await {
+                    match service.lock().unwrap().fetch_single(&param.into_inner(), &query).await {
                         Ok(item) => {
                             match item.to_document_automatically(
-                                &self.uri.to_string(),
+                                &this.uri.to_string(),
                                 &query,
                                 &req.uri().into(),
                             ) {
@@ -122,23 +189,27 @@ where
     }
 
     pub fn fetch_relationship(
-        self, param: web::Path<(String, String)>, req: HttpRequest,
+        this: Arc<Self>, service: web::Data<Mutex<T>>, param: web::Path<(String, String)>,
+        req: HttpRequest,
     ) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error> {
-        if let Err(err_resp) = check_header(&self.jsonapi.version, &req.headers()) {
+        if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return futures::future::ok(err_resp).boxed_local().compat();
         }
         match Query::from_uri(req.uri()) {
             Ok(query) => {
                 let (id, related_field) = param.into_inner();
                 let fut = async move {
-                    match T::fetch_relationship(
-                        &id,
-                        &related_field,
-                        &self.uri.to_string(),
-                        &query,
-                        &req.uri().into(),
-                    )
-                    .await
+                    match service
+                        .lock()
+                        .unwrap()
+                        .fetch_relationship(
+                            &id,
+                            &related_field,
+                            &this.uri.to_string(),
+                            &query,
+                            &req.uri().into(),
+                        )
+                        .await
                     {
                         Ok(item) => Ok(new_json_api_resp(StatusCode::OK).json(item)),
                         Err(err) => Ok(error_to_response(err)),
@@ -152,9 +223,10 @@ where
     }
 
     pub fn fetch_related(
-        self, param: web::Path<(String, String)>, req: HttpRequest,
+        this: Arc<Self>, service: web::Data<Mutex<T>>, param: web::Path<(String, String)>,
+        req: HttpRequest,
     ) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error> {
-        if let Err(err_resp) = check_header(&self.jsonapi.version, &req.headers()) {
+        if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return futures::future::ok(err_resp).boxed_local().compat();
         }
 
@@ -162,14 +234,17 @@ where
             Ok(query) => {
                 let (id, related_field) = param.into_inner();
                 let fut = async move {
-                    match T::fetch_related(
-                        &id,
-                        &related_field,
-                        &self.uri.to_string(),
-                        &query,
-                        &req.uri().into(),
-                    )
-                    .await
+                    match service
+                        .lock()
+                        .unwrap()
+                        .fetch_related(
+                            &id,
+                            &related_field,
+                            &this.uri.to_string(),
+                            &query,
+                            &req.uri().into(),
+                        )
+                        .await
                     {
                         Ok(item) => Ok(new_json_api_resp(StatusCode::OK).json(item)),
                         Err(err) => Ok(error_to_response(err)),

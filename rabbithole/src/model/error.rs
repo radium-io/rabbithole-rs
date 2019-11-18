@@ -248,4 +248,11 @@ rabbithole_errors! {
     title: "RSQL Filter on Related Field is not Implemented",
     detail: "The auto-generated RSQL Filter cannot handle related fields, please implement it manually",
     param: [];
+
+    ty: OperationNotImplemented,
+    status: http::StatusCode::NOT_IMPLEMENTED,
+    code: "RBH-9904",
+    title: "Operation is not Implemented",
+    detail: "The operation `{operation}` is not implemented",
+    param: [operation: &str,];
 }

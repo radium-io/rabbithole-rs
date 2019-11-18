@@ -15,6 +15,7 @@ use uuid::Uuid;
 
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
 #[entity(type = "humans")]
+#[entity(service(HumanService))]
 pub struct Human {
     #[entity(id)]
     pub passport_number: String,
@@ -27,6 +28,7 @@ pub struct Human {
 
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
 #[entity(type = "dogs")]
+#[entity(service(DogService))]
 pub struct Dog<'a> {
     #[entity(id)]
     pub id: String,
@@ -44,6 +46,7 @@ pub struct Dog<'a> {
 
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
 #[entity(type = "fleas")]
+#[entity(service(FleaService))]
 pub struct Flea {
     #[entity(id)]
     pub id: String,

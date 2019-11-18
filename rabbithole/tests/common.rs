@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
 #[entity(type = "dogs")]
+#[entity(service(DogService))]
 pub struct Dog {
     #[entity(id)]
     pub id: String,

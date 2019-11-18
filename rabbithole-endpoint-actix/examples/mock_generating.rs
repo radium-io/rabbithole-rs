@@ -9,12 +9,13 @@ use rabbithole::entity::{Entity, SingleEntity};
 use rabbithole::model::error;
 use rabbithole::model::link::RawUri;
 use rabbithole::model::relationship::Relationship;
-use rabbithole::operation::Fetching;
+use rabbithole::operation::{Creating, Deleting, Fetching, Operation, Updating};
 use rabbithole::query::Query;
 use rabbithole_endpoint_actix::settings::ActixSettingsModel;
 use rabbithole_endpoint_actix::ActixSettings;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
+use std::sync::Mutex;
 use uuid::Uuid;
 
 // rbh_derive::EntityDecorator to generate JSON:API data models
@@ -23,6 +24,7 @@ use uuid::Uuid;
 #[entity(type = "people")]
 // Generate actix backend
 #[entity(backend(actix))]
+#[entity(service(HumanService))]
 pub struct Human {
     #[entity(id)]
     pub id_code: Uuid,
@@ -34,6 +36,7 @@ pub struct Human {
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
 #[entity(type = "dogs")]
 #[entity(backend(actix))]
+#[entity(service(DogService))]
 pub struct Dog {
     #[entity(id)]
     pub id: Uuid,
@@ -66,17 +69,28 @@ fn generate_masters(len: usize) -> Vec<Human> {
     masters
 }
 
-#[async_trait]
-impl Fetching for Dog {
+#[derive(Default)]
+pub struct DogService();
+impl Operation for DogService {
     type Item = Dog;
+}
 
-    async fn fetch_collection(_query: &Query) -> Result<Vec<Self::Item>, error::Error> {
+#[async_trait]
+impl Creating for DogService {}
+#[async_trait]
+impl Updating for DogService {}
+#[async_trait]
+impl Deleting for DogService {}
+
+#[async_trait]
+impl Fetching for DogService {
+    async fn fetch_collection(&self, _query: &Query) -> Result<Vec<Dog>, error::Error> {
         let rand = rand::random::<usize>() % 5;
         let dogs = generate_dogs(rand);
         Ok(dogs)
     }
 
-    async fn fetch_single(id: &str, _query: &Query) -> Result<Option<Self::Item>, error::Error> {
+    async fn fetch_single(&self, id: &str, _query: &Query) -> Result<Option<Dog>, error::Error> {
         if id == "none" {
             Ok(None)
         } else {
@@ -86,29 +100,40 @@ impl Fetching for Dog {
     }
 
     async fn fetch_relationship(
-        _: &str, related_field: &str, _: &str, _: &Query, _: &RawUri,
+        &self, _: &str, related_field: &str, _: &str, _: &Query, _: &RawUri,
     ) -> Result<Relationship, error::Error> {
         Err(error::Error::FieldNotExist(related_field, None))
     }
 
     async fn fetch_related(
-        _: &str, related_field: &str, _: &str, _: &Query, _: &RawUri,
+        &self, _: &str, related_field: &str, _: &str, _: &Query, _: &RawUri,
     ) -> Result<serde_json::Value, error::Error> {
         Err(error::Error::FieldNotExist(related_field, None))
     }
 }
 
-#[async_trait]
-impl Fetching for Human {
+#[derive(Default)]
+pub struct HumanService();
+impl Operation for HumanService {
     type Item = Human;
+}
 
-    async fn fetch_collection(_: &Query) -> Result<Vec<Self::Item>, error::Error> {
+#[async_trait]
+impl Creating for HumanService {}
+#[async_trait]
+impl Updating for HumanService {}
+#[async_trait]
+impl Deleting for HumanService {}
+
+#[async_trait]
+impl Fetching for HumanService {
+    async fn fetch_collection(&self, _: &Query) -> Result<Vec<Human>, error::Error> {
         let rand = rand::random::<usize>() % 5 + 1;
         let masters = generate_masters(rand);
         Ok(masters)
     }
 
-    async fn fetch_single(id: &str, _query: &Query) -> Result<Option<Self::Item>, error::Error> {
+    async fn fetch_single(&self, id: &str, _query: &Query) -> Result<Option<Human>, error::Error> {
         if id == "none" {
             Ok(None)
         } else {
@@ -118,7 +143,7 @@ impl Fetching for Human {
     }
 
     async fn fetch_relationship(
-        id: &str, related_field: &str, uri: &str, _query: &Query, _request_path: &RawUri,
+        &self, id: &str, related_field: &str, uri: &str, _query: &Query, _request_path: &RawUri,
     ) -> Result<Relationship, error::Error> {
         if related_field == "dogs" {
             if id == "none" {
@@ -134,7 +159,7 @@ impl Fetching for Human {
     }
 
     async fn fetch_related(
-        id: &str, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
+        &self, id: &str, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
     ) -> Result<serde_json::Value, error::Error> {
         if related_field == "dogs" {
             if id == "none" {
@@ -163,13 +188,15 @@ fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
-            .data::<ActixSettings<Human>>(settings.clone().try_into().unwrap())
-            .data::<ActixSettings<Dog>>(settings.clone().try_into().unwrap())
+            .register_data(web::Data::new(Mutex::new(DogService::default())))
+            .register_data(web::Data::new(Mutex::new(HumanService::default())))
+            .data::<ActixSettings<DogService>>(settings.clone().try_into().unwrap())
+            .data::<ActixSettings<HumanService>>(settings.clone().try_into().unwrap())
             .wrap(middleware::Logger::new(r#"%a "%r" %s %b "%{Referer}i" "%{Content-Type}i" %T"#))
             .service(
                 web::scope(&settings.path)
-                    .service(Human::actix_service())
-                    .service(Dog::actix_service()),
+                    .service(DogService::actix_service())
+                    .service(HumanService::actix_service()),
             )
             .default_service(web::to(HttpResponse::NotFound))
     })

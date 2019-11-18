@@ -14,6 +14,7 @@ use uuid::Uuid;
 
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
 #[entity(type = "people")]
+#[entity(service(HumanService))]
 pub struct Human {
     #[entity(id)]
     pub id_code: Uuid,
@@ -31,6 +32,7 @@ impl From<&[Dog]> for Human {
 
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone)]
 #[entity(type = "dogs")]
+#[entity(service(DogService))]
 pub struct Dog {
     #[entity(id)]
     pub id: Uuid,

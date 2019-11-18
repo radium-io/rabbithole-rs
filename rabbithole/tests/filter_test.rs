@@ -5,7 +5,6 @@ pub mod common;
 
 use common::Dog;
 
-
 #[cfg(feature = "filter_rsql")]
 use rabbithole::query::filter::FilterData;
 #[cfg(feature = "filter_rsql")]

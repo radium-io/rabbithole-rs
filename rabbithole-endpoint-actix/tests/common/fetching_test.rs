@@ -110,7 +110,6 @@ fn related_dogs_test() {
 
     if let Some(Body::Bytes(ref bytes)) = resp.take_body().as_ref() {
         let body = String::from_utf8(Vec::from(bytes.as_ref())).unwrap();
-        eprintln!("body: {}", body);
         let body: Document = serde_json::from_str(&body).unwrap();
         if let DocumentItem::PrimaryData(Some((PrimaryDataItem::Multiple(resources), _))) =
             body.item

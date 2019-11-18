@@ -14,6 +14,7 @@ license = "MIT"
 [dependencies]
 env_logger = "~0.7"
 log = "~0.4"
+lazy_static = "~1.4"
 
 futures-preview = { version = "=0.3.0-alpha.19", features = ["compat"] }
 futures01 = { package = "futures", version = "~0.1" }

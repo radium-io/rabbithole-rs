@@ -22,7 +22,7 @@ lazy_static! {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct AttributeField(serde_json::Value);
+pub struct AttributeField(pub serde_json::Value);
 
 impl AttributeField {
     pub fn cmp_with_str(&self, value: &str, field: &str) -> RbhResult<Ordering> {
@@ -164,6 +164,7 @@ impl Default for IdentifierData {
 pub struct ResourceIdentifier {
     #[serde(rename = "type")]
     pub ty: String,
+    #[serde(default)]
     pub id: String,
 }
 
