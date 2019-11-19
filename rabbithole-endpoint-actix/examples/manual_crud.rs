@@ -24,14 +24,14 @@ fn main() -> std::io::Result<()> {
     let settings: ActixSettingsModel = settings.try_into().unwrap();
     let settings_port = settings.port;
 
+    let dog_service = DogService::new();
+    let human_service = HumanService::new(dog_service.clone());
     HttpServer::new(move || {
-        let dog_service = DogService::new();
-        let human_service = HumanService::new(dog_service.clone());
         App::new()
-            .data(dog_service)
-            .data(human_service)
+            .data(dog_service.clone())
+            .data(human_service.clone())
             .data::<ActixSettings>(settings.clone().try_into().unwrap())
-            .wrap(middleware::Logger::new(r#"%a "%r" %s %b "%{Referer}i" "%{Content-Type}i" %T"#))
+            .wrap(middleware::Logger::default())
             .service(
                 web::scope(&settings.path)
                     .service(DogService::actix_service())
