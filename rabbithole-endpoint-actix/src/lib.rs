@@ -18,9 +18,10 @@ use rabbithole::rule::RuleDispatcher;
 use rabbithole::JSON_API_HEADER;
 use serde::export::TryFrom;
 
+use futures::lock::Mutex;
 use rabbithole::query::Query;
 use std::marker::PhantomData;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 fn error_to_response(err: error::Error) -> HttpResponse {
     new_json_api_resp(
@@ -54,13 +55,13 @@ where
 
 macro_rules! single_step_operation {
     ($fn_name:ident, $( $param:ident => $ty:ty ),+) => {
-        pub fn $fn_name(this: Arc<Self>, service: actix_web::web::Data<std::sync::Arc<std::sync::Mutex<T>>>, req: actix_web::HttpRequest, $($param: $ty),+) -> impl futures01::Future<Item = actix_web::HttpResponse, Error = actix_web::Error> {
+        pub fn $fn_name(this: Arc<Self>, service: actix_web::web::Data<std::sync::Arc<futures::lock::Mutex<T>>>, req: actix_web::HttpRequest, $($param: $ty),+) -> impl futures01::Future<Item = actix_web::HttpResponse, Error = actix_web::Error> {
             if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
                 return futures::future::ok(err_resp).boxed_local().compat();
             }
 
             let fut = async move {
-                match service.lock().unwrap().$fn_name($(&$param.into_inner()),+).await {
+                match service.lock().await.$fn_name($(&$param.into_inner()),+).await {
                     Ok(item) => {
                         let resource =
                             item.to_resource(&this.uri.to_string(), &Default::default()).unwrap();
@@ -97,12 +98,12 @@ where
         this: Arc<Self>, service: web::Data<Arc<Mutex<T>>>, params: web::Path<String>,
         req: actix_web::HttpRequest,
     ) -> impl futures01::Future<Item = actix_web::HttpResponse, Error = actix_web::Error> {
-        if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
-            return futures::future::ok(err_resp).boxed_local().compat();
-        }
-
         let fut = async move {
-            match service.lock().unwrap().delete_resource(&params.into_inner()).await {
+            if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
+                return Ok(err_resp);
+            }
+
+            match service.lock().await.delete_resource(&params.into_inner()).await {
                 Ok(()) => Ok(actix_web::HttpResponse::Ok().finish()),
                 Err(err) => Ok(error_to_response(err)),
             }
@@ -133,7 +134,7 @@ where
         match Query::from_uri(req.uri()) {
             Ok(query) => {
                 let fut = async move {
-                    let vec_res = service.lock().unwrap().fetch_collection(&query).await;
+                    let vec_res = service.lock().await.fetch_collection(&query).await;
                     match vec_res {
                         Ok(vec) => {
                             match T::vec_to_document(
@@ -168,7 +169,7 @@ where
         match Query::from_uri(req.uri()) {
             Ok(query) => {
                 let fut = async move {
-                    match service.lock().unwrap().fetch_single(&param.into_inner(), &query).await {
+                    match service.lock().await.fetch_single(&param.into_inner(), &query).await {
                         Ok(item) => {
                             match item.to_document_automatically(
                                 &this.uri.to_string(),
@@ -202,7 +203,7 @@ where
                 let fut = async move {
                     match service
                         .lock()
-                        .unwrap()
+                        .await
                         .fetch_relationship(
                             &id,
                             &related_field,
@@ -237,7 +238,7 @@ where
                 let fut = async move {
                     match service
                         .lock()
-                        .unwrap()
+                        .await
                         .fetch_related(
                             &id,
                             &related_field,

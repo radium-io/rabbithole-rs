@@ -6,32 +6,31 @@ use rabbithole::model::error;
 use rabbithole::model::error::Error;
 
 use crate::model::dog::Dog;
+use crate::service::*;
 use log::info;
 use rabbithole::model::resource::AttributeField;
 use rabbithole::query::Query;
 
+use futures::lock::Mutex;
 use std::collections::HashMap;
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Default)]
 pub struct DogService(HashMap<String, Dog>);
 impl DogService {
+    pub fn new() -> Arc<Mutex<Self>> { Arc::new(Mutex::new(Default::default())) }
+
     pub fn get_by_id(&self, id: &str) -> Option<Dog> { self.0.get(id).cloned() }
 
-    pub fn get_by_ids(&self, ids: &[&str]) -> Result<Vec<Dog>, error::Error> {
-        let res: Result<Vec<Dog>, error::Error> = self
-            .0
+    pub fn get_by_ids(&self, ids: &[String]) -> Result<Vec<Dog>, error::Error> {
+        let res: Result<Vec<Dog>, error::Error> = ids
             .iter()
-            .map(|(k, v)| {
-                if ids.contains(&k.as_str()) {
-                    Ok(v.clone())
+            .map(|id| {
+                if let Some(dog) = self.0.get(id) {
+                    Ok(dog.clone())
                 } else {
-                    Err(error::Error {
-                        id: Some(Uuid::new_v4().to_string()),
-                        status: Some("400".into()),
-                        title: Some("Some ids are invalid".into()),
-                        ..Default::default()
-                    })
+                    Err(INVALID_IDS_CONTAINED.clone())
                 }
             })
             .collect();
@@ -68,12 +67,7 @@ impl Creating for DogService {
             info!("map after creating: {}", self.0.len());
             Ok(dog)
         } else {
-            Err(error::Error {
-                status: Some("400".into()),
-                code: Some("1".into()),
-                title: Some("Wrong field type".into()),
-                ..Default::default()
-            })
+            Err(WRONG_FIELD_TYPE.clone())
         }
     }
 }

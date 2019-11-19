@@ -1,4 +1,6 @@
+#[macro_use]
 extern crate lazy_static;
+
 pub mod model;
 pub mod service;
 
@@ -11,8 +13,9 @@ use rabbithole_endpoint_actix::ActixSettings;
 
 use crate::service::dog::DogService;
 use crate::service::human::HumanService;
+use futures::lock::Mutex;
 use std::convert::TryInto;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "info");
@@ -24,9 +27,8 @@ fn main() -> std::io::Result<()> {
     let settings_port = settings.port;
 
     HttpServer::new(move || {
-        let dog_service = Arc::new(Mutex::new(DogService::default()));
-        let human_service =
-            Arc::new(Mutex::new(HumanService(Default::default(), dog_service.clone())));
+        let dog_service = DogService::new();
+        let human_service = HumanService::new(dog_service.clone());
         App::new()
             .data(dog_service)
             .data(human_service)
