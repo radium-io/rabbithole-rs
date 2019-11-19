@@ -40,7 +40,7 @@ impl PageData for CursorBasedData {
 
     #[cfg(not(feature = "page_cursor"))]
     fn new(params: &HashMap<String, String>) -> RbhResult<Option<Self>> {
-        if let Some(_) = params.get("cursor") {
+        if params.get("cursor").is_some() {
             Err(error::Error::CursorPaginationNotImplemented(None))
         } else {
             Ok(None)

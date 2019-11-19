@@ -54,7 +54,7 @@ where
 
 macro_rules! single_step_operation {
     ($fn_name:ident, $( $param:ident => $ty:ty ),+) => {
-        pub fn $fn_name(this: Arc<Self>, service: actix_web::web::Data<std::sync::Mutex<T>>, req: actix_web::HttpRequest, $($param: $ty),+) -> impl futures01::Future<Item = actix_web::HttpResponse, Error = actix_web::Error> {
+        pub fn $fn_name(this: Arc<Self>, service: actix_web::web::Data<std::sync::Arc<std::sync::Mutex<T>>>, req: actix_web::HttpRequest, $($param: $ty),+) -> impl futures01::Future<Item = actix_web::HttpResponse, Error = actix_web::Error> {
             if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
                 return futures::future::ok(err_resp).boxed_local().compat();
             }
@@ -94,7 +94,7 @@ where
     T::Item: Send + Sync,
 {
     pub fn delete_resource(
-        this: Arc<Self>, service: web::Data<Mutex<T>>, params: web::Path<String>,
+        this: Arc<Self>, service: web::Data<Arc<Mutex<T>>>, params: web::Path<String>,
         req: actix_web::HttpRequest,
     ) -> impl futures01::Future<Item = actix_web::HttpResponse, Error = actix_web::Error> {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
@@ -125,7 +125,7 @@ where
     T::Item: Send + Sync,
 {
     pub fn fetch_collection(
-        this: Arc<Self>, service: web::Data<Mutex<T>>, req: HttpRequest,
+        this: Arc<Self>, service: web::Data<Arc<Mutex<T>>>, req: HttpRequest,
     ) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error> {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return futures::future::ok(err_resp).boxed_local().compat();
@@ -159,7 +159,8 @@ where
     }
 
     pub fn fetch_single(
-        this: Arc<Self>, service: web::Data<Mutex<T>>, param: web::Path<String>, req: HttpRequest,
+        this: Arc<Self>, service: web::Data<Arc<Mutex<T>>>, param: web::Path<String>,
+        req: HttpRequest,
     ) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error> {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return futures::future::ok(err_resp).boxed_local().compat();
@@ -189,7 +190,7 @@ where
     }
 
     pub fn fetch_relationship(
-        this: Arc<Self>, service: web::Data<Mutex<T>>, param: web::Path<(String, String)>,
+        this: Arc<Self>, service: web::Data<Arc<Mutex<T>>>, param: web::Path<(String, String)>,
         req: HttpRequest,
     ) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error> {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
@@ -223,7 +224,7 @@ where
     }
 
     pub fn fetch_related(
-        this: Arc<Self>, service: web::Data<Mutex<T>>, param: web::Path<(String, String)>,
+        this: Arc<Self>, service: web::Data<Arc<Mutex<T>>>, param: web::Path<(String, String)>,
         req: HttpRequest,
     ) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error> {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {

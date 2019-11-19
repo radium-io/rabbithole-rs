@@ -147,10 +147,10 @@ fn get_meta(attrs: &[syn::Attribute]) -> syn::Result<Vec<syn::Meta>> {
         .collect::<Vec<syn::Meta>>())
 }
 
-fn get_entity_type(ast: &syn::DeriveInput) -> syn::Result<(String, HashSet<String>, syn::Ident)> {
+fn get_entity_type(ast: &syn::DeriveInput) -> syn::Result<(String, HashSet<String>, syn::Path)> {
     let mut ty_opt: Option<String> = None;
     let mut backends: HashSet<String> = Default::default();
-    let mut service: Option<syn::Ident> = None;
+    let mut service: Option<syn::Path> = None;
 
     for meta in get_meta(&ast.attrs)? {
         if let syn::Meta::List(syn::MetaList { ref nested, .. }) = meta {
@@ -184,13 +184,9 @@ fn get_entity_type(ast: &syn::DeriveInput) -> syn::Result<(String, HashSet<Strin
                             Some(syn::PathSegment { ident, .. }) if ident == "service" => {
                                 for nested_service in nested {
                                     if let syn::NestedMeta::Meta(syn::Meta::Path(service_path)) =
-                                    nested_service
+                                        nested_service
                                     {
-                                        if let Some(syn::PathSegment { ident, .. }) =
-                                        service_path.segments.last()
-                                        {
-                                            service = Some(ident.clone());
-                                        }
+                                        service = Some(service_path.clone());
                                     }
                                 }
                             },
@@ -206,11 +202,11 @@ fn get_entity_type(ast: &syn::DeriveInput) -> syn::Result<(String, HashSet<Strin
     if ty_opt.is_none() {
         return Err(syn::Error::new_spanned(ast, EntityDecoratorError::InvalidEntityType));
     }
-    
+
     if service.is_none() {
         return Err(syn::Error::new_spanned(ast, EntityDecoratorError::LackOfService));
     }
-    
+
     Ok((ty_opt.unwrap(), backends, service.unwrap()))
 }
 

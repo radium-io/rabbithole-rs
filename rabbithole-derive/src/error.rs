@@ -5,7 +5,10 @@ pub enum EntityDecoratorError {
          `#[entity(type = \"foo_type\")]`"
     )]
     InvalidEntityType,
-    #[error("`EntityDecorator` needs a Data Service to handle the CRUD operations, using `#[entity(service(FooService))]` to register one")]
+    #[error(
+        "`EntityDecorator` needs a Data Service to handle the CRUD operations, using \
+         `#[entity(service(FooService))]` to register one"
+    )]
     LackOfService,
     #[error("Duplicated Id fields detected")]
     DuplicatedId,
