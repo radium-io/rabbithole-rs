@@ -217,14 +217,9 @@ macro_rules! init_app {
             settings.path.clone(),
             test::init_service(
                 actix_web::App::new()
-                    .register_data(web::Data::new(futures::lock::Mutex::new(
-                        HumanService::default(),
-                    )))
-                    .register_data(web::Data::new(futures::lock::Mutex::new(DogService::default())))
-                    .data::<rabbithole_endpoint_actix::ActixSettings<HumanService>>(
-                        settings.clone().try_into().unwrap(),
-                    )
-                    .data::<rabbithole_endpoint_actix::ActixSettings<DogService>>(
+                    .data(std::sync::Arc::new(futures::lock::Mutex::new(HumanService::default())))
+                    .data(std::sync::Arc::new(futures::lock::Mutex::new(DogService::default())))
+                    .data::<rabbithole_endpoint_actix::ActixSettings>(
                         settings.clone().try_into().unwrap(),
                     )
                     .service(

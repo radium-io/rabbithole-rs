@@ -13,9 +13,7 @@ use rabbithole_endpoint_actix::ActixSettings;
 
 use crate::service::dog::DogService;
 use crate::service::human::HumanService;
-use futures::lock::Mutex;
 use std::convert::TryInto;
-use std::sync::Arc;
 
 fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "info");
@@ -32,8 +30,7 @@ fn main() -> std::io::Result<()> {
         App::new()
             .data(dog_service)
             .data(human_service)
-            .data::<ActixSettings<DogService>>(settings.clone().try_into().unwrap())
-            .data::<ActixSettings<HumanService>>(settings.clone().try_into().unwrap())
+            .data::<ActixSettings>(settings.clone().try_into().unwrap())
             .wrap(middleware::Logger::new(r#"%a "%r" %s %b "%{Referer}i" "%{Content-Type}i" %T"#))
             .service(
                 web::scope(&settings.path)

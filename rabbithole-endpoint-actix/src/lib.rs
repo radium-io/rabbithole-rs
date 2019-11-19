@@ -12,7 +12,7 @@ use actix_web::dev::HttpResponseBuilder;
 use rabbithole::model::error;
 use rabbithole::model::version::JsonApiVersion;
 use rabbithole::operation::{
-    Creating, Deleting, Fetching, IdentifierDataWrapper, Operation, ResourceDataWrapper, Updating,
+    Creating, Deleting, Fetching, IdentifierDataWrapper, ResourceDataWrapper, Updating,
 };
 use rabbithole::rule::RuleDispatcher;
 use rabbithole::JSON_API_HEADER;
@@ -20,7 +20,7 @@ use serde::export::TryFrom;
 
 use futures::lock::Mutex;
 use rabbithole::query::Query;
-use std::marker::PhantomData;
+
 use std::sync::Arc;
 
 fn error_to_response(err: error::Error) -> HttpResponse {
@@ -31,31 +31,31 @@ fn error_to_response(err: error::Error) -> HttpResponse {
 }
 
 #[derive(Debug, Clone)]
-pub struct ActixSettings<T> {
+pub struct ActixSettings {
     pub path: String,
     pub uri: url::Url,
     pub jsonapi: JsonApiSettings,
-    _data: PhantomData<T>,
 }
 
-impl<T> TryFrom<ActixSettingsModel> for ActixSettings<T>
-where
-    T: 'static + Operation + Send + Sync,
-    T::Item: Send + Sync,
-{
+impl TryFrom<ActixSettingsModel> for ActixSettings {
     type Error = url::ParseError;
 
     fn try_from(value: ActixSettingsModel) -> Result<Self, Self::Error> {
         let ActixSettingsModel { host, port, path, jsonapi } = value;
         let uri = format!("http://{}:{}", host, port).parse::<url::Url>().unwrap();
         let uri = uri.join(&path).unwrap();
-        Ok(Self { path, uri, jsonapi, _data: PhantomData })
+        Ok(Self { path, uri, jsonapi })
     }
 }
 
 macro_rules! single_step_operation {
-    ($fn_name:ident, $( $param:ident => $ty:ty ),+) => {
-        pub fn $fn_name(this: Arc<Self>, service: actix_web::web::Data<std::sync::Arc<futures::lock::Mutex<T>>>, req: actix_web::HttpRequest, $($param: $ty),+) -> impl futures01::Future<Item = actix_web::HttpResponse, Error = actix_web::Error> {
+    ($fn_name:ident, $mark:ident, $( $param:ident => $ty:ty ),+) => {
+        pub fn $fn_name<T>(this: web::Data<Self>, service: actix_web::web::Data<std::sync::Arc<futures::lock::Mutex<T>>>, req: actix_web::HttpRequest, $($param: $ty),+)
+          -> impl futures01::Future<Item = actix_web::HttpResponse, Error = actix_web::Error>
+            where
+                T: 'static + rabbithole::operation::$mark + Send + Sync,
+                T::Item: rabbithole::entity::SingleEntity + Send + Sync,
+          {
             if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
                 return futures::future::ok(err_resp).boxed_local().compat();
             }
@@ -75,29 +75,25 @@ macro_rules! single_step_operation {
     };
 }
 
-impl<T> ActixSettings<T>
-where
-    T: 'static + Updating + Send + Sync,
-    T::Item: SingleEntity + Send + Sync,
-{
-    single_step_operation!(update_resource, params => web::Path<String>, body => web::Json<ResourceDataWrapper>);
+impl ActixSettings {
+    single_step_operation!(update_resource, Updating, params => web::Path<String>, body => web::Json<ResourceDataWrapper>);
 
-    single_step_operation!(replace_relationship, params => web::Path<(String, String)>, body => web::Json<IdentifierDataWrapper>);
+    single_step_operation!(replace_relationship, Updating, params => web::Path<(String, String)>, body => web::Json<IdentifierDataWrapper>);
 
-    single_step_operation!(add_relationship, params => web::Path<(String, String)>, body => web::Json<IdentifierDataWrapper>);
+    single_step_operation!(add_relationship, Updating, params => web::Path<(String, String)>, body => web::Json<IdentifierDataWrapper>);
 
-    single_step_operation!(remove_relationship, params => web::Path<(String, String)>, body => web::Json<IdentifierDataWrapper>);
+    single_step_operation!(remove_relationship, Updating, params => web::Path<(String, String)>, body => web::Json<IdentifierDataWrapper>);
 }
 
-impl<T> ActixSettings<T>
-where
-    T: 'static + Deleting + Send + Sync,
-    T::Item: Send + Sync,
-{
-    pub fn delete_resource(
-        this: Arc<Self>, service: web::Data<Arc<Mutex<T>>>, params: web::Path<String>,
+impl ActixSettings {
+    pub fn delete_resource<T>(
+        this: web::Data<Self>, service: web::Data<Arc<Mutex<T>>>, params: web::Path<String>,
         req: actix_web::HttpRequest,
-    ) -> impl futures01::Future<Item = actix_web::HttpResponse, Error = actix_web::Error> {
+    ) -> impl futures01::Future<Item = actix_web::HttpResponse, Error = actix_web::Error>
+    where
+        T: 'static + Deleting + Send + Sync,
+        T::Item: rabbithole::entity::SingleEntity + Send + Sync,
+    {
         let fut = async move {
             if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
                 return Ok(err_resp);
@@ -112,22 +108,18 @@ where
     }
 }
 
-impl<T> ActixSettings<T>
-where
-    T: 'static + Creating + Send + Sync,
-    T::Item: SingleEntity + Send + Sync,
-{
-    single_step_operation!(create, body => web::Json<ResourceDataWrapper>);
+impl ActixSettings {
+    single_step_operation!(create, Creating, body => web::Json<ResourceDataWrapper>);
 }
 
-impl<T> ActixSettings<T>
-where
-    T: 'static + Fetching + Send + Sync,
-    T::Item: Send + Sync,
-{
-    pub fn fetch_collection(
-        this: Arc<Self>, service: web::Data<Arc<Mutex<T>>>, req: HttpRequest,
-    ) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error> {
+impl ActixSettings {
+    pub fn fetch_collection<T>(
+        this: web::Data<Self>, service: web::Data<Arc<Mutex<T>>>, req: HttpRequest,
+    ) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error>
+    where
+        T: 'static + Fetching + Send + Sync,
+        T::Item: rabbithole::entity::SingleEntity + Send + Sync,
+    {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return futures::future::ok(err_resp).boxed_local().compat();
         }
@@ -159,10 +151,14 @@ where
         }
     }
 
-    pub fn fetch_single(
-        this: Arc<Self>, service: web::Data<Arc<Mutex<T>>>, param: web::Path<String>,
+    pub fn fetch_single<T>(
+        this: web::Data<Self>, service: web::Data<Arc<Mutex<T>>>, param: web::Path<String>,
         req: HttpRequest,
-    ) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error> {
+    ) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error>
+    where
+        T: 'static + Fetching + Send + Sync,
+        T::Item: rabbithole::entity::SingleEntity + Send + Sync,
+    {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return futures::future::ok(err_resp).boxed_local().compat();
         }
@@ -190,10 +186,14 @@ where
         }
     }
 
-    pub fn fetch_relationship(
-        this: Arc<Self>, service: web::Data<Arc<Mutex<T>>>, param: web::Path<(String, String)>,
-        req: HttpRequest,
-    ) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error> {
+    pub fn fetch_relationship<T>(
+        this: web::Data<Self>, service: web::Data<Arc<Mutex<T>>>,
+        param: web::Path<(String, String)>, req: HttpRequest,
+    ) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error>
+    where
+        T: 'static + Fetching + Send + Sync,
+        T::Item: rabbithole::entity::SingleEntity + Send + Sync,
+    {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return futures::future::ok(err_resp).boxed_local().compat();
         }
@@ -224,10 +224,14 @@ where
         }
     }
 
-    pub fn fetch_related(
-        this: Arc<Self>, service: web::Data<Arc<Mutex<T>>>, param: web::Path<(String, String)>,
-        req: HttpRequest,
-    ) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error> {
+    pub fn fetch_related<T>(
+        this: web::Data<Self>, service: web::Data<Arc<Mutex<T>>>,
+        param: web::Path<(String, String)>, req: HttpRequest,
+    ) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error>
+    where
+        T: 'static + Fetching + Send + Sync,
+        T::Item: rabbithole::entity::SingleEntity + Send + Sync,
+    {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return futures::future::ok(err_resp).boxed_local().compat();
         }

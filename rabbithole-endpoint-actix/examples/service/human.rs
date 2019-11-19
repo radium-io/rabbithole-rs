@@ -83,19 +83,19 @@ impl Updating for HumanService {
     }
 
     async fn replace_relationship(
-        &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
+        &mut self, _id_field: &(String, String), _data: &IdentifierDataWrapper,
     ) -> Result<Human, Error> {
         unimplemented!()
     }
 
     async fn add_relationship(
-        &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
+        &mut self, _id_field: &(String, String), _data: &IdentifierDataWrapper,
     ) -> Result<Human, Error> {
         unimplemented!()
     }
 
     async fn remove_relationship(
-        &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
+        &mut self, _id_field: &(String, String), _data: &IdentifierDataWrapper,
     ) -> Result<Human, Error> {
         unimplemented!()
     }
