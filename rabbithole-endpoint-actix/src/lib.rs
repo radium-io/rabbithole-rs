@@ -11,9 +11,7 @@ use actix_web::dev::HttpResponseBuilder;
 
 use rabbithole::model::error;
 use rabbithole::model::version::JsonApiVersion;
-use rabbithole::operation::{
-    Creating, Deleting, Fetching, IdentifierDataWrapper, ResourceDataWrapper, Updating,
-};
+use rabbithole::operation::{Deleting, Fetching, IdentifierDataWrapper, ResourceDataWrapper};
 use rabbithole::rule::RuleDispatcher;
 use rabbithole::JSON_API_HEADER;
 use serde::export::TryFrom;

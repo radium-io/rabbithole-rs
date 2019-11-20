@@ -7,7 +7,7 @@ use rabbithole::model::error::Error;
 
 use crate::model::dog::Dog;
 use crate::service::*;
-use log::info;
+
 use rabbithole::model::resource::AttributeField;
 use rabbithole::query::Query;
 
@@ -45,7 +45,6 @@ impl Operation for DogService {
 #[async_trait]
 impl Fetching for DogService {
     async fn fetch_collection(&self, _query: &Query) -> Result<Vec<Dog>, Error> {
-        info!("fetching_all: {}", self.0.len());
         Ok(self.0.values().cloned().collect())
     }
 
@@ -61,10 +60,7 @@ impl Creating for DogService {
             data.attributes.get_field("name")?
         {
             let dog = Dog { id: Uuid::new_v4(), name: name.clone() };
-            info!("=== data: {:?}", dog);
-            info!("map before creating: {}", self.0.len());
             self.0.insert(dog.id.clone().to_string(), dog.clone());
-            info!("map after creating: {}", self.0.len());
             Ok(dog)
         } else {
             Err(WRONG_FIELD_TYPE.clone())
@@ -72,6 +68,30 @@ impl Creating for DogService {
     }
 }
 #[async_trait]
-impl Updating for DogService {}
+impl Updating for DogService {
+    async fn update_resource(
+        &mut self, id: &str, data: &ResourceDataWrapper,
+    ) -> Result<Dog, Error> {
+        if let Some(mut dog) = self.get_by_id(id) {
+            let ResourceDataWrapper { data } = data;
+            if let AttributeField(serde_json::Value::String(name)) =
+                data.attributes.get_field("name")?
+            {
+                dog.name = name.to_string();
+                self.0.insert(id.into(), dog.clone());
+                Ok(dog)
+            } else {
+                Err(WRONG_FIELD_TYPE.clone())
+            }
+        } else {
+            Err(ENTITY_NOT_FOUND.clone())
+        }
+    }
+}
 #[async_trait]
-impl Deleting for DogService {}
+impl Deleting for DogService {
+    async fn delete_resource(&mut self, id: &str) -> Result<(), Error> {
+        self.0.remove(id);
+        Ok(())
+    }
+}

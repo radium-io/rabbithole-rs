@@ -21,4 +21,16 @@ lazy_static! {
         title: Some("Invalid IDs Contained".into()),
         ..Default::default()
     };
+    static ref SINGLE_RELATIONSHIP_NEEDED: error::Error = error::Error {
+        status: Some("400".into()),
+        code: Some("4".into()),
+        title: Some("Single Relationship Needed".into()),
+        ..Default::default()
+    };
+    static ref MULTIPLE_RELATIONSHIP_NEEDED: error::Error = error::Error {
+        status: Some("400".into()),
+        code: Some("5".into()),
+        title: Some("Multiple Relationship Needed".into()),
+        ..Default::default()
+    };
 }

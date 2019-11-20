@@ -39,23 +39,6 @@ macro_rules! fetching_init {
                     Ok(generate_dogs(rand).first().cloned())
                 }
             }
-
-            async fn fetch_relationship(
-                &self, _: &str, related_field: &str, _: &str, _: &rabbithole::query::Query,
-                _: &rabbithole::model::link::RawUri,
-            ) -> Result<
-                rabbithole::model::relationship::Relationship,
-                rabbithole::model::error::Error,
-            > {
-                Err(rabbithole::model::error::Error::FieldNotExist(related_field, None))
-            }
-
-            async fn fetch_related(
-                &self, _: &str, related_field: &str, _: &str, _: &rabbithole::query::Query,
-                _: &rabbithole::model::link::RawUri,
-            ) -> Result<serde_json::Value, rabbithole::model::error::Error> {
-                Err(rabbithole::model::error::Error::FieldNotExist(related_field, None))
-            }
         }
 
         #[derive(Default)]
@@ -119,7 +102,8 @@ macro_rules! fetching_init {
             async fn fetch_related(
                 &self, id: &str, related_field: &str, uri: &str, query: &rabbithole::query::Query,
                 request_path: &rabbithole::model::link::RawUri,
-            ) -> Result<serde_json::Value, rabbithole::model::error::Error> {
+            ) -> Result<rabbithole::model::document::Document, rabbithole::model::error::Error>
+            {
                 if id == "none" {
                     return Err(rabbithole::model::error::Error::ParentResourceNotExist(
                         related_field,
@@ -130,12 +114,7 @@ macro_rules! fetching_init {
                     let rand = rand::random::<usize>() % 3 + 1;
                     let master = generate_masters(rand);
                     let master = master.last().unwrap();
-                    serde_json::to_value(master.dogs.to_document_automatically(
-                        uri,
-                        query,
-                        request_path,
-                    )?)
-                    .map_err(|err| rabbithole::model::error::Error::InvalidJson(&err, None))
+                    Ok(master.dogs.to_document_automatically(uri, query, request_path)?)
                 } else {
                     Err(rabbithole::model::error::Error::FieldNotExist(related_field, None))
                 }

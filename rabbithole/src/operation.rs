@@ -48,7 +48,7 @@ pub trait Fetching: Operation {
     #[allow(unused_variables)]
     async fn fetch_related(
         &self, id: &str, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
-    ) -> Result<serde_json::Value, error::Error> {
+    ) -> Result<Document, error::Error> {
         Err(error::Error::OperationNotImplemented("fetch_related", None))
     }
 }

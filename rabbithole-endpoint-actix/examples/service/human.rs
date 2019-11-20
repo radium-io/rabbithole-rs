@@ -9,8 +9,14 @@ use crate::model::human::Human;
 use crate::service::dog::DogService;
 use crate::service::*;
 use futures::lock::Mutex;
-use rabbithole::model::resource::{AttributeField, ResourceIdentifier};
+use rabbithole::entity::{Entity, SingleEntity};
+use rabbithole::model::document::Document;
+use rabbithole::model::error;
+use rabbithole::model::link::RawUri;
+use rabbithole::model::relationship::Relationship;
+use rabbithole::model::resource::{AttributeField, IdentifierData, ResourceIdentifier};
 use rabbithole::query::Query;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -34,6 +40,35 @@ impl Fetching for HumanService {
 
     async fn fetch_single(&self, id: &str, _query: &Query) -> Result<Option<Human>, Error> {
         Ok(self.0.get(id).map(Clone::clone))
+    }
+
+    async fn fetch_relationship(
+        &self, id: &str, related_field: &str, uri: &str, query: &Query, _request_path: &RawUri,
+    ) -> Result<Relationship, Error> {
+        if let Some(human) = self.0.get(id) {
+            let resource = human.to_resource(uri, &query.fields).unwrap();
+            if let Some(relat) = resource.relationships.get(related_field) {
+                Ok(relat.clone())
+            } else {
+                Err(error::Error::FieldNotExist(related_field, None))
+            }
+        } else {
+            Err(ENTITY_NOT_FOUND.clone())
+        }
+    }
+
+    async fn fetch_related(
+        &self, id: &str, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
+    ) -> Result<Document, Error> {
+        if let Some(human) = self.0.get(id) {
+            if related_field == "dogs" {
+                Ok(human.dogs.to_document_automatically(uri, query, request_path)?)
+            } else {
+                Err(error::Error::FieldNotExist(related_field, None))
+            }
+        } else {
+            Err(ENTITY_NOT_FOUND.clone())
+        }
     }
 }
 
@@ -72,7 +107,8 @@ impl Updating for HumanService {
                 let dogs = self.1.clone().lock().await.get_by_ids(&dog_ids)?;
                 human.dogs = dogs;
             }
-            if let AttributeField(serde_json::Value::String(name)) = new_attrs.get_field("name")? {
+            if let Ok(AttributeField(serde_json::Value::String(name))) = new_attrs.get_field("name")
+            {
                 human.name = name.clone();
             }
             self.0.insert(id.to_string(), human.clone());
@@ -83,21 +119,74 @@ impl Updating for HumanService {
     }
 
     async fn replace_relationship(
-        &mut self, _id_field: &(String, String), _data: &IdentifierDataWrapper,
+        &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
     ) -> Result<Human, Error> {
-        unimplemented!()
+        let (id, field) = id_field;
+        if let Some(human) = self.0.get(id) {
+            let IdentifierDataWrapper { data } = data;
+            match data {
+                IdentifierData::Single(_) => Err(MULTIPLE_RELATIONSHIP_NEEDED.clone()),
+                IdentifierData::Multiple(datas) => {
+                    let mut human = human.clone();
+                    let ids: Vec<String> = datas
+                        .iter()
+                        .filter_map(|i| if &i.ty == field { Some(i.id.clone()) } else { None })
+                        .collect();
+                    let dogs = self.1.lock().await.get_by_ids(&ids)?;
+                    human.dogs = dogs;
+                    Ok(human)
+                },
+            }
+        } else {
+            Err(ENTITY_NOT_FOUND.clone())
+        }
     }
 
     async fn add_relationship(
-        &mut self, _id_field: &(String, String), _data: &IdentifierDataWrapper,
+        &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
     ) -> Result<Human, Error> {
-        unimplemented!()
+        let (id, field) = id_field;
+        if let Some(human) = self.0.get(id) {
+            let IdentifierDataWrapper { data } = data;
+            match data {
+                IdentifierData::Single(_) => Err(MULTIPLE_RELATIONSHIP_NEEDED.clone()),
+                IdentifierData::Multiple(datas) => {
+                    let mut human = human.clone();
+                    let ids: Vec<String> = datas
+                        .iter()
+                        .filter_map(|i| if &i.ty == field { Some(i.id.clone()) } else { None })
+                        .collect();
+                    let mut dogs = self.1.lock().await.get_by_ids(&ids)?;
+                    human.add_dogs(&mut dogs);
+                    Ok(human)
+                },
+            }
+        } else {
+            Err(ENTITY_NOT_FOUND.clone())
+        }
     }
 
     async fn remove_relationship(
-        &mut self, _id_field: &(String, String), _data: &IdentifierDataWrapper,
+        &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
     ) -> Result<Human, Error> {
-        unimplemented!()
+        let (id, field) = id_field;
+        if let Some(human) = self.0.get(id) {
+            let IdentifierDataWrapper { data } = data;
+            match data {
+                IdentifierData::Single(_) => Err(MULTIPLE_RELATIONSHIP_NEEDED.clone()),
+                IdentifierData::Multiple(datas) => {
+                    let mut human = human.clone();
+                    let ids: Vec<String> = datas
+                        .iter()
+                        .filter_map(|i| if &i.ty == field { Some(i.id.clone()) } else { None })
+                        .collect();
+                    human.remove_dogs(&ids);
+                    Ok(human)
+                },
+            }
+        } else {
+            Err(ENTITY_NOT_FOUND.clone())
+        }
     }
 }
 #[async_trait]
