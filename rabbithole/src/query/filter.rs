@@ -43,7 +43,7 @@ impl FilterData for RsqlFilterData {
     #[cfg(feature = "filter_rsql")]
     fn new(params: &HashMap<String, String>) -> RbhResult<Option<Self>> {
         let mut res: HashMap<String, Expr> = Default::default();
-        for (k, v) in params.into_iter() {
+        for (k, v) in params.iter() {
             if k.contains('.') {
                 return Err(error::Error::RelationshipPathNotSupported(&k, None));
             }
@@ -91,7 +91,7 @@ impl RsqlFilterData {
                         && arguments.0.len() == 1
                     {
                         let arg: &str = arguments.0.first().unwrap();
-                        field.eq_with_str(arg, &selector)? == false
+                        !(field.eq_with_str(arg, &selector)?)
                     } else if comparison == &comparison::GREATER_THAN as &Comparison
                         && arguments.0.len() == 1
                     {
@@ -116,11 +116,7 @@ impl RsqlFilterData {
                         let res = field.cmp_with_str(arg, &selector)?;
                         res == Ordering::Less || res == Ordering::Equal
                     } else if comparison == &comparison::IN as &Comparison {
-                        arguments
-                            .0
-                            .iter()
-                            .find(|s| field.eq_with_str(s, &selector).is_ok())
-                            .is_some()
+                        arguments.0.iter().any(|s| field.eq_with_str(s, &selector).is_ok())
                     } else if comparison == &comparison::OUT as &Comparison {
                         arguments
                             .0
@@ -128,14 +124,14 @@ impl RsqlFilterData {
                             .find(|s| field.eq_with_str(s, &selector).is_ok())
                             .is_none()
                     } else {
-                        Err(error::Error::UnsupportedRsqlComparison(
+                        return Err(error::Error::UnsupportedRsqlComparison(
                             &comparison.symbols,
                             arguments.0.len(),
                             None,
-                        ))?
+                        ));
                     }
                 } else {
-                    Err(error::Error::FieldNotExist(&selector, None))?
+                    return Err(error::Error::FieldNotExist(&selector, None));
                 }
             },
             Expr::Node(op, left, right) => {
