@@ -62,6 +62,26 @@ impl Default for Document {
 impl Document {
     pub fn null(links: Option<Links>) -> Self { Self { links, ..Default::default() } }
 
+    pub fn into_single(self) -> Result<(Box<Resource>, Included), Self> {
+        if let DocumentItem::PrimaryData(Some((PrimaryDataItem::Single(resource), included))) =
+            self.item
+        {
+            Ok((resource, included))
+        } else {
+            Err(self)
+        }
+    }
+
+    pub fn into_multiple(self) -> Result<(Vec<Resource>, Included), Self> {
+        if let DocumentItem::PrimaryData(Some((PrimaryDataItem::Multiple(resources), included))) =
+            self.item
+        {
+            Ok((resources, included))
+        } else {
+            Err(self)
+        }
+    }
+
     pub fn single_resource(resource: Resource, included: Included, links: Option<Links>) -> Self {
         Self {
             item: DocumentItem::PrimaryData(Some((

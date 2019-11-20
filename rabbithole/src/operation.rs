@@ -58,6 +58,15 @@ pub struct ResourceDataWrapper {
     pub data: Resource,
 }
 
+impl ResourceDataWrapper {
+    pub fn from_entities<T>(entities: &[T], path: &str) -> Vec<Self> where T: SingleEntity {
+        entities.iter()
+            .filter_map(|d| d.to_resource(&path, &Default::default()))
+            .map(|data| Self { data })
+            .collect()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IdentifierDataWrapper {
     pub data: IdentifierData,
