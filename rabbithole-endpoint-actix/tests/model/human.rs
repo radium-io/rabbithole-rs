@@ -1,5 +1,5 @@
 extern crate rabbithole_derive as rbh_derive;
-use crate::model::dog::{Dog};
+use crate::model::dog::Dog;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

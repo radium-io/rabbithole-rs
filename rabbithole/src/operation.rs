@@ -22,26 +22,24 @@ pub trait Fetching: Operation {
     ///     - put `totalPages` if `@type == PageBased`
     async fn vec_to_document(
         items: &[Self::Item], uri: &str, query: &Query, request_path: &RawUri,
-    ) -> Result<Document, error::Error> {
+    ) -> RbhResult<Document> {
         Ok(items.to_document_automatically(uri, query, request_path)?)
     }
     /// Mapping to `/<ty>?<query>`
     #[allow(unused_variables)]
-    async fn fetch_collection(&self, query: &Query) -> Result<Vec<Self::Item>, error::Error> {
+    async fn fetch_collection(&self, query: &Query) -> RbhResult<Vec<Self::Item>> {
         Err(error::Error::OperationNotImplemented("fetch_collection", None))
     }
     /// Mapping to `/<ty>/<id>?<query>`
     #[allow(unused_variables)]
-    async fn fetch_single(
-        &self, id: &str, query: &Query,
-    ) -> Result<Option<Self::Item>, error::Error> {
+    async fn fetch_single(&self, id: &str, query: &Query) -> RbhResult<Option<Self::Item>> {
         Err(error::Error::OperationNotImplemented("fetch_single", None))
     }
     /// Mapping to `/<ty>/<id>/relationships/<related_field>?<query>`
     #[allow(unused_variables)]
     async fn fetch_relationship(
         &self, id: &str, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
-    ) -> Result<Relationship, error::Error> {
+    ) -> RbhResult<Relationship> {
         Err(error::Error::OperationNotImplemented("fetch_relationship", None))
     }
     /// Mapping to `/<ty>/<id>/<related_field>?<query>`
@@ -59,8 +57,12 @@ pub struct ResourceDataWrapper {
 }
 
 impl ResourceDataWrapper {
-    pub fn from_entities<T>(entities: &[T], path: &str) -> Vec<Self> where T: SingleEntity {
-        entities.iter()
+    pub fn from_entities<T>(entities: &[T], path: &str) -> Vec<Self>
+    where
+        T: SingleEntity,
+    {
+        entities
+            .iter()
             .filter_map(|d| d.to_resource(&path, &Default::default()))
             .map(|data| Self { data })
             .collect()
@@ -87,28 +89,28 @@ pub trait Updating: Operation {
     #[allow(unused_variables)]
     async fn update_resource(
         &mut self, id: &str, data: &ResourceDataWrapper,
-    ) -> RbhResult<Self::Item> {
+    ) -> RbhResult<Option<Self::Item>> {
         Err(error::Error::OperationNotImplemented("update_resource", None))
     }
     /// Mapping to `PATCH /<ty>/<id>/relationships/<field>`
     #[allow(unused_variables)]
     async fn replace_relationship(
         &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
-    ) -> RbhResult<Self::Item> {
+    ) -> RbhResult<(String, Option<Self::Item>)> {
         Err(error::Error::OperationNotImplemented("replace_relationship", None))
     }
     /// Mapping to `POST /<ty>/<id>/relationships/<field>`
     #[allow(unused_variables)]
     async fn add_relationship(
         &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
-    ) -> RbhResult<Self::Item> {
+    ) -> RbhResult<(String, Option<Self::Item>)> {
         Err(error::Error::OperationNotImplemented("add_relationship", None))
     }
     /// Mapping to `DELETE /<ty>/<id>/relationships/<field>`
     #[allow(unused_variables)]
     async fn remove_relationship(
         &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
-    ) -> RbhResult<Self::Item> {
+    ) -> RbhResult<(String, Option<Self::Item>)> {
         Err(error::Error::OperationNotImplemented("remove_relationship", None))
     }
 }

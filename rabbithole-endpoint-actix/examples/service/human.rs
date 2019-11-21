@@ -96,9 +96,8 @@ impl Creating for HumanService {
 impl Updating for HumanService {
     async fn update_resource(
         &mut self, id: &str, data: &ResourceDataWrapper,
-    ) -> Result<Human, Error> {
-        if let Some(human) = self.0.get(id) {
-            let mut human: Human = human.clone();
+    ) -> Result<Option<Human>, Error> {
+        if let Some(mut human) = self.0.get(id).cloned() {
             let new_attrs = &data.data.attributes;
             let new_relats = &data.data.relationships;
             if let Some(dog_ids) = new_relats.get("dogs").map(|r| r.data.data()) {
@@ -111,8 +110,8 @@ impl Updating for HumanService {
             {
                 human.name = name.clone();
             }
-            self.0.insert(id.to_string(), human.clone());
-            Ok(human)
+            self.0.insert(id.to_string(), human);
+            Ok(None)
         } else {
             Err(ENTITY_NOT_FOUND.clone())
         }
@@ -120,21 +119,20 @@ impl Updating for HumanService {
 
     async fn replace_relationship(
         &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
-    ) -> Result<Human, Error> {
+    ) -> Result<(String, Option<Human>), Error> {
         let (id, field) = id_field;
-        if let Some(human) = self.0.get(id) {
+        if let Some(human) = self.0.get_mut(id) {
             let IdentifierDataWrapper { data } = data;
             match data {
                 IdentifierData::Single(_) => Err(MULTIPLE_RELATIONSHIP_NEEDED.clone()),
                 IdentifierData::Multiple(datas) => {
-                    let mut human = human.clone();
                     let ids: Vec<String> = datas
                         .iter()
                         .filter_map(|i| if &i.ty == field { Some(i.id.clone()) } else { None })
                         .collect();
                     let dogs = self.1.lock().await.get_by_ids(&ids)?;
                     human.dogs = dogs;
-                    Ok(human)
+                    Ok((field.clone(), None))
                 },
             }
         } else {
@@ -144,21 +142,20 @@ impl Updating for HumanService {
 
     async fn add_relationship(
         &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
-    ) -> Result<Human, Error> {
+    ) -> Result<(String, Option<Human>), Error> {
         let (id, field) = id_field;
-        if let Some(human) = self.0.get(id) {
+        if let Some(human) = self.0.get_mut(id) {
             let IdentifierDataWrapper { data } = data;
             match data {
                 IdentifierData::Single(_) => Err(MULTIPLE_RELATIONSHIP_NEEDED.clone()),
                 IdentifierData::Multiple(datas) => {
-                    let mut human = human.clone();
                     let ids: Vec<String> = datas
                         .iter()
                         .filter_map(|i| if &i.ty == field { Some(i.id.clone()) } else { None })
                         .collect();
                     let mut dogs = self.1.lock().await.get_by_ids(&ids)?;
                     human.add_dogs(&mut dogs);
-                    Ok(human)
+                    Ok((field.clone(), None))
                 },
             }
         } else {
@@ -168,20 +165,19 @@ impl Updating for HumanService {
 
     async fn remove_relationship(
         &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
-    ) -> Result<Human, Error> {
+    ) -> Result<(String, Option<Human>), Error> {
         let (id, field) = id_field;
-        if let Some(human) = self.0.get(id) {
+        if let Some(human) = self.0.get_mut(id) {
             let IdentifierDataWrapper { data } = data;
             match data {
                 IdentifierData::Single(_) => Err(MULTIPLE_RELATIONSHIP_NEEDED.clone()),
                 IdentifierData::Multiple(datas) => {
-                    let mut human = human.clone();
                     let ids: Vec<String> = datas
                         .iter()
                         .filter_map(|i| if &i.ty == field { Some(i.id.clone()) } else { None })
                         .collect();
                     human.remove_dogs(&ids);
-                    Ok(human)
+                    Ok((field.clone(), None))
                 },
             }
         } else {

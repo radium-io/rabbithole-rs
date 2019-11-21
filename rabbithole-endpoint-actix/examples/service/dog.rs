@@ -71,15 +71,15 @@ impl Creating for DogService {
 impl Updating for DogService {
     async fn update_resource(
         &mut self, id: &str, data: &ResourceDataWrapper,
-    ) -> Result<Dog, Error> {
+    ) -> Result<Option<Dog>, Error> {
         if let Some(mut dog) = self.get_by_id(id) {
             let ResourceDataWrapper { data } = data;
             if let AttributeField(serde_json::Value::String(name)) =
                 data.attributes.get_field("name")?
             {
                 dog.name = name.to_string();
-                self.0.insert(id.into(), dog.clone());
-                Ok(dog)
+                self.0.insert(id.into(), dog);
+                Ok(None)
             } else {
                 Err(WRONG_FIELD_TYPE.clone())
             }

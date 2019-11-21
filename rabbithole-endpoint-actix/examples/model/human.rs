@@ -20,9 +20,14 @@ impl Human {
         self.dogs.append(dogs);
         self.dogs.dedup_by_key(|dog| dog.id);
     }
-    
+
     pub fn remove_dogs(&mut self, dog_ids: &[String]) {
-        let new_dogs: Vec<Dog> = self.dogs.iter().filter(|dog| !dog_ids.contains(&dog.id.to_string())).cloned().collect();
+        let new_dogs: Vec<Dog> = self
+            .dogs
+            .iter()
+            .filter(|dog| !dog_ids.contains(&dog.id.to_string()))
+            .cloned()
+            .collect();
         self.dogs = new_dogs;
     }
 }

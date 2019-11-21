@@ -11,7 +11,9 @@ use actix_web::dev::HttpResponseBuilder;
 
 use rabbithole::model::error;
 use rabbithole::model::version::JsonApiVersion;
-use rabbithole::operation::{Deleting, Fetching, IdentifierDataWrapper, ResourceDataWrapper};
+use rabbithole::operation::{
+    Creating, Deleting, Fetching, IdentifierDataWrapper, ResourceDataWrapper,
+};
 use rabbithole::rule::RuleDispatcher;
 use rabbithole::JSON_API_HEADER;
 use serde::export::TryFrom;
@@ -46,8 +48,31 @@ impl TryFrom<ActixSettingsModel> for ActixSettings {
     }
 }
 
+macro_rules! to_response {
+    (Resource: $this:ident, $item:ident) => {{
+        let resource = $item.to_resource(&$this.uri.to_string(), &Default::default());
+        match resource {
+            Some(resource) => Ok(actix_web::HttpResponse::Ok()
+                .json(rabbithole::operation::ResourceDataWrapper { data: resource })),
+            None => Ok(actix_web::HttpResponse::NoContent().finish()),
+        }
+    }};
+    (Relationship: $this:ident, $item:ident) => {{
+        let (field_name, item) = $item;
+        let resource = item.to_resource(&$this.uri.to_string(), &Default::default());
+        match resource {
+            Some(resource) => Ok(actix_web::HttpResponse::Ok().json(
+                rabbithole::operation::IdentifierDataWrapper {
+                    data: resource.relationships.get(&field_name).cloned().unwrap().data,
+                },
+            )),
+            None => Ok(actix_web::HttpResponse::NoContent().finish()),
+        }
+    }};
+}
+
 macro_rules! single_step_operation {
-    ($fn_name:ident, $mark:ident, $( $param:ident => $ty:ty ),+) => {
+    ($return_ty:ident:  $fn_name:ident, $mark:ident, $( $param:ident => $ty:ty ),+) => {
         pub fn $fn_name<T>(this: web::Data<Self>, service: actix_web::web::Data<std::sync::Arc<futures::lock::Mutex<T>>>, req: actix_web::HttpRequest, $($param: $ty),+)
           -> impl futures01::Future<Item = actix_web::HttpResponse, Error = actix_web::Error>
             where
@@ -61,9 +86,7 @@ macro_rules! single_step_operation {
             let fut = async move {
                 match service.lock().await.$fn_name($(&$param.into_inner()),+).await {
                     Ok(item) => {
-                        let resource =
-                            item.to_resource(&this.uri.to_string(), &Default::default()).unwrap();
-                        Ok(actix_web::HttpResponse::Ok().json(rabbithole::operation::ResourceDataWrapper { data: resource }))
+                        to_response!($return_ty: this, item)
                     },
                     Err(err) => Ok(error_to_response(err)),
                 }
@@ -74,13 +97,13 @@ macro_rules! single_step_operation {
 }
 
 impl ActixSettings {
-    single_step_operation!(update_resource, Updating, params => web::Path<String>, body => web::Json<ResourceDataWrapper>);
+    single_step_operation!(Resource: update_resource, Updating, params => web::Path<String>, body => web::Json<ResourceDataWrapper>);
 
-    single_step_operation!(replace_relationship, Updating, params => web::Path<(String, String)>, body => web::Json<IdentifierDataWrapper>);
+    single_step_operation!(Relationship: replace_relationship, Updating, params => web::Path<(String, String)>, body => web::Json<IdentifierDataWrapper>);
 
-    single_step_operation!(add_relationship, Updating, params => web::Path<(String, String)>, body => web::Json<IdentifierDataWrapper>);
+    single_step_operation!(Relationship: add_relationship, Updating, params => web::Path<(String, String)>, body => web::Json<IdentifierDataWrapper>);
 
-    single_step_operation!(remove_relationship, Updating, params => web::Path<(String, String)>, body => web::Json<IdentifierDataWrapper>);
+    single_step_operation!(Relationship: remove_relationship, Updating, params => web::Path<(String, String)>, body => web::Json<IdentifierDataWrapper>);
 }
 
 impl ActixSettings {
@@ -107,7 +130,30 @@ impl ActixSettings {
 }
 
 impl ActixSettings {
-    single_step_operation!(create, Creating, body => web::Json<ResourceDataWrapper>);
+    pub fn create<T>(
+        this: web::Data<Self>, service: web::Data<Arc<Mutex<T>>>, req: actix_web::HttpRequest,
+        body: web::Json<ResourceDataWrapper>,
+    ) -> impl futures01::Future<Item = actix_web::HttpResponse, Error = actix_web::Error>
+    where
+        T: 'static + Creating + Send + Sync,
+        T::Item: rabbithole::entity::SingleEntity + Send + Sync,
+    {
+        let fut = async move {
+            if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
+                return Ok(err_resp);
+            }
+
+            match service.lock().await.create(&body.into_inner()).await {
+                Ok(item) => {
+                    let resource =
+                        item.to_resource(&this.uri.to_string(), &Default::default()).unwrap();
+                    Ok(actix_web::HttpResponse::Ok().json(ResourceDataWrapper { data: resource }))
+                },
+                Err(err) => Ok(error_to_response(err)),
+            }
+        };
+        fut.boxed_local().compat()
+    }
 }
 
 impl ActixSettings {
