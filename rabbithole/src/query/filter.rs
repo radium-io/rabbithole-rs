@@ -2,20 +2,18 @@ use crate::model::error;
 
 use crate::RbhResult;
 
-use rsql_rs::ast::expr::Expr;
+use rsql::Expr;
 
 #[cfg(feature = "filter_rsql")]
-use rsql_rs::ast::comparison;
+use rsql::parser::rsql::RsqlParser;
 #[cfg(feature = "filter_rsql")]
-use rsql_rs::ast::comparison::Comparison;
+use rsql::parser::Parser;
 #[cfg(feature = "filter_rsql")]
-use rsql_rs::ast::constraint::Constraint;
+use rsql::Comparison;
 #[cfg(feature = "filter_rsql")]
-use rsql_rs::ast::Operator;
+use rsql::Constraint;
 #[cfg(feature = "filter_rsql")]
-use rsql_rs::parser::rsql::RsqlParser;
-#[cfg(feature = "filter_rsql")]
-use rsql_rs::parser::Parser;
+use rsql::Operator;
 
 use crate::entity::SingleEntity;
 #[cfg(feature = "filter_rsql")]
@@ -47,8 +45,12 @@ impl FilterData for RsqlFilterData {
             if k.contains('.') {
                 return Err(error::Error::RelationshipPathNotSupported(&k, None));
             }
-            let expr = RsqlParser::parse_to_node(v)
+            let expr = RsqlParser::default()
+                .parse_to_node(v)
                 .map_err(|_| error::Error::UnmatchedFilterItem("Rsql", &k, &v, None))?;
+
+            eprintln!("expr: {:?}", expr);
+
             res.insert(k.clone(), expr);
         }
         Ok(if res.is_empty() { None } else { Some(RsqlFilterData(res)) })
@@ -84,40 +86,34 @@ impl RsqlFilterData {
         let ent: bool = match &expr {
             Expr::Item(Constraint { selector, comparison, arguments }) => {
                 if let Ok(field) = entity.attributes().get_field(&selector) {
-                    if comparison == &comparison::EQUAL as &Comparison && arguments.0.len() == 1 {
+                    if comparison == &Comparison::EQUAL() && arguments.0.len() == 1 {
                         let arg: &str = arguments.0.first().unwrap();
                         field.eq_with_str(arg, &selector)?
-                    } else if comparison == &comparison::NOT_EQUAL as &Comparison
-                        && arguments.0.len() == 1
-                    {
+                    } else if comparison == &Comparison::NOT_EQUAL() && arguments.0.len() == 1 {
                         let arg: &str = arguments.0.first().unwrap();
                         !(field.eq_with_str(arg, &selector)?)
-                    } else if comparison == &comparison::GREATER_THAN as &Comparison
-                        && arguments.0.len() == 1
-                    {
+                    } else if comparison == &Comparison::GREATER_THAN() && arguments.0.len() == 1 {
                         let arg: &str = arguments.0.first().unwrap();
                         field.cmp_with_str(arg, &selector)? == Ordering::Greater
-                    } else if comparison == &comparison::GREATER_THAN_OR_EQUAL as &Comparison
+                    } else if comparison == &Comparison::GREATER_THAN_OR_EQUAL()
                         && arguments.0.len() == 1
                     {
                         let arg: &str = arguments.0.first().unwrap();
                         let res = field.cmp_with_str(arg, &selector)?;
                         res == Ordering::Greater || res == Ordering::Equal
-                    } else if comparison == &comparison::LESS_THAN as &Comparison
-                        && arguments.0.len() == 1
-                    {
+                    } else if comparison == &Comparison::LESS_THAN() && arguments.0.len() == 1 {
                         let arg: &str = arguments.0.first().unwrap();
                         let res = field.cmp_with_str(arg, &selector)?;
                         res == Ordering::Less
-                    } else if comparison == &comparison::LESS_THAN_OR_EQUAL as &Comparison
+                    } else if comparison == &Comparison::LESS_THAN_OR_EQUAL()
                         && arguments.0.len() == 1
                     {
                         let arg: &str = arguments.0.first().unwrap();
                         let res = field.cmp_with_str(arg, &selector)?;
                         res == Ordering::Less || res == Ordering::Equal
-                    } else if comparison == &comparison::IN as &Comparison {
+                    } else if comparison == &Comparison::IN() {
                         arguments.0.iter().any(|s| field.eq_with_str(s, &selector).is_ok())
-                    } else if comparison == &comparison::OUT as &Comparison {
+                    } else if comparison == &Comparison::OUT() {
                         arguments
                             .0
                             .iter()
