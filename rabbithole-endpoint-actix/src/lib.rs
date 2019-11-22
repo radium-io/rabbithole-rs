@@ -3,7 +3,6 @@ pub mod settings;
 use actix_web::http::{header, HeaderMap, StatusCode};
 use actix_web::web;
 use actix_web::{HttpRequest, HttpResponse};
-use futures::{FutureExt, TryFutureExt};
 use rabbithole::entity::SingleEntity;
 
 use crate::settings::{ActixSettingsModel, JsonApiSettings};
@@ -73,25 +72,22 @@ macro_rules! to_response {
 
 macro_rules! single_step_operation {
     ($return_ty:ident:  $fn_name:ident, $mark:ident, $( $param:ident => $ty:ty ),+) => {
-        pub fn $fn_name<T>(this: web::Data<Self>, service: actix_web::web::Data<std::sync::Arc<futures::lock::Mutex<T>>>, req: actix_web::HttpRequest, $($param: $ty),+)
-          -> impl futures01::Future<Item = actix_web::HttpResponse, Error = actix_web::Error>
+        pub async fn $fn_name<T>(this: web::Data<Self>, service: actix_web::web::Data<std::sync::Arc<futures::lock::Mutex<T>>>, req: actix_web::HttpRequest, $($param: $ty),+)
+          -> Result<actix_web::HttpResponse, actix_web::Error>
             where
                 T: 'static + rabbithole::operation::$mark + Send + Sync,
                 T::Item: rabbithole::entity::SingleEntity + Send + Sync,
           {
             if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
-                return futures::future::ok(err_resp).boxed_local().compat();
+                return Ok(err_resp);
             }
 
-            let fut = async move {
                 match service.lock().await.$fn_name($(&$param.into_inner()),+).await {
                     Ok(item) => {
                         to_response!($return_ty: this, item)
                     },
                     Err(err) => Ok(error_to_response(err)),
                 }
-            };
-            fut.boxed_local().compat()
         }
     };
 }
@@ -107,202 +103,181 @@ impl ActixSettings {
 }
 
 impl ActixSettings {
-    pub fn delete_resource<T>(
+    pub async fn delete_resource<T>(
         this: web::Data<Self>, service: web::Data<Arc<Mutex<T>>>, params: web::Path<String>,
         req: actix_web::HttpRequest,
-    ) -> impl futures01::Future<Item = actix_web::HttpResponse, Error = actix_web::Error>
+    ) -> Result<HttpResponse, actix_web::Error>
     where
         T: 'static + Deleting + Send + Sync,
         T::Item: rabbithole::entity::SingleEntity + Send + Sync,
     {
-        let fut = async move {
-            if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
-                return Ok(err_resp);
-            }
+        if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
+            return Ok(err_resp);
+        }
 
-            match service.lock().await.delete_resource(&params.into_inner()).await {
-                Ok(()) => Ok(actix_web::HttpResponse::Ok().finish()),
-                Err(err) => Ok(error_to_response(err)),
-            }
-        };
-        fut.boxed_local().compat()
+        match service.lock().await.delete_resource(&params.into_inner()).await {
+            Ok(()) => Ok(actix_web::HttpResponse::Ok().finish()),
+            Err(err) => Ok(error_to_response(err)),
+        }
     }
 }
 
 impl ActixSettings {
-    pub fn create<T>(
+    pub async fn create<T>(
         this: web::Data<Self>, service: web::Data<Arc<Mutex<T>>>, req: actix_web::HttpRequest,
         body: web::Json<ResourceDataWrapper>,
-    ) -> impl futures01::Future<Item = actix_web::HttpResponse, Error = actix_web::Error>
+    ) -> Result<HttpResponse, actix_web::Error>
     where
         T: 'static + Creating + Send + Sync,
         T::Item: rabbithole::entity::SingleEntity + Send + Sync,
     {
-        let fut = async move {
-            if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
-                return Ok(err_resp);
-            }
+        if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
+            return Ok(err_resp);
+        }
 
-            match service.lock().await.create(&body.into_inner()).await {
-                Ok(item) => {
-                    let resource =
-                        item.to_resource(&this.uri.to_string(), &Default::default()).unwrap();
-                    Ok(actix_web::HttpResponse::Ok().json(ResourceDataWrapper { data: resource }))
-                },
-                Err(err) => Ok(error_to_response(err)),
-            }
-        };
-        fut.boxed_local().compat()
+        match service.lock().await.create(&body.into_inner()).await {
+            Ok(item) => {
+                let resource =
+                    item.to_resource(&this.uri.to_string(), &Default::default()).unwrap();
+                Ok(actix_web::HttpResponse::Ok().json(ResourceDataWrapper { data: resource }))
+            },
+            Err(err) => Ok(error_to_response(err)),
+        }
     }
 }
 
 impl ActixSettings {
-    pub fn fetch_collection<T>(
+    pub async fn fetch_collection<T>(
         this: web::Data<Self>, service: web::Data<Arc<Mutex<T>>>, req: HttpRequest,
-    ) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error>
+    ) -> Result<HttpResponse, actix_web::Error>
     where
         T: 'static + Fetching + Send + Sync,
         T::Item: rabbithole::entity::SingleEntity + Send + Sync,
     {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
-            return futures::future::ok(err_resp).boxed_local().compat();
+            return Ok(err_resp);
         }
         match Query::from_uri(req.uri()) {
             Ok(query) => {
-                let fut = async move {
-                    let vec_res = service.lock().await.fetch_collection(&query).await;
-                    match vec_res {
-                        Ok(vec) => {
-                            match T::vec_to_document(
-                                &vec,
-                                &this.uri.to_string(),
-                                &query,
-                                &req.uri().into(),
-                            )
-                            .await
-                            {
-                                Ok(doc) => Ok(HttpResponse::Ok().json(doc)),
-                                Err(err) => Ok(error_to_response(err)),
-                            }
-                        },
-                        Err(err) => Ok(error_to_response(err)),
-                    }
-                };
-
-                fut.boxed_local().compat()
+                let vec_res = service.lock().await.fetch_collection(&query).await;
+                match vec_res {
+                    Ok(vec) => {
+                        match T::vec_to_document(
+                            &vec,
+                            &this.uri.to_string(),
+                            &query,
+                            &req.uri().into(),
+                        )
+                        .await
+                        {
+                            Ok(doc) => Ok(HttpResponse::Ok().json(doc)),
+                            Err(err) => Ok(error_to_response(err)),
+                        }
+                    },
+                    Err(err) => Ok(error_to_response(err)),
+                }
             },
-            Err(err) => futures::future::ok(error_to_response(err)).boxed_local().compat(),
+            Err(err) => Ok(error_to_response(err)),
         }
     }
 
-    pub fn fetch_single<T>(
+    pub async fn fetch_single<T>(
         this: web::Data<Self>, service: web::Data<Arc<Mutex<T>>>, param: web::Path<String>,
         req: HttpRequest,
-    ) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error>
+    ) -> Result<HttpResponse, actix_web::Error>
     where
         T: 'static + Fetching + Send + Sync,
         T::Item: rabbithole::entity::SingleEntity + Send + Sync,
     {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
-            return futures::future::ok(err_resp).boxed_local().compat();
+            return Ok(err_resp);
         }
         match Query::from_uri(req.uri()) {
             Ok(query) => {
-                let fut = async move {
-                    match service.lock().await.fetch_single(&param.into_inner(), &query).await {
-                        Ok(item) => {
-                            match item.to_document_automatically(
-                                &this.uri.to_string(),
-                                &query,
-                                &req.uri().into(),
-                            ) {
-                                Ok(doc) => Ok(new_json_api_resp(StatusCode::OK).json(doc)),
-                                Err(err) => Ok(error_to_response(err)),
-                            }
-                        },
-                        Err(err) => Ok(error_to_response(err)),
-                    }
-                };
-
-                fut.boxed_local().compat()
+                match service.lock().await.fetch_single(&param.into_inner(), &query).await {
+                    Ok(item) => {
+                        match item.to_document_automatically(
+                            &this.uri.to_string(),
+                            &query,
+                            &req.uri().into(),
+                        ) {
+                            Ok(doc) => Ok(new_json_api_resp(StatusCode::OK).json(doc)),
+                            Err(err) => Ok(error_to_response(err)),
+                        }
+                    },
+                    Err(err) => Ok(error_to_response(err)),
+                }
             },
-            Err(err) => futures::future::ok(error_to_response(err)).boxed_local().compat(),
+            Err(err) => Ok(error_to_response(err)),
         }
     }
 
-    pub fn fetch_relationship<T>(
+    pub async fn fetch_relationship<T>(
         this: web::Data<Self>, service: web::Data<Arc<Mutex<T>>>,
         param: web::Path<(String, String)>, req: HttpRequest,
-    ) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error>
+    ) -> Result<HttpResponse, actix_web::Error>
     where
         T: 'static + Fetching + Send + Sync,
         T::Item: rabbithole::entity::SingleEntity + Send + Sync,
     {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
-            return futures::future::ok(err_resp).boxed_local().compat();
+            return Ok(err_resp);
         }
         match Query::from_uri(req.uri()) {
             Ok(query) => {
                 let (id, related_field) = param.into_inner();
-                let fut = async move {
-                    match service
-                        .lock()
-                        .await
-                        .fetch_relationship(
-                            &id,
-                            &related_field,
-                            &this.uri.to_string(),
-                            &query,
-                            &req.uri().into(),
-                        )
-                        .await
-                    {
-                        Ok(item) => Ok(new_json_api_resp(StatusCode::OK).json(item)),
-                        Err(err) => Ok(error_to_response(err)),
-                    }
-                };
-
-                fut.boxed_local().compat()
+                match service
+                    .lock()
+                    .await
+                    .fetch_relationship(
+                        &id,
+                        &related_field,
+                        &this.uri.to_string(),
+                        &query,
+                        &req.uri().into(),
+                    )
+                    .await
+                {
+                    Ok(item) => Ok(new_json_api_resp(StatusCode::OK).json(item)),
+                    Err(err) => Ok(error_to_response(err)),
+                }
             },
-            Err(err) => futures::future::ok(error_to_response(err)).boxed_local().compat(),
+            Err(err) => Ok(error_to_response(err)),
         }
     }
 
-    pub fn fetch_related<T>(
+    pub async fn fetch_related<T>(
         this: web::Data<Self>, service: web::Data<Arc<Mutex<T>>>,
         param: web::Path<(String, String)>, req: HttpRequest,
-    ) -> impl futures01::Future<Item = HttpResponse, Error = actix_web::Error>
+    ) -> Result<HttpResponse, actix_web::Error>
     where
         T: 'static + Fetching + Send + Sync,
         T::Item: rabbithole::entity::SingleEntity + Send + Sync,
     {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
-            return futures::future::ok(err_resp).boxed_local().compat();
+            return Ok(err_resp);
         }
 
         match Query::from_uri(req.uri()) {
             Ok(query) => {
                 let (id, related_field) = param.into_inner();
-                let fut = async move {
-                    match service
-                        .lock()
-                        .await
-                        .fetch_related(
-                            &id,
-                            &related_field,
-                            &this.uri.to_string(),
-                            &query,
-                            &req.uri().into(),
-                        )
-                        .await
-                    {
-                        Ok(item) => Ok(new_json_api_resp(StatusCode::OK).json(item)),
-                        Err(err) => Ok(error_to_response(err)),
-                    }
-                };
-                fut.boxed_local().compat()
+                match service
+                    .lock()
+                    .await
+                    .fetch_related(
+                        &id,
+                        &related_field,
+                        &this.uri.to_string(),
+                        &query,
+                        &req.uri().into(),
+                    )
+                    .await
+                {
+                    Ok(item) => Ok(new_json_api_resp(StatusCode::OK).json(item)),
+                    Err(err) => Ok(error_to_response(err)),
+                }
             },
-            Err(err) => futures::future::ok(error_to_response(err)).boxed_local().compat(),
+            Err(err) => Ok(error_to_response(err)),
         }
     }
 }
