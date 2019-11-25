@@ -3,7 +3,6 @@ use async_trait::async_trait;
 use rabbithole::operation::*;
 
 use rabbithole::model::error;
-use rabbithole::model::error::Error;
 
 use crate::model::dog::Dog;
 use crate::service::*;
@@ -44,17 +43,17 @@ impl Operation for DogService {
 
 #[async_trait]
 impl Fetching for DogService {
-    async fn fetch_collection(&self, _query: &Query) -> Result<Vec<Dog>, Error> {
-        Ok(self.0.values().cloned().collect())
+    async fn fetch_collection(&self, _query: &Query) -> CollectionResult<Dog> {
+        Ok(OperationResultData { data: self.0.values().cloned().collect(), ..Default::default() })
     }
 
-    async fn fetch_single(&self, id: &str, _query: &Query) -> Result<Option<Dog>, Error> {
-        Ok(self.0.get(id).map(Clone::clone))
+    async fn fetch_single(&self, id: &str, _query: &Query) -> SingleResult<Dog> {
+        Ok(OperationResultData { data: self.0.get(id).map(Clone::clone), ..Default::default() })
     }
 }
 #[async_trait]
 impl Creating for DogService {
-    async fn create(&mut self, data: &ResourceDataWrapper) -> Result<Dog, Error> {
+    async fn create(&mut self, data: &ResourceDataWrapper) -> SingleResult<Dog> {
         let ResourceDataWrapper { data } = data;
         let id = if !data.id.id.is_empty() {
             if self.0.contains_key(&data.id.id) {
@@ -70,7 +69,7 @@ impl Creating for DogService {
         {
             let dog = Dog { id, name: name.clone() };
             self.0.insert(dog.id.clone().to_string(), dog.clone());
-            Ok(dog)
+            Ok(OperationResultData { data: Some(dog), ..Default::default() })
         } else {
             Err(WRONG_FIELD_TYPE.clone())
         }
@@ -78,9 +77,7 @@ impl Creating for DogService {
 }
 #[async_trait]
 impl Updating for DogService {
-    async fn update_resource(
-        &mut self, id: &str, data: &ResourceDataWrapper,
-    ) -> Result<Option<Dog>, Error> {
+    async fn update_resource(&mut self, id: &str, data: &ResourceDataWrapper) -> SingleResult<Dog> {
         if let Some(mut dog) = self.get_by_id(id) {
             let ResourceDataWrapper { data } = data;
             if let AttributeField(serde_json::Value::String(name)) =
@@ -88,7 +85,7 @@ impl Updating for DogService {
             {
                 dog.name = name.to_string();
                 self.0.insert(id.into(), dog);
-                Ok(None)
+                Ok(OperationResultData { data: None, ..Default::default() })
             } else {
                 Err(WRONG_FIELD_TYPE.clone())
             }
@@ -99,8 +96,8 @@ impl Updating for DogService {
 }
 #[async_trait]
 impl Deleting for DogService {
-    async fn delete_resource(&mut self, id: &str) -> Result<(), Error> {
+    async fn delete_resource(&mut self, id: &str) -> OperationResult<()> {
         self.0.remove(id);
-        Ok(())
+        Ok(OperationResultData { data: (), ..Default::default() })
     }
 }

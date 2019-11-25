@@ -1,52 +1,67 @@
-use crate::entity::{Entity, SingleEntity};
+use crate::entity::SingleEntity;
 use crate::model::document::Document;
 use crate::model::relationship::Relationship;
 
-use crate::model::error;
-use crate::model::link::RawUri;
+use crate::model::link::{Links, RawUri};
 use crate::model::resource::{IdentifierData, Resource};
+use crate::model::{error, Meta};
 use crate::query::Query;
 use crate::RbhResult;
 use async_trait::async_trait;
+
+pub type OperationResult<T> = RbhResult<OperationResultData<T>>;
+pub type CollectionResult<T> = RbhResult<OperationResultData<Vec<T>>>;
+pub type SingleResult<T> = RbhResult<OperationResultData<Option<T>>>;
+pub type UpdateResult<T> = RbhResult<OperationResultData<(String, Option<T>)>>;
 
 pub trait Operation {
     type Item: SingleEntity + Send + Sync;
 }
 
+#[derive(Default)]
+pub struct OperationResultData<T: Default> {
+    pub data: T,
+    pub additional_links: Links,
+    pub additional_meta: Meta,
+}
+
 #[async_trait]
 pub trait Fetching: Operation {
-    /// User defined `vec_to_document` function
-    /// NOTICE:
-    ///   - If using Page Query, it's *recommended* to:
-    ///     - put `prev`, `next`, `first` and `last` into `links`
-    ///     - put `totalPages` if `@type == PageBased`
-    async fn vec_to_document(
-        items: &[Self::Item], uri: &str, query: &Query, request_path: &RawUri,
-    ) -> RbhResult<Document> {
-        Ok(items.to_document_automatically(uri, query, request_path)?)
-    }
+    //    /// User defined `vec_to_document` function
+    //    /// NOTICE:
+    //    ///   - If using Page Query, it's *recommended* to:
+    //    ///     - put `prev`, `next`, `first` and `last` into `links`
+    //    ///     - put `totalPages` if `@type == PageBased`
+    //    async fn vec_to_document(
+    //        items: &[Self::Item], uri: &str, query: &Query, request_path: &RawUri,
+    //    ) -> RbhResult<Document> {
+    //        Ok(items.to_document(uri, query, request_path)?)
+    //    }
     /// Mapping to `/<ty>?<query>`
     #[allow(unused_variables)]
-    async fn fetch_collection(&self, query: &Query) -> RbhResult<Vec<Self::Item>> {
+    async fn fetch_collection(&self, query: &Query) -> CollectionResult<Self::Item> {
         Err(error::Error::OperationNotImplemented("fetch_collection", None))
     }
     /// Mapping to `/<ty>/<id>?<query>`
     #[allow(unused_variables)]
-    async fn fetch_single(&self, id: &str, query: &Query) -> RbhResult<Option<Self::Item>> {
+    async fn fetch_single(&self, id: &str, query: &Query) -> SingleResult<Self::Item> {
         Err(error::Error::OperationNotImplemented("fetch_single", None))
     }
     /// Mapping to `/<ty>/<id>/relationships/<related_field>?<query>`
     #[allow(unused_variables)]
     async fn fetch_relationship(
         &self, id: &str, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
-    ) -> RbhResult<Relationship> {
+    ) -> OperationResult<Relationship> {
         Err(error::Error::OperationNotImplemented("fetch_relationship", None))
     }
     /// Mapping to `/<ty>/<id>/<related_field>?<query>`
+    /// # Returns
+    /// Because `rabbithole` can only get the field by String, so it cannot get the actual type, so you should return
+    /// the document yourself
     #[allow(unused_variables)]
     async fn fetch_related(
         &self, id: &str, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
-    ) -> Result<Document, error::Error> {
+    ) -> RbhResult<Document> {
         Err(error::Error::OperationNotImplemented("fetch_related", None))
     }
 }
@@ -77,8 +92,12 @@ pub struct IdentifierDataWrapper {
 #[async_trait]
 pub trait Creating: Operation {
     /// Mapping to `POST /<ty>`
+    /// # Returns
+    ///
+    /// If returns `Ok(Some(item))`, then will be mapped to `StatusCode == '201 Created'` with created Resource;
+    /// If returns `Ok(None)`, then will be mapped to `StatusCode == '204 No Content'` with empty body
     #[allow(unused_variables)]
-    async fn create(&mut self, data: &ResourceDataWrapper) -> RbhResult<Self::Item> {
+    async fn create(&mut self, data: &ResourceDataWrapper) -> SingleResult<Self::Item> {
         Err(error::Error::OperationNotImplemented("create", None))
     }
 }
@@ -86,31 +105,56 @@ pub trait Creating: Operation {
 #[async_trait]
 pub trait Updating: Operation {
     /// Mapping to `PATCH /<ty>/<id>`
+    /// # Returns
+    ///
+    /// If the result matches the incoming data, or in other words, the result matches the expectation of the user, then should return `None`, which will be mapped as `204 No Content`
+    /// Otherwise, this function should return `200 OK`, with the whole updated resource
     #[allow(unused_variables)]
     async fn update_resource(
         &mut self, id: &str, data: &ResourceDataWrapper,
-    ) -> RbhResult<Option<Self::Item>> {
+    ) -> SingleResult<Self::Item> {
         Err(error::Error::OperationNotImplemented("update_resource", None))
     }
     /// Mapping to `PATCH /<ty>/<id>/relationships/<field>`
+    /// # Arguments
+    ///
+    /// * `id_field` - The first string is the id of the resource, the second string is the field name of the relationship
+    ///
+    /// # Returns
+    ///
+    /// * A tuple of the updated result. The first string is the field name(should be equal with the second string of `id_field`)
     #[allow(unused_variables)]
     async fn replace_relationship(
         &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
-    ) -> RbhResult<(String, Option<Self::Item>)> {
+    ) -> UpdateResult<Self::Item> {
         Err(error::Error::OperationNotImplemented("replace_relationship", None))
     }
     /// Mapping to `POST /<ty>/<id>/relationships/<field>`
+    /// # Arguments
+    ///
+    /// * `id_field` - The first string is the id of the resource, the second string is the field name of the relationship
+    ///
+    /// # Returns
+    ///
+    /// * A tuple of the updated result. The first string is the field name(should be equal with the second string of `id_field`)
     #[allow(unused_variables)]
     async fn add_relationship(
         &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
-    ) -> RbhResult<(String, Option<Self::Item>)> {
+    ) -> UpdateResult<Self::Item> {
         Err(error::Error::OperationNotImplemented("add_relationship", None))
     }
     /// Mapping to `DELETE /<ty>/<id>/relationships/<field>`
+    /// # Arguments
+    ///
+    /// * `id_field` - The first string is the id of the resource, the second string is the field name of the relationship
+    ///
+    /// # Returns
+    ///
+    /// * A tuple of the updated result. The first string is the field name(should be equal with the second string of `id_field`)
     #[allow(unused_variables)]
     async fn remove_relationship(
         &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
-    ) -> RbhResult<(String, Option<Self::Item>)> {
+    ) -> UpdateResult<Self::Item> {
         Err(error::Error::OperationNotImplemented("remove_relationship", None))
     }
 }
@@ -119,7 +163,7 @@ pub trait Updating: Operation {
 pub trait Deleting: Operation {
     /// Mapping to `DELETE /<ty>/<id>`
     #[allow(unused_variables)]
-    async fn delete_resource(&mut self, id: &str) -> RbhResult<()> {
+    async fn delete_resource(&mut self, id: &str) -> OperationResult<()> {
         Err(error::Error::OperationNotImplemented("delete_resource", None))
     }
 }

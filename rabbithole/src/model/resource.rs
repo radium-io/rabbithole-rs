@@ -196,6 +196,10 @@ impl Resource {
         self.attributes = self.attributes.retain(attributes);
         self
     }
+
+    pub fn extend_meta(&mut self, meta: Meta) { self.meta.extend(meta.into_iter()); }
+
+    pub fn extend_links(&mut self, links: Links) { self.links.extend(links.into_iter()); }
 }
 
 #[cfg(test)]

@@ -156,15 +156,7 @@ fn api_document_collection_from_json_file() {
 
                 _ => unreachable!(),
             }
-
-            match res.links {
-                Some(links) => {
-                    assert_eq!(links.len(), 3);
-                },
-                None => {
-                    unreachable!("api_document_collection_from_json_file : expected links");
-                },
-            }
+            assert_eq!(res.links.len(), 3);
         },
         Err(err) => {
             unreachable!("api_document_collection_from_json_file : Error: {:?}", err);

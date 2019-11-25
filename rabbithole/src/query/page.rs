@@ -154,11 +154,13 @@ impl PageQuery {
 #[cfg(test)]
 mod tests {
     use crate::query::page::{CursorBasedData, PageQuery};
-    use crate::query::Query;
+    use crate::query::QuerySettings;
     use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
 
     #[test]
     fn cursor_des_test() {
+        let query = QuerySettings { filter_type: "Rsql".to_string() };
+
         let ori_cursor =
             CursorBasedData { target_id: "target_id".to_string(), is_look_after: true, limit: 10 };
 
@@ -168,7 +170,7 @@ mod tests {
         let uri = percent_encode(uri.as_bytes(), NON_ALPHANUMERIC);
         let uri = format!("/?{}", uri.to_string());
         let uri: http::Uri = uri.parse().unwrap();
-        let query = Query::from_uri(&uri).unwrap();
+        let query = query.from_uri(&uri).unwrap();
         if let Some(PageQuery::CursorBased(cursor)) = query.page {
             assert_eq!(cursor, ori_cursor);
         } else {

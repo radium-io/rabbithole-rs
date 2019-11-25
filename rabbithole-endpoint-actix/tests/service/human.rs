@@ -34,21 +34,21 @@ impl Operation for HumanService {
 
 #[async_trait]
 impl Fetching for HumanService {
-    async fn fetch_collection(&self, _query: &Query) -> Result<Vec<Human>, Error> {
-        Ok(self.0.values().cloned().collect())
+    async fn fetch_collection(&self, _query: &Query) -> CollectionResult<Human> {
+        Ok(OperationResultData { data: self.0.values().cloned().collect(), ..Default::default() })
     }
 
-    async fn fetch_single(&self, id: &str, _query: &Query) -> Result<Option<Human>, Error> {
-        Ok(self.0.get(id).map(Clone::clone))
+    async fn fetch_single(&self, id: &str, _query: &Query) -> SingleResult<Human> {
+        Ok(OperationResultData { data: self.0.get(id).map(Clone::clone), ..Default::default() })
     }
 
     async fn fetch_relationship(
         &self, id: &str, related_field: &str, uri: &str, query: &Query, _request_path: &RawUri,
-    ) -> Result<Relationship, Error> {
+    ) -> OperationResult<Relationship> {
         if let Some(human) = self.0.get(id) {
             let resource = human.to_resource(uri, &query.fields).unwrap();
             if let Some(relat) = resource.relationships.get(related_field) {
-                Ok(relat.clone())
+                Ok(OperationResultData { data: relat.clone(), ..Default::default() })
             } else {
                 Err(error::Error::FieldNotExist(related_field, None))
             }
@@ -62,7 +62,13 @@ impl Fetching for HumanService {
     ) -> Result<Document, Error> {
         if let Some(human) = self.0.get(id) {
             if related_field == "dogs" {
-                Ok(human.dogs.to_document_automatically(uri, query, request_path)?)
+                Ok(human.dogs.to_document(
+                    uri,
+                    query,
+                    request_path.clone(),
+                    Default::default(),
+                    Default::default(),
+                )?)
             } else {
                 Err(error::Error::FieldNotExist(related_field, None))
             }
@@ -74,7 +80,7 @@ impl Fetching for HumanService {
 
 #[async_trait]
 impl Creating for HumanService {
-    async fn create(&mut self, data: &ResourceDataWrapper) -> Result<Human, Error> {
+    async fn create(&mut self, data: &ResourceDataWrapper) -> SingleResult<Human> {
         let ResourceDataWrapper { data } = data;
         let id = if !data.id.id.is_empty() {
             if self.0.contains_key(&data.id.id) {
@@ -96,17 +102,18 @@ impl Creating for HumanService {
         {
             let human = Human { id, name: name.clone(), dogs };
             self.0.insert(human.id.clone().to_string(), human.clone());
-            Ok(human)
+            Ok(OperationResultData { data: Some(human), ..Default::default() })
         } else {
             Err(WRONG_FIELD_TYPE.clone())
         }
     }
 }
+
 #[async_trait]
 impl Updating for HumanService {
     async fn update_resource(
         &mut self, id: &str, data: &ResourceDataWrapper,
-    ) -> Result<Option<Human>, Error> {
+    ) -> SingleResult<Human> {
         if let Some(mut human) = self.0.get(id).cloned() {
             let new_attrs = &data.data.attributes;
             let new_relats = &data.data.relationships;
@@ -121,7 +128,7 @@ impl Updating for HumanService {
                 human.name = name.clone();
             }
             self.0.insert(id.to_string(), human);
-            Ok(None)
+            Ok(OperationResultData { data: None, ..Default::default() })
         } else {
             Err(ENTITY_NOT_FOUND.clone())
         }
@@ -129,7 +136,7 @@ impl Updating for HumanService {
 
     async fn replace_relationship(
         &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
-    ) -> Result<(String, Option<Human>), Error> {
+    ) -> UpdateResult<Human> {
         let (id, field) = id_field;
         if let Some(human) = self.0.get_mut(id) {
             let IdentifierDataWrapper { data } = data;
@@ -142,7 +149,7 @@ impl Updating for HumanService {
                         .collect();
                     let dogs = self.1.lock().await.get_by_ids(&ids)?;
                     human.dogs = dogs;
-                    Ok((field.clone(), None))
+                    Ok(OperationResultData { data: (field.clone(), None), ..Default::default() })
                 },
             }
         } else {
@@ -152,7 +159,7 @@ impl Updating for HumanService {
 
     async fn add_relationship(
         &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
-    ) -> Result<(String, Option<Human>), Error> {
+    ) -> UpdateResult<Human> {
         let (id, field) = id_field;
         if let Some(human) = self.0.get_mut(id) {
             let IdentifierDataWrapper { data } = data;
@@ -165,7 +172,7 @@ impl Updating for HumanService {
                         .collect();
                     let mut dogs = self.1.lock().await.get_by_ids(&ids)?;
                     human.add_dogs(&mut dogs);
-                    Ok((field.clone(), None))
+                    Ok(OperationResultData { data: (field.clone(), None), ..Default::default() })
                 },
             }
         } else {
@@ -175,7 +182,7 @@ impl Updating for HumanService {
 
     async fn remove_relationship(
         &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
-    ) -> Result<(String, Option<Human>), Error> {
+    ) -> UpdateResult<Human> {
         let (id, field) = id_field;
         if let Some(human) = self.0.get_mut(id) {
             let IdentifierDataWrapper { data } = data;
@@ -187,7 +194,7 @@ impl Updating for HumanService {
                         .filter_map(|i| if &i.ty == field { Some(i.id.clone()) } else { None })
                         .collect();
                     human.remove_dogs(&ids);
-                    Ok((field.clone(), None))
+                    Ok(OperationResultData { data: (field.clone(), None), ..Default::default() })
                 },
             }
         } else {
@@ -195,5 +202,11 @@ impl Updating for HumanService {
         }
     }
 }
+
 #[async_trait]
-impl Deleting for HumanService {}
+impl Deleting for HumanService {
+    async fn delete_resource(&mut self, id: &str) -> OperationResult<()> {
+        self.0.remove(id);
+        Ok(OperationResultData { data: (), ..Default::default() })
+    }
+}

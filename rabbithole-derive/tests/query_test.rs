@@ -63,10 +63,12 @@ fn default_include_test() {
     let uri = "https://example.com/api";
 
     let master_vec = generate_masters();
-    let gen_doc = master_vec.to_document_automatically(
+    let gen_doc = master_vec.to_document(
         "https://example.com/api",
         &Default::default(),
-        &uri.parse().unwrap(),
+        uri.parse().unwrap(),
+        Default::default(),
+        Default::default(),
     );
 
     let master_reses: Vec<Resource> =
@@ -80,14 +82,11 @@ fn default_include_test() {
             manual_included.insert(d_res.id.clone(), d_res);
         }
     }
-    let manual_doc = Document::multiple_resources(
-        master_reses,
-        manual_included,
-        Some(HashMap::from_iter(vec![Link::slf(
-            "https://example.com",
-            "/api".parse::<RawUri>().unwrap(),
-        )])),
-    );
+    let mut manual_doc = Document::multiple_resources(master_reses, manual_included);
+    manual_doc.extend_links(HashMap::from_iter(vec![Link::slf(
+        "https://example.com",
+        "/api".parse::<RawUri>().unwrap(),
+    )]));
     assert_eq!(gen_doc.unwrap(), manual_doc);
 }
 
@@ -96,25 +95,24 @@ fn only_unknown_include_test() {
     let uri = "https://example.com/api";
 
     let master_vec = generate_masters();
-    let gen_doc = master_vec.to_document_automatically(
+    let gen_doc = master_vec.to_document(
         "https://example.com/api",
         &Query {
             include: Some(HashSet::from_iter(vec!["name".to_string()])),
             ..Default::default()
         },
-        &uri.parse().unwrap(),
+        uri.parse().unwrap(),
+        Default::default(),
+        Default::default(),
     );
 
     let master_reses: Vec<Resource> =
         master_vec.iter().map(|h| h.to_resource(uri, &Default::default()).unwrap()).collect();
-    let manual_doc = Document::multiple_resources(
-        master_reses,
-        Default::default(),
-        Some(HashMap::from_iter(vec![Link::slf(
-            "https://example.com",
-            "/api".parse::<RawUri>().unwrap(),
-        )])),
-    );
+    let mut manual_doc = Document::multiple_resources(master_reses, Default::default());
+    manual_doc.extend_links(HashMap::from_iter(vec![Link::slf(
+        "https://example.com",
+        "/api".parse::<RawUri>().unwrap(),
+    )]));
     assert_eq!(gen_doc.unwrap(), manual_doc);
 }
 
@@ -123,22 +121,21 @@ fn not_included_fields_but_retain_attributes() {
     let uri = "https://example.com/api";
 
     let master_vec = generate_masters();
-    let gen_doc = master_vec.to_document_automatically(
+    let gen_doc = master_vec.to_document(
         "https://example.com/api",
         &Query { include: Some(Default::default()), ..Default::default() },
-        &uri.parse().unwrap(),
+        uri.parse().unwrap(),
+        Default::default(),
+        Default::default(),
     );
 
     let master_reses: Vec<Resource> =
         master_vec.iter().map(|h| h.to_resource(uri, &Default::default()).unwrap()).collect();
-    let manual_doc = Document::multiple_resources(
-        master_reses,
-        Default::default(),
-        Some(HashMap::from_iter(vec![Link::slf(
-            "https://example.com",
-            "/api".parse::<RawUri>().unwrap(),
-        )])),
-    );
+    let mut manual_doc = Document::multiple_resources(master_reses, Default::default());
+    manual_doc.extend_links(HashMap::from_iter(vec![Link::slf(
+        "https://example.com",
+        "/api".parse::<RawUri>().unwrap(),
+    )]));
     assert_eq!(gen_doc.unwrap(), manual_doc);
 }
 
@@ -149,10 +146,12 @@ fn not_foreign_attributes_but_retain_included_fields() {
         HashMap::from_iter(vec![("people".into(), HashSet::from_iter(vec!["name".into()]))]);
 
     let master_vec = generate_masters();
-    let gen_doc = master_vec.to_document_automatically(
+    let gen_doc = master_vec.to_document(
         "https://example.com/api",
         &Query { fields: fields_query.clone(), ..Default::default() },
-        &uri.parse().unwrap(),
+        uri.parse().unwrap(),
+        Default::default(),
+        Default::default(),
     );
 
     let master_reses: Vec<Resource> =
@@ -165,13 +164,10 @@ fn not_foreign_attributes_but_retain_included_fields() {
             manual_included.insert(d_res.id.clone(), d_res);
         }
     }
-    let manual_doc = Document::multiple_resources(
-        master_reses,
-        manual_included,
-        Some(HashMap::from_iter(vec![Link::slf(
-            "https://example.com",
-            "/api".parse::<RawUri>().unwrap(),
-        )])),
-    );
+    let mut manual_doc = Document::multiple_resources(master_reses, manual_included);
+    manual_doc.extend_links(HashMap::from_iter(vec![Link::slf(
+        "https://example.com",
+        "/api".parse::<RawUri>().unwrap(),
+    )]));
     assert_eq!(gen_doc.unwrap(), manual_doc);
 }

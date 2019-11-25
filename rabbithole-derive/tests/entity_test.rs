@@ -120,10 +120,12 @@ fn multiple_entities_test() {
     let masters = generate_masters(1);
     let (_, master) = masters.first().unwrap();
     let dogs = generate_dogs(dog_cnt, master);
-    let _gen_doc = dogs.to_document_automatically(
+    let _gen_doc = dogs.to_document(
         "https://example.com/api",
         &Default::default(),
-        &"https://example.com/api".parse().unwrap(),
+        "https://example.com/api".parse().unwrap(),
+        Default::default(),
+        Default::default(),
     );
 }
 
@@ -286,21 +288,21 @@ fn general_test() {
         ..Default::default()
     };
 
-    let document = Document::single_resource(
+    let mut document = Document::single_resource(
         dog_res,
         HashMap::from_iter(vec![
             (master_res.id.clone(), master_res),
             (dog_flea_a_res.id.clone(), dog_flea_a_res),
             (dog_flea_b_res.id.clone(), dog_flea_b_res),
         ]),
-        Some(HashMap::from_iter(vec![Link::slf(
-            "https://example.com",
-            "/api".parse::<RawUri>().unwrap(),
-        )])),
     );
+    document.extend_links(HashMap::from_iter(vec![Link::slf(
+        "https://example.com",
+        "/api".parse::<RawUri>().unwrap(),
+    )]));
 
     let gen_doc: Document = dog
-        .to_document_automatically(
+        .to_document(
             "https://example.com/api",
             &Query {
                 fields: HashMap::from_iter(vec![(
@@ -309,7 +311,9 @@ fn general_test() {
                 )]),
                 ..Default::default()
             },
-            &"https://example.com/api".parse().unwrap(),
+            "https://example.com/api".parse().unwrap(),
+            Default::default(),
+            Default::default(),
         )
         .unwrap();
     assert_eq!(document.links, gen_doc.links);

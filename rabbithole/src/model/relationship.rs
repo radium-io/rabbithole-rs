@@ -23,11 +23,15 @@ pub struct Relationship {
 }
 
 impl Relationship {
-    pub fn null(links: &Links) -> Relationship {
-        Self {
-            data: IdentifierData::Single(None),
-            links: links.clone().into(),
-            ..Default::default()
+    pub fn null(links: Links, meta: Meta) -> Relationship {
+        Self { data: IdentifierData::Single(None), links: links.into(), meta }
+    }
+
+    pub fn extend_meta(&mut self, meta: Meta) { self.meta.extend(meta.into_iter()); }
+
+    pub fn extend_links(&mut self, links: Links) {
+        for (key, value) in links {
+            self.links.insert(key, value);
         }
     }
 }

@@ -3,7 +3,7 @@ pub mod settings;
 use actix_web::http::{header, HeaderMap, StatusCode};
 use actix_web::web;
 use actix_web::{HttpRequest, HttpResponse};
-use rabbithole::entity::SingleEntity;
+use rabbithole::entity::{Entity, SingleEntity};
 
 use crate::settings::{ActixSettingsModel, JsonApiSettings};
 use actix_web::dev::HttpResponseBuilder;
@@ -11,15 +11,16 @@ use actix_web::dev::HttpResponseBuilder;
 use rabbithole::model::error;
 use rabbithole::model::version::JsonApiVersion;
 use rabbithole::operation::{
-    Creating, Deleting, Fetching, IdentifierDataWrapper, ResourceDataWrapper,
+    Creating, Deleting, Fetching, IdentifierDataWrapper, OperationResultData, ResourceDataWrapper,
 };
 use rabbithole::rule::RuleDispatcher;
 use rabbithole::JSON_API_HEADER;
 use serde::export::TryFrom;
 
 use futures::lock::Mutex;
-use rabbithole::query::Query;
+use rabbithole::query::QuerySettings;
 
+use rabbithole::model::document::Document;
 use std::sync::Arc;
 
 fn error_to_response(err: error::Error) -> HttpResponse {
@@ -34,37 +35,51 @@ pub struct ActixSettings {
     pub path: String,
     pub uri: url::Url,
     pub jsonapi: JsonApiSettings,
+    pub query: QuerySettings,
 }
 
 impl TryFrom<ActixSettingsModel> for ActixSettings {
     type Error = url::ParseError;
 
     fn try_from(value: ActixSettingsModel) -> Result<Self, Self::Error> {
-        let ActixSettingsModel { host, port, path, jsonapi } = value;
+        let ActixSettingsModel { host, port, path, jsonapi, query } = value;
         let uri = format!("http://{}:{}", host, port).parse::<url::Url>().unwrap();
         let uri = uri.join(&path).unwrap();
-        Ok(Self { path, uri, jsonapi })
+        Ok(Self { path, uri, jsonapi, query })
     }
 }
 
 macro_rules! to_response {
     (Resource: $this:ident, $item:ident) => {{
-        let resource = $item.to_resource(&$this.uri.to_string(), &Default::default());
+        let rabbithole::operation::OperationResultData { data, additional_links, additional_meta } =
+            $item;
+        let resource = data.to_resource(&$this.uri.to_string(), &Default::default());
         match resource {
-            Some(resource) => Ok(actix_web::HttpResponse::Ok()
-                .json(rabbithole::operation::ResourceDataWrapper { data: resource })),
+            Some(mut resource) => {
+                resource.extend_meta(additional_meta);
+                resource.extend_links(additional_links);
+                Ok(actix_web::HttpResponse::Ok()
+                    .json(rabbithole::operation::ResourceDataWrapper { data: resource }))
+            },
             None => Ok(actix_web::HttpResponse::NoContent().finish()),
         }
     }};
     (Relationship: $this:ident, $item:ident) => {{
-        let (field_name, item) = $item;
+        let rabbithole::operation::OperationResultData { data, additional_links, additional_meta } =
+            $item;
+        let (field_name, item) = data;
         let resource = item.to_resource(&$this.uri.to_string(), &Default::default());
         match resource {
-            Some(resource) => Ok(actix_web::HttpResponse::Ok().json(
-                rabbithole::operation::IdentifierDataWrapper {
-                    data: resource.relationships.get(&field_name).cloned().unwrap().data,
-                },
-            )),
+            Some(mut resource) => {
+                resource.extend_meta(additional_meta);
+                resource.extend_links(additional_links);
+
+                Ok(actix_web::HttpResponse::Ok().json(
+                    rabbithole::operation::IdentifierDataWrapper {
+                        data: resource.relationships.get(&field_name).cloned().unwrap().data,
+                    },
+                ))
+            },
             None => Ok(actix_web::HttpResponse::NoContent().finish()),
         }
     }};
@@ -82,12 +97,12 @@ macro_rules! single_step_operation {
                 return Ok(err_resp);
             }
 
-                match service.lock().await.$fn_name($(&$param.into_inner()),+).await {
-                    Ok(item) => {
-                        to_response!($return_ty: this, item)
-                    },
-                    Err(err) => Ok(error_to_response(err)),
-                }
+            match service.lock().await.$fn_name($(&$param.into_inner()),+).await {
+                Ok(item) => {
+                    to_response!($return_ty: this, item)
+                },
+                Err(err) => Ok(error_to_response(err)),
+            }
         }
     };
 }
@@ -116,7 +131,14 @@ impl ActixSettings {
         }
 
         match service.lock().await.delete_resource(&params.into_inner()).await {
-            Ok(()) => Ok(actix_web::HttpResponse::Ok().finish()),
+            Ok(OperationResultData { additional_links, additional_meta, .. }) => {
+                if additional_links.is_empty() && additional_meta.is_empty() {
+                    Ok(actix_web::HttpResponse::NoContent().finish())
+                } else {
+                    Ok(actix_web::HttpResponse::Ok()
+                        .json(Document::null(additional_links, additional_meta)))
+                }
+            },
             Err(err) => Ok(error_to_response(err)),
         }
     }
@@ -136,9 +158,11 @@ impl ActixSettings {
         }
 
         match service.lock().await.create(&body.into_inner()).await {
-            Ok(item) => {
-                let resource =
-                    item.to_resource(&this.uri.to_string(), &Default::default()).unwrap();
+            Ok(OperationResultData { data, additional_links, additional_meta }) => {
+                let mut resource =
+                    data.to_resource(&this.uri.to_string(), &Default::default()).unwrap();
+                resource.extend_meta(additional_meta);
+                resource.extend_links(additional_links);
                 Ok(actix_web::HttpResponse::Ok().json(ResourceDataWrapper { data: resource }))
             },
             Err(err) => Ok(error_to_response(err)),
@@ -157,25 +181,21 @@ impl ActixSettings {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return Ok(err_resp);
         }
-        match Query::from_uri(req.uri()) {
-            Ok(query) => {
-                let vec_res = service.lock().await.fetch_collection(&query).await;
-                match vec_res {
-                    Ok(vec) => {
-                        match T::vec_to_document(
-                            &vec,
-                            &this.uri.to_string(),
-                            &query,
-                            &req.uri().into(),
-                        )
-                        .await
-                        {
-                            Ok(doc) => Ok(HttpResponse::Ok().json(doc)),
-                            Err(err) => Ok(error_to_response(err)),
-                        }
-                    },
-                    Err(err) => Ok(error_to_response(err)),
-                }
+        match this.query.from_uri(req.uri()) {
+            Ok(query) => match service.lock().await.fetch_collection(&query).await {
+                Ok(OperationResultData { data, additional_links, additional_meta }) => {
+                    match data.to_document(
+                        &this.uri.to_string(),
+                        &query,
+                        req.uri().into(),
+                        additional_links,
+                        additional_meta,
+                    ) {
+                        Ok(doc) => Ok(HttpResponse::Ok().json(doc)),
+                        Err(err) => Ok(error_to_response(err)),
+                    }
+                },
+                Err(err) => Ok(error_to_response(err)),
             },
             Err(err) => Ok(error_to_response(err)),
         }
@@ -192,14 +212,17 @@ impl ActixSettings {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return Ok(err_resp);
         }
-        match Query::from_uri(req.uri()) {
+        match this.query.from_uri(req.uri()) {
             Ok(query) => {
                 match service.lock().await.fetch_single(&param.into_inner(), &query).await {
-                    Ok(item) => {
-                        match item.to_document_automatically(
+                    Ok(OperationResultData { data, additional_links, additional_meta }) => {
+                        match SingleEntity::to_document(
+                            &data,
                             &this.uri.to_string(),
                             &query,
-                            &req.uri().into(),
+                            req.uri().into(),
+                            additional_links,
+                            additional_meta,
                         ) {
                             Ok(doc) => Ok(new_json_api_resp(StatusCode::OK).json(doc)),
                             Err(err) => Ok(error_to_response(err)),
@@ -223,7 +246,7 @@ impl ActixSettings {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return Ok(err_resp);
         }
-        match Query::from_uri(req.uri()) {
+        match this.query.from_uri(req.uri()) {
             Ok(query) => {
                 let (id, related_field) = param.into_inner();
                 match service
@@ -238,7 +261,11 @@ impl ActixSettings {
                     )
                     .await
                 {
-                    Ok(item) => Ok(new_json_api_resp(StatusCode::OK).json(item)),
+                    Ok(OperationResultData { mut data, additional_links, additional_meta }) => {
+                        data.extend_links(additional_links);
+                        data.extend_meta(additional_meta);
+                        Ok(new_json_api_resp(StatusCode::OK).json(data))
+                    },
                     Err(err) => Ok(error_to_response(err)),
                 }
             },
@@ -258,7 +285,7 @@ impl ActixSettings {
             return Ok(err_resp);
         }
 
-        match Query::from_uri(req.uri()) {
+        match this.query.from_uri(req.uri()) {
             Ok(query) => {
                 let (id, related_field) = param.into_inner();
                 match service
