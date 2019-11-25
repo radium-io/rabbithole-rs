@@ -4,6 +4,7 @@
 
 ### Changed
 
+- [ ] Redesign the `CursorBased` pagination based on `https://jsonapi.org/profiles/ethanresnick/cursor-pagination/`
 - Update `actix-web` to `2.0` with the async handler
 - A in-memory demo
 - `204 No Content`/`200 OK` when `PATCH`, `POST` and `DELETE` the resource

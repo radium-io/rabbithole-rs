@@ -97,7 +97,7 @@ macro_rules! single_step_operation {
                 return Ok(err_resp);
             }
 
-            match service.lock().await.$fn_name($(&$param.into_inner()),+).await {
+            match service.lock().await.$fn_name($(&$param.into_inner()),+, &req.uri()).await {
                 Ok(item) => {
                     to_response!($return_ty: this, item)
                 },
@@ -130,7 +130,7 @@ impl ActixSettings {
             return Ok(err_resp);
         }
 
-        match service.lock().await.delete_resource(&params.into_inner()).await {
+        match service.lock().await.delete_resource(&params.into_inner(), &req.uri()).await {
             Ok(OperationResultData { additional_links, additional_meta, .. }) => {
                 if additional_links.is_empty() && additional_meta.is_empty() {
                     Ok(actix_web::HttpResponse::NoContent().finish())
@@ -157,7 +157,7 @@ impl ActixSettings {
             return Ok(err_resp);
         }
 
-        match service.lock().await.create(&body.into_inner()).await {
+        match service.lock().await.create(&body.into_inner(), &req.uri()).await {
             Ok(OperationResultData { data, additional_links, additional_meta }) => {
                 let mut resource =
                     data.to_resource(&this.uri.to_string(), &Default::default()).unwrap();
@@ -181,8 +181,8 @@ impl ActixSettings {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return Ok(err_resp);
         }
-        match this.query.from_uri(req.uri()) {
-            Ok(query) => match service.lock().await.fetch_collection(&query).await {
+        match this.query.parse_uri(req.uri()) {
+            Ok(query) => match service.lock().await.fetch_collection(&req.uri(), &query).await {
                 Ok(OperationResultData { data, additional_links, additional_meta }) => {
                     match data.to_document(
                         &this.uri.to_string(),
@@ -212,9 +212,14 @@ impl ActixSettings {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return Ok(err_resp);
         }
-        match this.query.from_uri(req.uri()) {
+        match this.query.parse_uri(req.uri()) {
             Ok(query) => {
-                match service.lock().await.fetch_single(&param.into_inner(), &query).await {
+                match service
+                    .lock()
+                    .await
+                    .fetch_single(&param.into_inner(), &req.uri(), &query)
+                    .await
+                {
                     Ok(OperationResultData { data, additional_links, additional_meta }) => {
                         match SingleEntity::to_document(
                             &data,
@@ -246,19 +251,13 @@ impl ActixSettings {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return Ok(err_resp);
         }
-        match this.query.from_uri(req.uri()) {
+        match this.query.parse_uri(req.uri()) {
             Ok(query) => {
                 let (id, related_field) = param.into_inner();
                 match service
                     .lock()
                     .await
-                    .fetch_relationship(
-                        &id,
-                        &related_field,
-                        &this.uri.to_string(),
-                        &query,
-                        &req.uri().into(),
-                    )
+                    .fetch_relationship(&id, &related_field, &req.uri(), &query)
                     .await
                 {
                     Ok(OperationResultData { mut data, additional_links, additional_meta }) => {
@@ -285,19 +284,13 @@ impl ActixSettings {
             return Ok(err_resp);
         }
 
-        match this.query.from_uri(req.uri()) {
+        match this.query.parse_uri(req.uri()) {
             Ok(query) => {
                 let (id, related_field) = param.into_inner();
                 match service
                     .lock()
                     .await
-                    .fetch_related(
-                        &id,
-                        &related_field,
-                        &this.uri.to_string(),
-                        &query,
-                        &req.uri().into(),
-                    )
+                    .fetch_related(&id, &related_field, &req.uri(), &query)
                     .await
                 {
                     Ok(item) => Ok(new_json_api_resp(StatusCode::OK).json(item)),

@@ -170,7 +170,7 @@ mod tests {
         let uri = percent_encode(uri.as_bytes(), NON_ALPHANUMERIC);
         let uri = format!("/?{}", uri.to_string());
         let uri: http::Uri = uri.parse().unwrap();
-        let query = query.from_uri(&uri).unwrap();
+        let query = query.parse_uri(&uri).unwrap();
         if let Some(PageQuery::CursorBased(cursor)) = query.page {
             assert_eq!(cursor, ori_cursor);
         } else {

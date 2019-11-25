@@ -50,7 +50,7 @@ lazy_static! {
 }
 
 impl QuerySettings {
-    pub fn from_uri(&self, uri: &http::Uri) -> RbhResult<Query> {
+    pub fn parse_uri(&self, uri: &http::Uri) -> RbhResult<Query> {
         let mut include_query: IncludeQuery = Default::default();
         let mut include_query_exist = false;
         let mut sort_query: SortQuery = Default::default();

@@ -12,7 +12,7 @@ use futures::lock::Mutex;
 use rabbithole::entity::{Entity, SingleEntity};
 use rabbithole::model::document::Document;
 use rabbithole::model::error;
-use rabbithole::model::link::RawUri;
+
 use rabbithole::model::relationship::Relationship;
 use rabbithole::model::resource::{AttributeField, IdentifierData, ResourceIdentifier};
 use rabbithole::query::Query;
@@ -34,19 +34,19 @@ impl Operation for HumanService {
 
 #[async_trait]
 impl Fetching for HumanService {
-    async fn fetch_collection(&self, _query: &Query) -> CollectionResult<Human> {
+    async fn fetch_collection(&self, _uri: &http::Uri, _query: &Query) -> CollectionResult<Human> {
         Ok(OperationResultData { data: self.0.values().cloned().collect(), ..Default::default() })
     }
 
-    async fn fetch_single(&self, id: &str, _query: &Query) -> SingleResult<Human> {
+    async fn fetch_single(&self, id: &str, _uri: &http::Uri, _query: &Query) -> SingleResult<Human> {
         Ok(OperationResultData { data: self.0.get(id).map(Clone::clone), ..Default::default() })
     }
 
     async fn fetch_relationship(
-        &self, id: &str, related_field: &str, uri: &str, query: &Query, _request_path: &RawUri,
+        &self, id: &str, related_field: &str, uri: &http::Uri, query: &Query,
     ) -> OperationResult<Relationship> {
         if let Some(human) = self.0.get(id) {
-            let resource = human.to_resource(uri, &query.fields).unwrap();
+            let resource = human.to_resource(&uri.to_string(), &query.fields).unwrap();
             if let Some(relat) = resource.relationships.get(related_field) {
                 Ok(OperationResultData { data: relat.clone(), ..Default::default() })
             } else {
@@ -58,14 +58,14 @@ impl Fetching for HumanService {
     }
 
     async fn fetch_related(
-        &self, id: &str, related_field: &str, uri: &str, query: &Query, request_path: &RawUri,
+        &self, id: &str, related_field: &str, uri: &http::Uri, query: &Query,
     ) -> Result<Document, Error> {
         if let Some(human) = self.0.get(id) {
             if related_field == "dogs" {
                 Ok(human.dogs.to_document(
-                    uri,
+                    &uri.to_string(),
                     query,
-                    request_path.clone(),
+                    uri.clone().into(),
                     Default::default(),
                     Default::default(),
                 )?)
@@ -80,7 +80,7 @@ impl Fetching for HumanService {
 
 #[async_trait]
 impl Creating for HumanService {
-    async fn create(&mut self, data: &ResourceDataWrapper) -> SingleResult<Human> {
+    async fn create(&mut self, data: &ResourceDataWrapper, _uri: &http::Uri) -> SingleResult<Human> {
         let ResourceDataWrapper { data } = data;
         let id = if !data.id.id.is_empty() {
             if self.0.contains_key(&data.id.id) {
@@ -112,7 +112,7 @@ impl Creating for HumanService {
 #[async_trait]
 impl Updating for HumanService {
     async fn update_resource(
-        &mut self, id: &str, data: &ResourceDataWrapper,
+        &mut self, id: &str, data: &ResourceDataWrapper, _uri: &http::Uri,
     ) -> SingleResult<Human> {
         if let Some(mut human) = self.0.get(id).cloned() {
             let new_attrs = &data.data.attributes;
@@ -135,7 +135,7 @@ impl Updating for HumanService {
     }
 
     async fn replace_relationship(
-        &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
+        &mut self, id_field: &(String, String), data: &IdentifierDataWrapper, _uri: &http::Uri,
     ) -> UpdateResult<Human> {
         let (id, field) = id_field;
         if let Some(human) = self.0.get_mut(id) {
@@ -158,7 +158,7 @@ impl Updating for HumanService {
     }
 
     async fn add_relationship(
-        &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
+        &mut self, id_field: &(String, String), data: &IdentifierDataWrapper, _uri: &http::Uri,
     ) -> UpdateResult<Human> {
         let (id, field) = id_field;
         if let Some(human) = self.0.get_mut(id) {
@@ -181,7 +181,7 @@ impl Updating for HumanService {
     }
 
     async fn remove_relationship(
-        &mut self, id_field: &(String, String), data: &IdentifierDataWrapper,
+        &mut self, id_field: &(String, String), data: &IdentifierDataWrapper, _uri: &http::Uri,
     ) -> UpdateResult<Human> {
         let (id, field) = id_field;
         if let Some(human) = self.0.get_mut(id) {
@@ -205,7 +205,7 @@ impl Updating for HumanService {
 
 #[async_trait]
 impl Deleting for HumanService {
-    async fn delete_resource(&mut self, id: &str) -> OperationResult<()> {
+    async fn delete_resource(&mut self, id: &str, _uri: &http::Uri) -> OperationResult<()> {
         self.0.remove(id);
         Ok(OperationResultData { data: (), ..Default::default() })
     }
