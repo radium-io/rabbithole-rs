@@ -23,7 +23,7 @@ lazy_static! {
 
 #[test]
 fn sort_and_page_test() {
-    let dogs: Vec<Dog> = DOGS.clone();
+    let mut dogs: Vec<Dog> = DOGS.clone();
     let query = Query {
         include: None,
         fields: Default::default(),
@@ -42,8 +42,17 @@ fn sort_and_page_test() {
     let uri = percent_encode(uri.as_bytes(), NON_ALPHANUMERIC);
     let uri = format!("/dogs?{}", uri.to_string());
 
+    query.sort.sort(&mut dogs);
+    let dogs = query.page.as_ref().unwrap().page(&dogs);
+
     let doc = dogs
-        .to_document_automatically("http://example.com", &query, &uri.parse().unwrap())
+        .to_document(
+            "http://example.com",
+            &query,
+            uri.parse().unwrap(),
+            Default::default(),
+            Default::default(),
+        )
         .unwrap();
     if let DocumentItem::PrimaryData(Some((data, _))) = doc.item {
         let data = data.data();

@@ -4,3 +4,6 @@ path = "/api/v1"
 
 [jsonapi]
 version = "1.1"
+
+[query]
+filter_type = "Rsql"

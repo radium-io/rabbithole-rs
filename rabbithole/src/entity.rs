@@ -4,7 +4,7 @@ use crate::model::relationship::{RelationshipLinks, Relationships};
 use crate::model::resource::{Attributes, Resource, ResourceIdentifier};
 use serde::Serialize;
 
-use crate::model::error;
+use crate::model::{error, Meta};
 use crate::query::*;
 use std::cmp::Ordering;
 
@@ -36,14 +36,19 @@ pub trait SingleEntity: Entity {
         HashMap::from_iter(vec![("self".into(), slf)])
     }
 
-    fn to_document_automatically(
-        &self, uri: &str, query: &Query, request_path: &RawUri,
+    fn to_document(
+        &self, uri: &str, query: &Query, request_path: RawUri, mut additional_links: Links,
+        additional_meta: Meta,
     ) -> RbhResult<Document> {
-        Ok(Document::single_resource(
+        let (key, value) = Link::slf(uri, request_path);
+        additional_links.insert(key, value);
+        let mut doc = Document::single_resource(
             self.to_resource(uri, &query.fields).unwrap(),
             self.included(uri, &query.include, &query.fields)?,
-            Some(HashMap::from_iter(vec![Link::slf(uri, request_path.clone())])),
-        ))
+        );
+        doc.extend_links(additional_links);
+        doc.extend_meta(additional_meta);
+        Ok(doc)
     }
 
     fn to_resource_identifier(&self) -> Option<ResourceIdentifier> {
@@ -114,8 +119,9 @@ pub trait Entity: Serialize + Clone {
     /// Returns a `Document` based on `query`. This function will do all of the actions databases should do in memory,
     /// using a trivial iter way. But I still recommend you guys implement `to_document` or `to_document_async` yourself
     /// for better performance
-    fn to_document_automatically(
-        &self, uri: &str, query: &Query, request_path: &RawUri,
+    fn to_document(
+        &self, uri: &str, query: &Query, request_path: RawUri, additional_links: Links,
+        additional_meta: Meta,
     ) -> RbhResult<Document>;
 }
 
@@ -130,11 +136,19 @@ impl<T: SingleEntity> SingleEntity for Option<T> {
         self.as_ref().map(|op| op.relationships(uri)).unwrap()
     }
 
-    fn to_document_automatically(
-        &self, uri: &str, query: &Query, request_path: &RawUri,
+    fn to_document(
+        &self, uri: &str, query: &Query, request_path: RawUri, additional_links: Links,
+        additional_meta: Meta,
     ) -> RbhResult<Document> {
         if let Some(item) = self {
-            SingleEntity::to_document_automatically(item, uri, query, request_path)
+            SingleEntity::to_document(
+                item,
+                uri,
+                query,
+                request_path,
+                additional_links,
+                additional_meta,
+            )
         } else {
             Ok(Document::default())
         }
@@ -160,10 +174,13 @@ impl<T: Entity> Entity for Option<T> {
         }
     }
 
-    fn to_document_automatically(
-        &self, uri: &str, query: &Query, request_path: &RawUri,
+    fn to_document(
+        &self, uri: &str, query: &Query, request_path: RawUri, additional_links: Links,
+        additional_meta: Meta,
     ) -> RbhResult<Document> {
-        self.as_ref().map(|op| op.to_document_automatically(uri, query, request_path)).unwrap()
+        self.as_ref()
+            .map(|op| op.to_document(uri, query, request_path, additional_links, additional_meta))
+            .unwrap()
     }
 }
 
@@ -184,10 +201,11 @@ impl<T: Entity> Entity for Box<T> {
         self.as_ref().included(uri, include_query, fields_query)
     }
 
-    fn to_document_automatically(
-        &self, uri: &str, query: &Query, request_path: &RawUri,
+    fn to_document(
+        &self, uri: &str, query: &Query, request_path: RawUri, additional_links: Links,
+        additional_meta: Meta,
     ) -> RbhResult<Document> {
-        self.as_ref().to_document_automatically(uri, query, request_path)
+        self.as_ref().to_document(uri, query, request_path, additional_links, additional_meta)
     }
 }
 
@@ -214,10 +232,11 @@ where
         self.deref().included(uri, include_query, fields_query)
     }
 
-    fn to_document_automatically(
-        &self, uri: &str, query: &Query, request_path: &RawUri,
+    fn to_document(
+        &self, uri: &str, query: &Query, request_path: RawUri, additional_links: Links,
+        additional_meta: Meta,
     ) -> RbhResult<Document> {
-        self.deref().to_document_automatically(uri, query, request_path)
+        self.deref().to_document(uri, query, request_path, additional_links, additional_meta)
     }
 }
 
@@ -232,19 +251,22 @@ impl<T: SingleEntity> Entity for &[T] {
         Ok(includes.into_iter().flat_map(|s| s.into_iter()).collect())
     }
 
-    fn to_document_automatically(
-        &self, uri: &str, query: &Query, request_path: &RawUri,
+    fn to_document(
+        &self, uri: &str, query: &Query, request_path: RawUri, mut additional_links: Links,
+        additional_meta: Meta,
     ) -> RbhResult<Document> {
-        let mut entities = self.to_vec();
-        query.sort.sort::<T>(entities.as_mut());
-        let entities =
-            if let Some(page) = &query.page { page.page(&entities) } else { entities.as_slice() };
+        let entities = self.to_vec();
+        let (key, value) = Link::slf(uri, request_path);
         let resources = entities.iter().filter_map(|e| e.to_resource(uri, &query.fields)).collect();
-        Ok(Document::multiple_resources(
+        additional_links.insert(key, value);
+        let mut doc = Document::multiple_resources(
             resources,
             self.included(uri, &query.include, &query.fields)?,
-            Some(HashMap::from_iter(vec![Link::slf(uri, request_path.clone())])),
-        ))
+        );
+        doc.extend_links(additional_links);
+        doc.extend_meta(additional_meta);
+
+        Ok(doc)
     }
 }
 
@@ -255,9 +277,10 @@ impl<T: SingleEntity> Entity for Vec<T> {
         self.as_slice().included(uri, include_query, fields_query)
     }
 
-    fn to_document_automatically(
-        &self, uri: &str, query: &Query, request_path: &RawUri,
+    fn to_document(
+        &self, uri: &str, query: &Query, request_path: RawUri, additional_links: Links,
+        additional_meta: Meta,
     ) -> RbhResult<Document> {
-        self.as_slice().to_document_automatically(uri, query, request_path)
+        self.as_slice().to_document(uri, query, request_path, additional_links, additional_meta)
     }
 }

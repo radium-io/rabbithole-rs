@@ -1,21 +1,29 @@
 use quote::quote;
 
-pub fn generate_app(
-    entity_ident: &syn::Ident, ty: &str, _to_ones: &[&syn::Ident], _to_manys: &[&syn::Ident],
-) -> proc_macro2::TokenStream {
+pub fn generate_app(service: &syn::Path, ty: &str) -> proc_macro2::TokenStream {
     quote! {
-        impl #entity_ident {
+        impl #service {
             pub fn actix_service() -> actix_web::Scope {
                 use actix_web::{web, guard};
                 web::scope(#ty)
                     .service(web::resource("")
-                        .route(web::get().to_async(move |req, actix_fetching: web::Data<rabbithole_endpoint_actix::ActixSettings<Self>>| actix_fetching.get_ref().clone().fetch_collection(req))))
+                            .route(web::get().to(rabbithole_endpoint_actix::ActixSettings::fetch_collection::<Self>))
+                            .route(web::post().to(rabbithole_endpoint_actix::ActixSettings::create::<Self>))
+                        )
                     .service(web::resource("/{id}")
-                        .route(web::get().to_async(move |param, req, actix_fetching: web::Data<rabbithole_endpoint_actix::ActixSettings<Self>>| actix_fetching.get_ref().clone().fetch_single(param, req))))
+                            .route(web::get().to( rabbithole_endpoint_actix::ActixSettings::fetch_single::<Self>))
+                            .route(web::patch().to(rabbithole_endpoint_actix::ActixSettings::update_resource::<Self>))
+                            .route(web::delete().to(rabbithole_endpoint_actix::ActixSettings::delete_resource::<Self>))
+                            )
                     .service(web::resource("/{id}/relationships/{related_fields}")
-                        .route(web::get().to_async(move |param, req, actix_fetching: web::Data<rabbithole_endpoint_actix::ActixSettings<Self>>| actix_fetching.get_ref().clone().fetch_relationship(param, req))))
+                            .route(web::get().to( rabbithole_endpoint_actix::ActixSettings::fetch_relationship::<Self>))
+                            .route(web::patch().to(rabbithole_endpoint_actix::ActixSettings::replace_relationship::<Self>))
+                            .route(web::post().to(rabbithole_endpoint_actix::ActixSettings::add_relationship::<Self>))
+                            .route(web::delete().to(rabbithole_endpoint_actix::ActixSettings::remove_relationship::<Self>))
+                        )
                     .service(web::resource("/{id}/{related_fields}")
-                        .route(web::get().to_async(move |param, req, actix_fetching: web::Data<rabbithole_endpoint_actix::ActixSettings<Self>>| actix_fetching.get_ref().clone().fetch_related(param, req))))
+                            .route(web::get().to( rabbithole_endpoint_actix::ActixSettings::fetch_related::<Self>))
+                        )
             }
         }
     }

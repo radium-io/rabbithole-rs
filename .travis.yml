@@ -9,7 +9,7 @@ jobs:
   include:
     - stage: test
       script:
-        - cargo test --all --all-features
+        - bash scripts/clean-test.sh
     - stage: deploy-cargo
       script:
         - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml

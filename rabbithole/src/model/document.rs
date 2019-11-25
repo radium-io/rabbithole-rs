@@ -43,8 +43,8 @@ impl Default for DocumentItem {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Document {
     pub item: DocumentItem,
-    pub links: Option<Links>,
-    pub meta: Option<Meta>,
+    pub links: Links,
+    pub meta: Meta,
     pub jsonapi: Option<JsonApiInfo>,
 }
 
@@ -60,28 +60,48 @@ impl Default for Document {
 }
 
 impl Document {
-    pub fn null(links: Option<Links>) -> Self { Self { links, ..Default::default() } }
+    pub fn null(links: Links, meta: Meta) -> Self { Self { links, meta, ..Default::default() } }
 
-    pub fn single_resource(resource: Resource, included: Included, links: Option<Links>) -> Self {
+    pub fn into_single(self) -> Result<(Box<Resource>, Included), Self> {
+        if let DocumentItem::PrimaryData(Some((PrimaryDataItem::Single(resource), included))) =
+            self.item
+        {
+            Ok((resource, included))
+        } else {
+            Err(self)
+        }
+    }
+
+    pub fn into_multiple(self) -> Result<(Vec<Resource>, Included), Self> {
+        if let DocumentItem::PrimaryData(Some((PrimaryDataItem::Multiple(resources), included))) =
+            self.item
+        {
+            Ok((resources, included))
+        } else {
+            Err(self)
+        }
+    }
+
+    pub fn single_resource(resource: Resource, included: Included) -> Self {
         Self {
             item: DocumentItem::PrimaryData(Some((
                 PrimaryDataItem::Single(Box::new(resource)),
                 included,
             ))),
-            links,
             ..Default::default()
         }
     }
 
-    pub fn multiple_resources(
-        resources: Vec<Resource>, included: Included, links: Option<Links>,
-    ) -> Self {
+    pub fn multiple_resources(resources: Vec<Resource>, included: Included) -> Self {
         Self {
             item: DocumentItem::PrimaryData(Some((PrimaryDataItem::Multiple(resources), included))),
-            links,
             ..Default::default()
         }
     }
+
+    pub fn extend_meta(&mut self, meta: Meta) { self.meta.extend(meta.into_iter()); }
+
+    pub fn extend_links(&mut self, links: Links) { self.links.extend(links.into_iter()); }
 }
 
 impl Serialize for Document {
@@ -106,11 +126,11 @@ impl Serialize for Document {
             _ => state.serialize_field("data", &serde_json::Value::Null)?,
         }
 
-        if let Some(ref links) = self.links {
-            state.serialize_field("links", links)?;
+        if !self.links.is_empty() {
+            state.serialize_field("links", &self.links)?;
         }
-        if let Some(ref meta) = self.meta {
-            state.serialize_field("meta", meta)?;
+        if !self.meta.is_empty() {
+            state.serialize_field("meta", &self.meta)?;
         }
         if let Some(ref jsonapi) = self.jsonapi {
             state.serialize_field("jsonapi", jsonapi)?;
@@ -210,7 +230,12 @@ impl<'de> Visitor<'de> for DocumentVisitor {
             },
         };
 
-        Ok(Document { item, links, meta, jsonapi })
+        Ok(Document {
+            item,
+            links: links.unwrap_or_default(),
+            meta: meta.unwrap_or_default(),
+            jsonapi,
+        })
     }
 }
 

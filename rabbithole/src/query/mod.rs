@@ -9,12 +9,18 @@ use crate::RbhResult;
 use crate::query::filter::FilterQuery;
 use crate::query::page::PageQuery;
 use crate::query::sort::SortQuery;
+
 use percent_encoding::percent_decode_str;
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 
 pub type IncludeQuery = HashSet<String>;
 pub type FieldsQuery = HashMap<String, HashSet<String>>;
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct QuerySettings {
+    pub filter_type: String,
+}
 
 #[derive(Debug, Default)]
 pub struct Query {
@@ -43,13 +49,12 @@ lazy_static! {
     static ref KEY_REGEX: Regex = Regex::new(r#"(?P<name>\w+)\[(?P<param>[\w\-_@]+)\]"#).unwrap();
 }
 
-impl Query {
-    pub fn from_uri(uri: &http::Uri) -> RbhResult<Query> {
+impl QuerySettings {
+    pub fn from_uri(&self, uri: &http::Uri) -> RbhResult<Query> {
         let mut include_query: IncludeQuery = Default::default();
         let mut include_query_exist = false;
         let mut sort_query: SortQuery = Default::default();
         let mut filter_map: HashMap<String, String> = Default::default();
-        let mut filter_type: Option<String> = None;
         let mut fields_map: FieldsQuery = Default::default();
         let mut page_map: HashMap<String, String> = Default::default();
 
@@ -99,11 +104,7 @@ impl Query {
                                 fields_map.insert(param.into(), values);
                             }
                         } else if name == "filter" && !value.is_empty() {
-                            if param == "@type" {
-                                filter_type = Some(value.into());
-                            } else {
-                                filter_map.insert(param.into(), value.to_string());
-                            }
+                            filter_map.insert(param.into(), value.to_string());
                         } else if name == "page" {
                             page_map.insert(param.into(), value.to_string());
                         }
@@ -115,8 +116,7 @@ impl Query {
         let include = if include_query_exist { Some(include_query) } else { None };
         let sort = sort_query;
         let page = PageQuery::new(&page_map)?;
-        let filter =
-            if let Some(ty) = filter_type { FilterQuery::new(&ty, &filter_map)? } else { None };
+        let filter = FilterQuery::new(&self.filter_type, &filter_map)?;
         let query = Query { include, fields: fields_map, sort, page, filter };
         Ok(query)
     }
