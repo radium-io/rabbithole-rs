@@ -32,8 +32,8 @@ fn sort_and_page_test() {
             .try_into()
             .unwrap(),
         page: PageQuery::CursorBased(CursorBasedData {
-            after: Some(Cursor { id: "b".to_string() }),
-            before: None,
+            before: Some(Cursor { id: "b".to_string() }),
+            after: None,
             size: 10,
         }),
         filter: Default::default(),

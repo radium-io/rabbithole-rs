@@ -4,20 +4,14 @@ use crate::RbhResult;
 
 use rsql::Expr;
 
-#[cfg(feature = "filter_rsql")]
 use rsql::parser::rsql::RsqlParser;
-#[cfg(feature = "filter_rsql")]
 use rsql::parser::Parser;
-#[cfg(feature = "filter_rsql")]
 use rsql::Comparison;
-#[cfg(feature = "filter_rsql")]
 use rsql::Constraint;
-#[cfg(feature = "filter_rsql")]
 use rsql::Operator;
 
 use crate::entity::SingleEntity;
 use crate::query::FilterSettings;
-#[cfg(feature = "filter_rsql")]
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
@@ -34,12 +28,6 @@ pub trait FilterData: Sized {
 pub struct RsqlFilterData(HashMap<String, Expr>);
 
 impl FilterData for RsqlFilterData {
-    #[cfg(not(feature = "filter_rsql"))]
-    fn new(_params: &HashMap<String, String>) -> RbhResult<Self> {
-        Err(error::Error::RsqlFilterNotImplemented(None))
-    }
-
-    #[cfg(feature = "filter_rsql")]
     fn new(params: &HashMap<String, String>) -> RbhResult<Self> {
         let mut res: HashMap<String, Expr> = Default::default();
         for (k, v) in params.iter() {
@@ -54,10 +42,6 @@ impl FilterData for RsqlFilterData {
         Ok(RsqlFilterData(res))
     }
 
-    #[cfg(not(feature = "filter_rsql"))]
-    fn filter<E: SingleEntity>(&self, _entities: Vec<E>) -> RbhResult<Vec<E>> { unimplemented!() }
-
-    #[cfg(feature = "filter_rsql")]
     fn filter<E: SingleEntity>(&self, mut entities: Vec<E>) -> RbhResult<Vec<E>> {
         for (ty_or_relat, expr) in &self.0 {
             entities = entities
@@ -79,7 +63,6 @@ impl FilterData for RsqlFilterData {
 }
 
 impl RsqlFilterData {
-    #[cfg(feature = "filter_rsql")]
     pub fn filter_on_attributes<E: SingleEntity>(expr: &Expr, entity: &E) -> RbhResult<bool> {
         let ent: bool = match &expr {
             Expr::Item(Constraint { selector, comparison, arguments }) => {

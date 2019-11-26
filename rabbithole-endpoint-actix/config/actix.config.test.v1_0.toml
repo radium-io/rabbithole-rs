@@ -6,4 +6,6 @@ path = "/api/v1"
 version = "1.0"
 
 [query]
-filter_type = "Rsql"
+default_size = 10
+filter.type = "Rsql"
+page.type = "PageBased"

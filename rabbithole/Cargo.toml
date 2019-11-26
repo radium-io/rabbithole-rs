@@ -14,7 +14,6 @@ license = "MIT"
 
 [features]
 default = []
-filter_rsql = []
 
 [dependencies]
 env_logger = "~0.6"
