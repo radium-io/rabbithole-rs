@@ -38,7 +38,9 @@ impl Fetching for HumanService {
         Ok(OperationResultData { data: self.0.values().cloned().collect(), ..Default::default() })
     }
 
-    async fn fetch_single(&self, id: &str, _uri: &http::Uri, _query: &Query) -> SingleResult<Human> {
+    async fn fetch_single(
+        &self, id: &str, _uri: &http::Uri, _query: &Query,
+    ) -> SingleResult<Human> {
         Ok(OperationResultData { data: self.0.get(id).map(Clone::clone), ..Default::default() })
     }
 
@@ -80,7 +82,9 @@ impl Fetching for HumanService {
 
 #[async_trait]
 impl Creating for HumanService {
-    async fn create(&mut self, data: &ResourceDataWrapper, _uri: &http::Uri) -> SingleResult<Human> {
+    async fn create(
+        &mut self, data: &ResourceDataWrapper, _uri: &http::Uri,
+    ) -> SingleResult<Human> {
         let ResourceDataWrapper { data } = data;
         let id = if !data.id.id.is_empty() {
             if self.0.contains_key(&data.id.id) {

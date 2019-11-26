@@ -27,19 +27,16 @@ lazy_static! {
 fn rsql_test() {
     let rsql_data =
         RsqlFilterData::new(&HashMap::from_iter(vec![("dogs".into(), "name==123".into())]))
-            .unwrap()
             .unwrap();
     assert_eq!(rsql_data.filter(DOGS.clone()).unwrap().len(), 1);
 
     let rsql_data =
         RsqlFilterData::new(&HashMap::from_iter(vec![("dogs".into(), "name!=123".into())]))
-            .unwrap()
             .unwrap();
     assert_eq!(rsql_data.filter(DOGS.clone()).unwrap().len(), 2);
 
     let rsql_data =
         RsqlFilterData::new(&HashMap::from_iter(vec![("dogs".into(), "name==12*".into())]))
-            .unwrap()
             .unwrap();
     assert_eq!(rsql_data.filter(DOGS.clone()).unwrap().len(), 2);
 }

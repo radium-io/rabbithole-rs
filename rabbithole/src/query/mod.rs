@@ -18,9 +18,35 @@ pub type IncludeQuery = HashSet<String>;
 pub type FieldsQuery = HashMap<String, HashSet<String>>;
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct QuerySettings {
-    pub filter_type: String,
+pub struct FilterSettings {
+    #[serde(rename = "type")]
+    pub ty: String,
 }
+
+impl Default for FilterSettings {
+    fn default() -> Self { Self { ty: "Rsql".to_string() } }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct PageSettings {
+    #[serde(rename = "type")]
+    pub ty: String,
+}
+
+impl Default for PageSettings {
+    fn default() -> Self { Self { ty: "OffsetBased".to_string() } }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct QuerySettings {
+    #[serde(default = "default_size")]
+    pub default_size: usize,
+    #[serde(default)]
+    pub filter: FilterSettings,
+    #[serde(default)]
+    pub page: PageSettings,
+}
+fn default_size() -> usize { 10 }
 
 #[derive(Debug, Default)]
 pub struct Query {
@@ -41,8 +67,8 @@ pub struct Query {
     ///   2. some values, but none of the values matches: like branch 1
     ///   3. some values, and some of the items matches: sorting result with the order of the matched sort-query item
     pub sort: SortQuery,
-    pub page: Option<PageQuery>,
-    pub filter: Option<FilterQuery>,
+    pub page: PageQuery,
+    pub filter: FilterQuery,
 }
 
 lazy_static! {
@@ -115,8 +141,8 @@ impl QuerySettings {
 
         let include = if include_query_exist { Some(include_query) } else { None };
         let sort = sort_query;
-        let page = PageQuery::new(&page_map)?;
-        let filter = FilterQuery::new(&self.filter_type, &filter_map)?;
+        let page = PageQuery::new(&self, &page_map)?;
+        let filter = FilterQuery::new(&self.filter, &filter_map)?;
         let query = Query { include, fields: fields_map, sort, page, filter };
         Ok(query)
     }
