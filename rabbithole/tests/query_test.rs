@@ -32,14 +32,14 @@ fn sort_and_page_test() {
             .try_into()
             .unwrap(),
         page: PageQuery::CursorBased(CursorBasedData {
-            before: Some(Cursor { id: "b".to_string() }),
-            after: None,
+            after: Some(Cursor { id: "b".to_string() }),
+            before: None,
             size: 10,
         }),
         filter: Default::default(),
     };
 
-    let uri = "sort=-name,-age&page[cursor]=<some-base64>";
+    let uri = "sort=-name,-age&page[before]=<some-base64>&page[size]=10";
     let uri = percent_encode(uri.as_bytes(), NON_ALPHANUMERIC);
     let uri = format!("/dogs?{}", uri.to_string());
 

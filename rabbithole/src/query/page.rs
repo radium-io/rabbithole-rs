@@ -37,45 +37,45 @@ impl ToString for Cursor {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct CursorBasedData {
-    pub before: Option<Cursor>,
     pub after: Option<Cursor>,
+    pub before: Option<Cursor>,
     pub size: usize,
 }
 
 impl CursorBasedData {
     pub fn new(settings: &QuerySettings, params: &HashMap<String, String>) -> RbhResult<Self> {
-        let before = if let Some(before) = params.get("before") {
-            Some(before.parse::<Cursor>()?)
-        } else {
-            None
-        };
         let after = if let Some(after) = params.get("after") {
             Some(after.parse::<Cursor>()?)
         } else {
             None
         };
-        Ok(Self { before, after, size: settings.default_size })
+        let before = if let Some(before) = params.get("before") {
+            Some(before.parse::<Cursor>()?)
+        } else {
+            None
+        };
+        Ok(Self { after, before, size: settings.default_size })
     }
 }
 
 impl PageData for CursorBasedData {
     fn page<E: SingleEntity>(&self, entities: &[E]) -> RbhResult<(usize, usize)> {
-        let before_opt =
-            self.before.as_ref().and_then(|cur| entities.iter().position(|r| r.id() == cur.id));
         let after_opt =
             self.after.as_ref().and_then(|cur| entities.iter().position(|r| r.id() == cur.id));
+        let before_opt =
+            self.before.as_ref().and_then(|cur| entities.iter().position(|r| r.id() == cur.id));
 
-        match (before_opt, after_opt) {
-            (Some(before), Some(after)) if before >= after => {
+        match (after_opt, before_opt) {
+            (Some(after), Some(before)) if after >= before => {
                 Err(error::Error::BaforeAndAfterCursorNotMatch(None))
             },
             // When the gap between `after` and `before` is larger than `size`
-            (Some(before), Some(after)) if after - before > self.size + 1 => {
-                Ok((before + 1, before + 1 + self.size))
+            (Some(after), Some(before)) if before - after > self.size + 1 => {
+                Ok((after + 1, after + 1 + self.size))
             },
-            (Some(before), Some(after)) => Ok((before + 1, after)),
-            (Some(before), None) => Ok((before + 1, before + 1 + self.size)),
-            (None, Some(after)) => Ok((after - self.size, after)),
+            (Some(after), Some(before)) => Ok((after + 1, before)),
+            (Some(after), None) => Ok((after + 1, after + 1 + self.size)),
+            (None, Some(before)) => Ok((before - self.size, before)),
             (None, None) => Ok((0, self.size)),
         }
     }

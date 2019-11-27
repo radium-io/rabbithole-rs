@@ -87,8 +87,8 @@ fn overflow_page_based_page_test() {
 fn cursor_based_test() {
     let dogs = DOGS.clone();
     let page = PageQuery::CursorBased(CursorBasedData {
-        before: Some(Cursor { id: "a".into() }),
-        after: None,
+        after: Some(Cursor { id: "a".into() }),
+        before: None,
         size: 1,
     });
     let slice = page.page(&dogs).unwrap();
@@ -96,8 +96,8 @@ fn cursor_based_test() {
     assert_eq!(slice[0].id(), "b");
 
     let page = PageQuery::CursorBased(CursorBasedData {
-        after: Some(Cursor { id: "b".into() }),
-        before: None,
+        before: Some(Cursor { id: "b".into() }),
+        after: None,
         size: 1,
     });
     let slice = page.page(&dogs).unwrap();
@@ -105,8 +105,8 @@ fn cursor_based_test() {
     assert_eq!(slice[0].id(), "a");
 
     let page = PageQuery::CursorBased(CursorBasedData {
-        before: Some(Cursor { id: "b".into() }),
-        after: None,
+        after: Some(Cursor { id: "b".into() }),
+        before: None,
         size: 2,
     });
     let slice = page.page(&dogs).unwrap();
@@ -114,8 +114,8 @@ fn cursor_based_test() {
     assert_eq!(slice[0].id(), "c");
 
     let page = PageQuery::CursorBased(CursorBasedData {
-        after: Some(Cursor { id: "c".into() }),
-        before: None,
+        before: Some(Cursor { id: "c".into() }),
+        after: None,
         size: 2,
     });
     let slice = page.page(&dogs).unwrap();
@@ -131,8 +131,8 @@ fn cursor_based_test() {
     assert_eq!(slice[2].id(), "c");
 
     let page = PageQuery::CursorBased(CursorBasedData {
-        after: Some(Cursor { id: "c".into() }),
-        before: Some(Cursor { id: "a".into() }),
+        before: Some(Cursor { id: "c".into() }),
+        after: Some(Cursor { id: "a".into() }),
         size: 100,
     });
     let slice = page.page(&dogs).unwrap();
@@ -140,8 +140,8 @@ fn cursor_based_test() {
     assert_eq!(slice[0].id(), "b");
 
     let page = PageQuery::CursorBased(CursorBasedData {
-        after: Some(Cursor { id: "a".into() }),
-        before: Some(Cursor { id: "c".into() }),
+        before: Some(Cursor { id: "a".into() }),
+        after: Some(Cursor { id: "c".into() }),
         size: 100,
     });
     let slice = page.page(&dogs);
