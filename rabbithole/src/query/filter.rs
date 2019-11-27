@@ -15,7 +15,7 @@ use crate::query::FilterSettings;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
-pub trait FilterData: Sized {
+pub trait FilterData: Sized + ToString {
     fn new(params: &HashMap<String, String>) -> RbhResult<Self>;
 
     fn filter<E: SingleEntity>(&self, entities: Vec<E>) -> RbhResult<Vec<E>>;

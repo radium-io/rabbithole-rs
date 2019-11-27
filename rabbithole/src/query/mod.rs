@@ -8,8 +8,9 @@ use crate::RbhResult;
 
 use crate::query::filter::FilterQuery;
 use crate::query::page::PageQuery;
-use crate::query::sort::SortQuery;
+use crate::query::sort::{OrderType, SortQuery};
 
+use itertools::Itertools;
 use percent_encoding::percent_decode_str;
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
@@ -69,6 +70,37 @@ pub struct Query {
     pub sort: SortQuery,
     pub page: PageQuery,
     pub filter: FilterQuery,
+}
+
+impl ToString for Query {
+    fn to_string(&self) -> String {
+        let include_query =
+            self.include.map(|q| format!("include={}", q.iter().join(","))).unwrap_or_default();
+        let fields_query: Vec<String> = self
+            .fields
+            .iter()
+            .filter(|(k, v)| !v.is_empty())
+            .map(|(k, v)| format!("fields[{}]={}", k, v.iter().join(",")))
+            .collect();
+        let sort_query: Vec<String> = self
+            .sort
+            .0
+            .iter()
+            .map(|(k, ty)| {
+                let ty_str = match ty {
+                    OrderType::Asc => "",
+                    OrderType::Desc => "-",
+                };
+                format!("{}{}", ty_str, k)
+            })
+            .collect();
+        let page_query = self.page.to_string();
+        let filter_query = self.filter.to_string();
+        let mut vec = vec![include_query, page_query, filter_query];
+        vec.extend(fields_query);
+        vec.extend(sort_query);
+        vec.join("&")
+    }
 }
 
 lazy_static! {
