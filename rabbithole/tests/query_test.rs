@@ -44,7 +44,7 @@ fn sort_and_page_test() {
     let uri = format!("/dogs?{}", uri.to_string());
 
     query.sort.sort(&mut dogs);
-    let dogs = query.page.page(&dogs).unwrap();
+    let (dogs, _) = query.page.page(&dogs).unwrap();
 
     let doc = dogs
         .to_document(

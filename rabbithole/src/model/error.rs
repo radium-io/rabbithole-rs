@@ -193,6 +193,13 @@ rabbithole_errors! {
     detail: "Comparison `{comparison:?}` with {param_cnt} parameter(s) is not supported now",
     param: [comparison: &[String], param_cnt: usize,];
 
+    ty: InvalidPageSize,
+    status: http::StatusCode::NOT_ACCEPTABLE,
+    code: "RBH-0108",
+    title: "Invalid Page Size",
+    detail: "The page size should larger then zero",
+    param: [];
+
     ty: InvalidJsonApiVersion,
     status: http::StatusCode::NOT_ACCEPTABLE,
     code: "RBH-0201",

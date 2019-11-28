@@ -12,6 +12,7 @@ use rsql::Operator;
 
 use crate::entity::SingleEntity;
 use crate::query::FilterSettings;
+use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
@@ -26,6 +27,12 @@ pub trait FilterData: Sized + ToString {
 /// where key is self type or relationship name
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Default)]
 pub struct RsqlFilterData(HashMap<String, Expr>);
+
+impl ToString for RsqlFilterData {
+    fn to_string(&self) -> String {
+        self.0.iter().map(|(k, v)| format!("filter[{}]={}", k, v.to_string())).join("&")
+    }
+}
 
 impl FilterData for RsqlFilterData {
     fn new(params: &HashMap<String, String>) -> RbhResult<Self> {
@@ -102,7 +109,7 @@ impl RsqlFilterData {
                             .is_none()
                     } else {
                         return Err(error::Error::UnsupportedRsqlComparison(
-                            &comparison.symbols,
+                            &comparison.get_symbols(),
                             arguments.0.len(),
                             None,
                         ));
@@ -126,6 +133,14 @@ impl RsqlFilterData {
 #[derive(Debug)]
 pub enum FilterQuery {
     Rsql(RsqlFilterData),
+}
+
+impl ToString for FilterQuery {
+    fn to_string(&self) -> String {
+        match &self {
+            FilterQuery::Rsql(data) => data.to_string(),
+        }
+    }
 }
 
 impl Default for FilterQuery {

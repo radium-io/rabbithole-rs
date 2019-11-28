@@ -74,12 +74,15 @@ pub struct Query {
 
 impl ToString for Query {
     fn to_string(&self) -> String {
-        let include_query =
-            self.include.map(|q| format!("include={}", q.iter().join(","))).unwrap_or_default();
+        let include_query = self
+            .include
+            .as_ref()
+            .map(|q| format!("include={}", q.iter().join(",")))
+            .unwrap_or_default();
         let fields_query: Vec<String> = self
             .fields
             .iter()
-            .filter(|(k, v)| !v.is_empty())
+            .filter(|(_, v)| !v.is_empty())
             .map(|(k, v)| format!("fields[{}]={}", k, v.iter().join(",")))
             .collect();
         let sort_query: Vec<String> = self
@@ -177,5 +180,37 @@ impl QuerySettings {
         let filter = FilterQuery::new(&self.filter, &filter_map)?;
         let query = Query { include, fields: fields_map, sort, page, filter };
         Ok(query)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::query::QuerySettings;
+    use percent_encoding::{percent_encode, AsciiSet, NON_ALPHANUMERIC};
+
+    static CHAR_SET: AsciiSet = NON_ALPHANUMERIC.remove(b'&');
+
+    #[test]
+    fn to_string_test() {
+        let query = percent_encode(
+            b"filter[book]=publishDate>1454638927411,genre=out=('\
+                              Literary Fiction','Science \
+                              Fiction')&include=authors&fields[book]=title,authors&\
+                              fields[author]=name&page[offset]=3&page[limit]=2",
+            &CHAR_SET,
+        )
+        .to_string();
+        let uri: http::Uri = format!("/author/1?{}", query).parse().unwrap();
+        let settings = QuerySettings {
+            default_size: 10,
+            filter: Default::default(),
+            page: Default::default(),
+        };
+        match settings.parse_uri(&uri) {
+            Ok(query_data) => {
+                assert_eq!(query.split('&').count(), query_data.to_string().split('&').count())
+            },
+            Err(err) => unreachable!("error: {}", err),
+        }
     }
 }

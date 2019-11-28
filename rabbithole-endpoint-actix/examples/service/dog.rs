@@ -43,14 +43,14 @@ impl Operation for DogService {
 
 #[async_trait]
 impl Fetching for DogService {
-    async fn fetch_collection(&self, uri: &http::Uri, query: &Query) -> CollectionResult<Dog> {
+    async fn fetch_collection(&self, _uri: &http::Uri, query: &Query) -> CollectionResult<Dog> {
         eprintln!("query: {:?}", query);
         let mut data: Vec<Dog> = self.0.values().cloned().collect();
         query.sort.sort(&mut data);
         let data = query.filter.filter(data)?;
-        let (data, relat_pages) = query.page.page(&data)?;
+        let (data, _relat_pages) = query.page.page(&data)?;
         let data = data.to_vec();
-        Ok(OperationResultData { data, additional_links: page_links, ..Default::default() })
+        Ok(OperationResultData { data, ..Default::default() })
     }
 
     async fn fetch_single(&self, id: &str, _uri: &http::Uri, _query: &Query) -> SingleResult<Dog> {
