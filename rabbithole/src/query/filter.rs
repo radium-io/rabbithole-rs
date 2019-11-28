@@ -25,7 +25,7 @@ pub trait FilterData: Sized + ToString {
 /// Example:
 /// `?include=authors&filter[book]=title==*Foo*&filter[author]=name!='Orson Scott Card'`
 /// where key is self type or relationship name
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Default)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Default, Clone)]
 pub struct RsqlFilterData(HashMap<String, Expr>);
 
 impl ToString for RsqlFilterData {
@@ -130,7 +130,7 @@ impl RsqlFilterData {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FilterQuery {
     Rsql(RsqlFilterData),
 }

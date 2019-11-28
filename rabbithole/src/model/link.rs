@@ -12,13 +12,15 @@ use std::str::FromStr;
 pub type Links = HashMap<String, Link>;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct RawUri(http::Uri);
+pub struct RawUri(pub(crate) http::Uri);
 
 impl RawUri {
     fn append_to(self, base_url: &str) -> RawUri {
         let base = base_url.parse::<url::Url>().unwrap().join(&self.0.to_string()).unwrap();
         RawUri(base.to_string().parse::<http::Uri>().unwrap())
     }
+
+    pub fn query(&self) -> Option<&str> { self.0.query() }
 }
 
 impl FromStr for RawUri {
@@ -53,9 +55,9 @@ pub enum Link {
 }
 
 impl Link {
-    pub fn slf(url: &str, link: RawUri) -> (String, Link) {
-        ("self".into(), link.append_to(url).into())
-    }
+    pub fn new(uri: &str, path: RawUri) -> Link { path.append_to(uri).into() }
+
+    pub fn slf(uri: &str, path: RawUri) -> (String, Link) { ("self".into(), Link::new(uri, path)) }
 }
 
 impl Serialize for RawUri {

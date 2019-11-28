@@ -136,13 +136,19 @@ rabbithole_errors! {
     detail: "An error found when parsing JSON: {invalid}",
     param: [invalid: &serde_json::Error,];
 
-
     ty: RelationshipPathNotSupported,
     status: http::StatusCode::BAD_REQUEST,
     code: "RBH-0004",
     title: "Relationship Path Not Supported",
     detail: "The relationship path in Query `{relat_path}` is not supported yet",
     param: [relat_path: &str,];
+
+    ty: InvalidUri,
+    status: http::StatusCode::BAD_REQUEST,
+    code: "RBH-0005",
+    title: "Invalid URI",
+    detail: "Failed when parsing URI: {}",
+    param: [error: &http::Error,];
 
     ty: InvalidPaginationType,
     status: http::StatusCode::NOT_ACCEPTABLE,

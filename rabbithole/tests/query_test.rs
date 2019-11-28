@@ -36,7 +36,7 @@ fn sort_and_page_test() {
             before: None,
             size: 10,
         }),
-        filter: Default::default(),
+        ..Default::default()
     };
 
     let uri = "sort=-name,-age&page[before]=<some-base64>&page[size]=10";

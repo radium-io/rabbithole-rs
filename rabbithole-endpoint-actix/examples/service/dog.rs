@@ -11,6 +11,7 @@ use rabbithole::model::resource::AttributeField;
 use rabbithole::query::Query;
 
 use futures::lock::Mutex;
+use rabbithole::model::link::RawUri;
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -43,23 +44,25 @@ impl Operation for DogService {
 
 #[async_trait]
 impl Fetching for DogService {
-    async fn fetch_collection(&self, _uri: &http::Uri, query: &Query) -> CollectionResult<Dog> {
-        eprintln!("query: {:?}", query);
-        let mut data: Vec<Dog> = self.0.values().cloned().collect();
-        query.sort.sort(&mut data);
-        let data = query.filter.filter(data)?;
-        let (data, _relat_pages) = query.page.page(&data)?;
-        let data = data.to_vec();
-        Ok(OperationResultData { data, ..Default::default() })
+    async fn fetch_collection(
+        &self, uri: &str, path: &RawUri, query: &Query,
+    ) -> CollectionResult<Dog> {
+        let data: Vec<Dog> = self.0.values().cloned().collect();
+        let (data, links) = query.query(data, uri, path)?;
+        Ok(OperationResultData { data, additional_links: links, ..Default::default() })
     }
 
-    async fn fetch_single(&self, id: &str, _uri: &http::Uri, _query: &Query) -> SingleResult<Dog> {
+    async fn fetch_single(
+        &self, id: &str, _uri: &str, _path: &RawUri, _query: &Query,
+    ) -> SingleResult<Dog> {
         Ok(OperationResultData { data: self.0.get(id).map(Clone::clone), ..Default::default() })
     }
 }
 #[async_trait]
 impl Creating for DogService {
-    async fn create(&mut self, data: &ResourceDataWrapper, _uri: &http::Uri) -> SingleResult<Dog> {
+    async fn create(
+        &mut self, data: &ResourceDataWrapper, _uri: &str, _path: &RawUri,
+    ) -> SingleResult<Dog> {
         let ResourceDataWrapper { data } = data;
         let id = if !data.id.id.is_empty() {
             if self.0.contains_key(&data.id.id) {
@@ -84,7 +87,7 @@ impl Creating for DogService {
 #[async_trait]
 impl Updating for DogService {
     async fn update_resource(
-        &mut self, id: &str, data: &ResourceDataWrapper, _uri: &http::Uri,
+        &mut self, id: &str, data: &ResourceDataWrapper, _uri: &str, _path: &RawUri,
     ) -> SingleResult<Dog> {
         if let Some(mut dog) = self.get_by_id(id) {
             let ResourceDataWrapper { data } = data;
@@ -104,7 +107,7 @@ impl Updating for DogService {
 }
 #[async_trait]
 impl Deleting for DogService {
-    async fn delete_resource(&mut self, id: &str, _uri: &http::Uri) -> OperationResult<()> {
+    async fn delete_resource(&mut self, id: &str, _uri: &str, _path: &RawUri) -> OperationResult<()> {
         self.0.remove(id);
         Ok(OperationResultData { data: (), ..Default::default() })
     }

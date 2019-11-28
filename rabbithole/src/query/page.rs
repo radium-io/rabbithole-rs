@@ -4,13 +4,13 @@ use crate::entity::SingleEntity;
 use crate::query::QuerySettings;
 use crate::RbhResult;
 use itertools::Itertools;
+use num_integer::Integer;
 use std::collections::HashMap;
 use std::hash::BuildHasher;
 use std::iter::Step;
-
 use std::str::FromStr;
 
-pub trait PageData: Sized + ToString {
+pub trait PageData: Sized + ToString + Into<PageQuery> + Clone {
     fn page<E: SingleEntity>(
         &self, entities: &[E],
     ) -> RbhResult<(usize, usize, RelativePages<Self>)>;
@@ -24,7 +24,9 @@ pub struct RelativePages<P: PageData> {
     pub next: Option<P>,
 }
 
-impl<P: PageData, S: Default + BuildHasher> From<RelativePages<P>> for HashMap<String, String, S> {
+impl<P: PageData, S: Default + BuildHasher> From<RelativePages<P>>
+    for HashMap<String, PageQuery, S>
+{
     fn from(relat_pages: RelativePages<P>) -> Self {
         vec![
             ("first", relat_pages.first.as_ref()),
@@ -33,7 +35,7 @@ impl<P: PageData, S: Default + BuildHasher> From<RelativePages<P>> for HashMap<S
             ("next", relat_pages.next.as_ref()),
         ]
         .into_iter()
-        .filter_map(|(k, v)| v.map(|vv| (k.to_string(), vv.to_string())))
+        .filter_map(|(k, v)| v.map(|vv| (k.to_string(), vv.clone().into())))
         .collect()
     }
 }
@@ -111,6 +113,10 @@ impl CursorBasedData {
     }
 }
 
+impl From<CursorBasedData> for PageQuery {
+    fn from(data: CursorBasedData) -> Self { PageQuery::CursorBased(data) }
+}
+
 impl PageData for CursorBasedData {
     fn page<E: SingleEntity>(
         &self, entities: &[E],
@@ -166,6 +172,10 @@ impl OffsetBasedData {
     }
 }
 
+impl From<OffsetBasedData> for PageQuery {
+    fn from(data: OffsetBasedData) -> Self { PageQuery::OffsetBased(data) }
+}
+
 impl PageData for OffsetBasedData {
     fn page<E: SingleEntity>(
         &self, entities: &[E],
@@ -211,6 +221,10 @@ impl PageBasedData {
     }
 }
 
+impl From<PageBasedData> for PageQuery {
+    fn from(data: PageBasedData) -> Self { PageQuery::PageBased(data) }
+}
+
 impl PageData for PageBasedData {
     fn page<E: SingleEntity>(
         &self, entities: &[E],
@@ -222,7 +236,7 @@ impl PageData for PageBasedData {
         let start = (self.number * self.size).min(entities.len());
         let end = ((self.number + 1) * self.size).min(entities.len());
 
-        let max_page = entities.len() / self.size;
+        let max_page = entities.len().div_ceil(&self.size).sub_usize(1).unwrap_or_default();
 
         let first = Some(PageBasedData { number: 0, size: self.size });
         let last = Some(PageBasedData { number: max_page, size: self.size });
@@ -236,7 +250,7 @@ impl PageData for PageBasedData {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PageQuery {
     OffsetBased(OffsetBasedData),
     PageBased(PageBasedData),
@@ -271,7 +285,7 @@ impl PageQuery {
 
     pub fn page<'a, E: SingleEntity>(
         &'a self, entities: &'a [E],
-    ) -> RbhResult<(&'a [E], HashMap<String, String>)> {
+    ) -> RbhResult<(&'a [E], HashMap<String, PageQuery>)> {
         let (start, end, relat_pages) = match self {
             PageQuery::OffsetBased(data) => {
                 let (start, end, relat_pages) = data.page(entities)?;
