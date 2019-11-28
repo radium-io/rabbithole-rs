@@ -12,6 +12,7 @@ use crate::query::sort::{OrderType, SortQuery};
 
 use itertools::Itertools;
 use percent_encoding::percent_decode_str;
+use percent_encoding::{percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 
@@ -43,11 +44,24 @@ pub struct QuerySettings {
     #[serde(default = "default_size")]
     pub default_size: usize,
     #[serde(default)]
+    pub raw_encode: bool,
+    #[serde(default)]
     pub filter: FilterSettings,
     #[serde(default)]
     pub page: PageSettings,
 }
 fn default_size() -> usize { 10 }
+
+impl Default for QuerySettings {
+    fn default() -> Self {
+        Self {
+            default_size: default_size(),
+            raw_encode: Default::default(),
+            filter: Default::default(),
+            page: Default::default(),
+        }
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct Query {
@@ -108,10 +122,20 @@ impl ToString for Query {
 
 lazy_static! {
     static ref KEY_REGEX: Regex = Regex::new(r#"(?P<name>\w+)\[(?P<param>[\w\-_@]+)\]"#).unwrap();
+    static ref CHAR_SET: AsciiSet = NON_ALPHANUMERIC.remove(b'=').remove(b'&');
 }
 
 impl QuerySettings {
-    pub fn parse_uri(&self, uri: &http::Uri) -> RbhResult<Query> {
+    pub fn encode_uri(&self, query: &Query) -> String {
+        let query_str = query.to_string();
+        if self.raw_encode {
+            query_str
+        } else {
+            percent_encode(query_str.as_bytes(), &CHAR_SET).to_string()
+        }
+    }
+
+    pub fn decode_uri(&self, uri: &http::Uri) -> RbhResult<Query> {
         let mut include_query: IncludeQuery = Default::default();
         let mut include_query_exist = false;
         let mut sort_query: SortQuery = Default::default();
@@ -185,10 +209,8 @@ impl QuerySettings {
 
 #[cfg(test)]
 mod tests {
-    use crate::query::QuerySettings;
-    use percent_encoding::{percent_encode, AsciiSet, NON_ALPHANUMERIC};
-
-    static CHAR_SET: AsciiSet = NON_ALPHANUMERIC.remove(b'&');
+    use crate::query::{QuerySettings, CHAR_SET};
+    use percent_encoding::percent_encode;
 
     #[test]
     fn to_string_test() {
@@ -201,15 +223,12 @@ mod tests {
         )
         .to_string();
         let uri: http::Uri = format!("/author/1?{}", query).parse().unwrap();
-        let settings = QuerySettings {
-            default_size: 10,
-            filter: Default::default(),
-            page: Default::default(),
-        };
-        match settings.parse_uri(&uri) {
-            Ok(query_data) => {
-                assert_eq!(query.split('&').count(), query_data.to_string().split('&').count())
-            },
+        let settings = QuerySettings { default_size: 10, ..Default::default() };
+        match settings.decode_uri(&uri) {
+            Ok(query_data) => assert_eq!(
+                query.split('&').count(),
+                settings.encode_uri(&query_data).split('&').count()
+            ),
             Err(err) => unreachable!("error: {}", err),
         }
     }

@@ -181,7 +181,7 @@ impl ActixSettings {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return Ok(err_resp);
         }
-        match this.query.parse_uri(req.uri()) {
+        match this.query.decode_uri(req.uri()) {
             Ok(query) => match service.lock().await.fetch_collection(&req.uri(), &query).await {
                 Ok(OperationResultData { data, additional_links, additional_meta }) => {
                     match data.to_document(
@@ -212,7 +212,7 @@ impl ActixSettings {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return Ok(err_resp);
         }
-        match this.query.parse_uri(req.uri()) {
+        match this.query.decode_uri(req.uri()) {
             Ok(query) => {
                 match service
                     .lock()
@@ -251,7 +251,7 @@ impl ActixSettings {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return Ok(err_resp);
         }
-        match this.query.parse_uri(req.uri()) {
+        match this.query.decode_uri(req.uri()) {
             Ok(query) => {
                 let (id, related_field) = param.into_inner();
                 match service
@@ -284,7 +284,7 @@ impl ActixSettings {
             return Ok(err_resp);
         }
 
-        match this.query.parse_uri(req.uri()) {
+        match this.query.decode_uri(req.uri()) {
             Ok(query) => {
                 let (id, related_field) = param.into_inner();
                 match service
