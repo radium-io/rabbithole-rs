@@ -38,10 +38,6 @@ pub struct PageSettings {
     pub ty: String,
 }
 
-impl Default for PageSettings {
-    fn default() -> Self { Self { ty: "OffsetBased".to_string() } }
-}
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct QuerySettings {
     #[serde(default = "default_size")]
@@ -51,7 +47,7 @@ pub struct QuerySettings {
     #[serde(default)]
     pub filter: FilterSettings,
     #[serde(default)]
-    pub page: PageSettings,
+    pub page: Option<PageSettings>,
 }
 fn default_size() -> usize { 10 }
 
@@ -86,7 +82,7 @@ pub struct Query {
     ///   2. some values, but none of the values matches: like branch 1
     ///   3. some values, and some of the items matches: sorting result with the order of the matched sort-query item
     pub sort: SortQuery,
-    pub page: PageQuery,
+    pub page: Option<PageQuery>,
     pub filter: FilterQuery,
 }
 
@@ -96,11 +92,15 @@ impl Query {
     ) -> RbhResult<(Vec<E>, Links)> {
         self.sort.sort(&mut data);
         let data = self.filter.filter(data)?;
-        let (data, relat_pages) = self.page.page(&data)?;
+        let (data, relat_pages) = if let Some(page) = &self.page {
+            page.page(&data)?
+        } else {
+            (data.as_slice(), Default::default())
+        };
         let relat_pages: RbhResult<Links> = relat_pages
             .into_iter()
             .map(|(k, v)| {
-                let relat_query = Query { page: v, ..self.clone() };
+                let relat_query = Query { page: Some(v), ..self.clone() };
                 self.settings
                     .encode_path(path, &relat_query)
                     .map(|path| Link::new(uri, path))
@@ -136,7 +136,7 @@ impl ToString for Query {
                 format!("{}{}", ty_str, k)
             })
             .join(",");
-        let page_query = self.page.to_string();
+        let page_query = self.page.as_ref().map(ToString::to_string).unwrap_or_default();
         let filter_query = self.filter.to_string();
         let mut vec = vec![include_query, page_query, filter_query];
         if !sort_query.is_empty() {
@@ -230,13 +230,17 @@ impl QuerySettings {
                 }
             }
         }
-
         let include = if include_query_exist { Some(include_query) } else { None };
         let sort = sort_query;
-        let page = PageQuery::new(&self, &page_map)?;
+        let page = if let Some(_page_settings) = self.page.as_ref() {
+            Some(PageQuery::new(&self, &page_map)?)
+        } else {
+            None
+        };
         let filter = FilterQuery::new(&self.filter, &filter_map)?;
         let query =
             Query { settings: self.clone(), include, fields: fields_map, sort, page, filter };
+
         Ok(query)
     }
 }
@@ -244,7 +248,7 @@ impl QuerySettings {
 #[cfg(test)]
 mod tests {
     use crate::model::link::RawUri;
-    use crate::query::{QuerySettings, CHAR_SET};
+    use crate::query::{PageSettings, QuerySettings, CHAR_SET};
     use percent_encoding::percent_encode;
 
     #[test]
@@ -258,7 +262,11 @@ mod tests {
         )
         .to_string();
         let uri: RawUri = format!("/author/1?{}", query).parse().unwrap();
-        let settings = QuerySettings { default_size: 10, ..Default::default() };
+        let settings = QuerySettings {
+            default_size: 10,
+            page: Some(PageSettings { ty: "OffsetBased".into() }),
+            ..Default::default()
+        };
 
         match settings.decode_path(&uri) {
             Ok(query_data) => assert_eq!(

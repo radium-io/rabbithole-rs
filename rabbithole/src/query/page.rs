@@ -255,11 +255,6 @@ pub enum PageQuery {
     OffsetBased(OffsetBasedData),
     PageBased(PageBasedData),
     CursorBased(CursorBasedData),
-    None,
-}
-
-impl Default for PageQuery {
-    fn default() -> Self { Self::None }
 }
 
 impl ToString for PageQuery {
@@ -268,18 +263,21 @@ impl ToString for PageQuery {
             PageQuery::OffsetBased(data) => data.to_string(),
             PageQuery::PageBased(data) => data.to_string(),
             PageQuery::CursorBased(data) => data.to_string(),
-            PageQuery::None => Default::default(),
         }
     }
 }
 
 impl PageQuery {
     pub fn new(settings: &QuerySettings, params: &HashMap<String, String>) -> RbhResult<PageQuery> {
-        match settings.page.ty.as_str() {
-            "OffsetBased" => Ok(Self::OffsetBased(OffsetBasedData::new(&settings, params)?)),
-            "PageBased" => Ok(Self::PageBased(PageBasedData::new(&settings, params)?)),
-            "CursorBased" => Ok(Self::CursorBased(CursorBasedData::new(&settings, params)?)),
-            _ => Err(error::Error::InvalidPaginationType(&settings.page.ty, None)),
+        if let Some(page_settings) = settings.page.as_ref() {
+            match page_settings.ty.as_str() {
+                "OffsetBased" => Ok(Self::OffsetBased(OffsetBasedData::new(&settings, params)?)),
+                "PageBased" => Ok(Self::PageBased(PageBasedData::new(&settings, params)?)),
+                "CursorBased" => Ok(Self::CursorBased(CursorBasedData::new(&settings, params)?)),
+                _ => Err(error::Error::InvalidPaginationType(&page_settings.ty, None)),
+            }
+        } else {
+            Err(error::Error::InvalidPaginationType(&"None", None))
         }
     }
 
@@ -299,7 +297,6 @@ impl PageQuery {
                 let (start, end, relat_pages) = data.page(entities)?;
                 (start, end, relat_pages.into())
             },
-            PageQuery::None => (0, entities.len(), Default::default()),
         };
 
         Ok((&entities[start.max(0) .. end.min(entities.len())], relat_pages))

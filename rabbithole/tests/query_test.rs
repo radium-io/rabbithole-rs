@@ -31,11 +31,11 @@ fn sort_and_page_test() {
         sort: vec![("name".into(), OrderType::Desc), ("age".into(), OrderType::Desc)]
             .try_into()
             .unwrap(),
-        page: PageQuery::CursorBased(CursorBasedData {
+        page: Some(PageQuery::CursorBased(CursorBasedData {
             after: Some(Cursor { id: "b".to_string() }),
             before: None,
             size: 10,
-        }),
+        })),
         ..Default::default()
     };
 
@@ -44,7 +44,7 @@ fn sort_and_page_test() {
     let uri = format!("/dogs?{}", uri.to_string());
 
     query.sort.sort(&mut dogs);
-    let (dogs, _) = query.page.page(&dogs).unwrap();
+    let (dogs, _) = query.page.as_ref().unwrap().page(&dogs).unwrap();
 
     let doc = dogs
         .to_document(

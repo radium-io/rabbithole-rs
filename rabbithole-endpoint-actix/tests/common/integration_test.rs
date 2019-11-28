@@ -1,26 +1,19 @@
 use actix_web::http::StatusCode;
-use actix_web::web;
 
 use crate::{init_app, send_request};
 use actix_http_test::block_on;
 
 use crate::model::dog::{generate_dogs, Dog};
 use crate::model::human::Human;
-use rabbithole::model::document::{Document, DocumentItem};
+use rabbithole::model::document::DocumentItem;
 use rabbithole::model::resource::{AttributeField, Attributes, IdentifierData, ResourceIdentifier};
 
-use actix_http::encoding::Decoder;
-use actix_http::Payload;
-use actix_web::client::ClientResponse;
+use crate::common::resp_to_doc;
+
 use rabbithole::operation::{IdentifierDataWrapper, ResourceDataWrapper};
+
 use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
-
-async fn resp_to_doc(mut resp: ClientResponse<Decoder<Payload>>) -> Document {
-    let bytes = resp.body().await.unwrap();
-    let body = String::from_utf8(Vec::from(bytes.as_ref())).unwrap();
-    serde_json::from_str(&body).unwrap()
-}
 
 #[test]
 #[allow(clippy::cognitive_complexity)]

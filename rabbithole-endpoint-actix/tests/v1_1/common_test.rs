@@ -2,7 +2,7 @@ use crate::init_app;
 use actix_http_test::block_on;
 
 use actix_web::http::{header, StatusCode};
-use actix_web::web;
+
 use rabbithole::JSON_API_HEADER;
 #[test]
 /// https://jsonapi.org/format/1.1/#content-negotiation-servers
