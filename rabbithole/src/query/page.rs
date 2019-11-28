@@ -143,9 +143,15 @@ impl PageData for CursorBasedData {
             (None, Some(before)) => (before.sub_usize(self.size).unwrap_or_default(), before),
             (None, None) => (0, self.size),
         };
-        let prev = entities.get(from).map(|e| self.parse_entity(e, false));
-        let next =
-            entities.get(to.sub_usize(1).unwrap_or_default()).map(|e| self.parse_entity(e, true));
+        let (from, to) = (from.max(0), to.min(entities.len()));
+
+        let prev =
+            if from != 0 { entities.get(from).map(|e| self.parse_entity(e, false)) } else { None };
+        let next = if to != entities.len() {
+            entities.get(to.sub_usize(1).unwrap_or_default()).map(|e| self.parse_entity(e, true))
+        } else {
+            None
+        };
         Ok((from, to, RelativePages { first: None, last: None, prev, next }))
     }
 }
@@ -182,7 +188,7 @@ impl PageData for OffsetBasedData {
     fn page<E: SingleEntity>(
         &self, entities: &[E],
     ) -> RbhResult<(usize, usize, RelativePages<Self>)> {
-        let start = self.offset.min(entities.len());
+        let start = self.offset.min(entities.len()).max(0);
         let end = (self.offset + self.limit).min(entities.len());
         let first = Some(OffsetBasedData { offset: 0, limit: self.limit });
         let last = Some(OffsetBasedData {
@@ -301,6 +307,6 @@ impl PageQuery {
             },
         };
 
-        Ok((&entities[start.max(0) .. end.min(entities.len())], relat_pages))
+        Ok((&entities[start .. end], relat_pages))
     }
 }
