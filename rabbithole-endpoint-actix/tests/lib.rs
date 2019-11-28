@@ -76,5 +76,11 @@ macro_rules! send_request {
             .header(actix_web::http::header::CONTENT_TYPE, rabbithole::JSON_API_HEADER)
             .header(actix_web::http::header::ACCEPT, rabbithole::JSON_API_HEADER);
         req.send().await.unwrap()
+    }};
+    ($app:ident, $method:ident, $uri:ident) => {{
+        let req = $app.$method($uri.to_string())
+            .header(actix_web::http::header::CONTENT_TYPE, rabbithole::JSON_API_HEADER)
+            .header(actix_web::http::header::ACCEPT, rabbithole::JSON_API_HEADER);
+        req.send().await.unwrap()
     }}
 }

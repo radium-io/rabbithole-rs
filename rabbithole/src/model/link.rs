@@ -49,6 +49,32 @@ impl From<&http::Uri> for RawUri {
     fn from(uri: &Uri) -> Self { RawUri(uri.clone()) }
 }
 
+impl From<RawUri> for http::Uri {
+    fn from(uri: RawUri) -> Self { uri.0 }
+}
+
+impl From<Link> for http::Uri {
+    fn from(link: Link) -> Self {
+        match link {
+            Link::Raw(raw) => raw.into(),
+            Link::Object { href, .. } => href.into(),
+        }
+    }
+}
+
+impl From<&RawUri> for http::Uri {
+    fn from(uri: &RawUri) -> Self { uri.0.clone() }
+}
+
+impl From<&Link> for http::Uri {
+    fn from(link: &Link) -> Self {
+        match link {
+            Link::Raw(raw) => raw.into(),
+            Link::Object { href, .. } => href.into(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum Link {

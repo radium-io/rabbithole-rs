@@ -100,7 +100,11 @@ impl CursorBasedData {
         } else {
             None
         };
-        Ok(Self { after, before, size: settings.default_size })
+        let size = params
+            .get("size")
+            .and_then(|s| usize::from_str(s.as_str()).ok())
+            .unwrap_or(settings.default_size);
+        Ok(Self { after, before, size })
     }
 
     fn parse_entity(&self, entity: &impl SingleEntity, is_after: bool) -> Self {
@@ -125,8 +129,6 @@ impl PageData for CursorBasedData {
             self.after.as_ref().and_then(|cur| entities.iter().position(|r| r.id() == cur.id));
         let before_opt =
             self.before.as_ref().and_then(|cur| entities.iter().position(|r| r.id() == cur.id));
-        let first = entities.first().map(|e| self.parse_entity(e, true));
-        let last = entities.last().map(|e| self.parse_entity(e, false));
 
         let (from, to) = match (after_opt, before_opt) {
             (Some(after), Some(before)) if after >= before => {
@@ -138,13 +140,13 @@ impl PageData for CursorBasedData {
             },
             (Some(after), Some(before)) => (after + 1, before),
             (Some(after), None) => (after + 1, after + 1 + self.size),
-            (None, Some(before)) => (before - self.size, before),
+            (None, Some(before)) => (before.sub_usize(self.size).unwrap_or_default(), before),
             (None, None) => (0, self.size),
         };
         let prev = entities.get(from).map(|e| self.parse_entity(e, false));
         let next =
             entities.get(to.sub_usize(1).unwrap_or_default()).map(|e| self.parse_entity(e, true));
-        Ok((from, to, RelativePages { first, last, prev, next }))
+        Ok((from, to, RelativePages { first: None, last: None, prev, next }))
     }
 }
 
