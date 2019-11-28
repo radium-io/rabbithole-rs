@@ -217,7 +217,9 @@ impl Updating for HumanService {
 
 #[async_trait]
 impl Deleting for HumanService {
-    async fn delete_resource(&mut self, id: &str, _uri: &str, _path: &RawUri) -> OperationResult<()> {
+    async fn delete_resource(
+        &mut self, id: &str, _uri: &str, _path: &RawUri,
+    ) -> OperationResult<()> {
         self.0.remove(id);
         Ok(OperationResultData { data: (), ..Default::default() })
     }

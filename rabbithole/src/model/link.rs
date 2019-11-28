@@ -21,6 +21,8 @@ impl RawUri {
     }
 
     pub fn query(&self) -> Option<&str> { self.0.query() }
+
+    pub fn path(&self) -> &str { self.0.path() }
 }
 
 impl FromStr for RawUri {

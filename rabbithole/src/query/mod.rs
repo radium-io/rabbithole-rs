@@ -16,6 +16,7 @@ use itertools::Itertools;
 use percent_encoding::percent_decode_str;
 use percent_encoding::{percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use regex::Regex;
+
 use std::collections::{HashMap, HashSet};
 
 pub type IncludeQuery = HashSet<String>;
@@ -112,11 +113,11 @@ impl Query {
 
 impl ToString for Query {
     fn to_string(&self) -> String {
-        let include_query = self
-            .include
-            .as_ref()
-            .map(|q| format!("include={}", q.iter().join(",")))
-            .unwrap_or_default();
+        let include_query = match &self.include {
+            None => Default::default(),
+            Some(data) if data.is_empty() => Default::default(),
+            Some(data) => format!("include={}", data.iter().join(",")),
+        };
         let fields_query: Vec<String> = self
             .fields
             .iter()
@@ -135,10 +136,12 @@ impl ToString for Query {
                 format!("{}{}", ty_str, k)
             })
             .join(",");
-        let sort_query = format!("sort={}", sort_query);
         let page_query = self.page.to_string();
         let filter_query = self.filter.to_string();
-        let mut vec = vec![include_query, page_query, filter_query, sort_query];
+        let mut vec = vec![include_query, page_query, filter_query];
+        if !sort_query.is_empty() {
+            vec.push(format!("sort={}", sort_query));
+        }
         vec.extend(fields_query);
         vec.into_iter().filter(|s| !s.is_empty()).join("&")
     }
@@ -256,6 +259,7 @@ mod tests {
         .to_string();
         let uri: RawUri = format!("/author/1?{}", query).parse().unwrap();
         let settings = QuerySettings { default_size: 10, ..Default::default() };
+
         match settings.decode_path(&uri) {
             Ok(query_data) => assert_eq!(
                 query.split('&').count(),
