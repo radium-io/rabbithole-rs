@@ -27,7 +27,7 @@ fn error_to_response(err: error::Error) -> HttpResponse {
     new_json_api_resp(
         err.status.as_deref().and_then(|s| s.parse().ok()).unwrap_or(StatusCode::BAD_REQUEST),
     )
-    .json(err)
+    .json(Document::error(err))
 }
 
 #[derive(Debug, Clone)]

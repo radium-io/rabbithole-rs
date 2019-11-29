@@ -10,6 +10,7 @@ use crate::common::resp_to_doc;
 use rabbithole::operation::ResourceDataWrapper;
 use rabbithole::query::page::Cursor;
 
+use rabbithole::model::error;
 use std::str::FromStr;
 
 fn check_names(resources: &[Resource], names: &[usize]) {
@@ -159,7 +160,7 @@ fn one_side_test() {
         let (resources, _) = doc.into_multiple().unwrap();
         check_names(&resources, &[0, 1]);
 
-        // Bad cursor will be ignored
+        // The cursor with not-existing ID will be ignored
         let before_cursor = Cursor { id: "no exist".to_string() }.to_string();
         let resp = send_request!(
             app,
@@ -183,5 +184,16 @@ fn one_side_test() {
 
         let (resources, _) = doc.into_multiple().unwrap();
         check_names(&resources, &[0, 1, 2]);
+
+        // The cursor bad format will be ignored
+        let resp = send_request!(
+            app,
+            get,
+            "{}/dogs?sort=name&page[before]=just_a_cursor&page[size]=3",
+            path
+        );
+        let doc = resp_to_doc(resp).await;
+        let err = doc.into_errors().unwrap().first().cloned().unwrap();
+        assert_eq!(err.code, error::Error::InvalidCursorContent(None).code);
     });
 }

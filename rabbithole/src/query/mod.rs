@@ -14,7 +14,7 @@ use crate::entity::SingleEntity;
 use crate::model::link::{Link, Links, RawUri};
 use itertools::Itertools;
 use percent_encoding::percent_decode_str;
-use percent_encoding::{percent_encode, AsciiSet, NON_ALPHANUMERIC};
+use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
 use regex::Regex;
 
 use std::collections::{HashMap, HashSet};
@@ -259,7 +259,9 @@ impl QuerySettings {
 mod tests {
     use crate::model::link::RawUri;
     use crate::query::{PageSettings, QuerySettings};
-    use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
+    use percent_encoding::{percent_encode, AsciiSet, NON_ALPHANUMERIC};
+
+    static CHARSET: AsciiSet = NON_ALPHANUMERIC.remove(b'&').remove(b'=');
 
     #[test]
     fn to_string_test() {
@@ -268,7 +270,7 @@ mod tests {
                               Literary Fiction','Science \
                               Fiction')&include=authors&fields[book]=title,authors&\
                               fields[author]=name&page[offset]=3&page[limit]=2",
-            &NON_ALPHANUMERIC.remove(b'&').remove(b'='),
+            &CHARSET,
         )
         .to_string();
         let uri: RawUri = format!("/author/1?{}", query).parse().unwrap();

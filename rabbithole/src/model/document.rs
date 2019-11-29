@@ -2,7 +2,7 @@ use crate::model::error::Errors;
 use crate::model::link::Links;
 
 use crate::model::resource::{Resource, ResourceIdentifier, Resources};
-use crate::model::{JsonApiInfo, Meta};
+use crate::model::{error, JsonApiInfo, Meta};
 use core::fmt;
 use serde::de::{MapAccess, Visitor};
 
@@ -82,6 +82,14 @@ impl Document {
         }
     }
 
+    pub fn into_errors(self) -> Result<Errors, Self> {
+        if let DocumentItem::Errors(errors) = self.item {
+            Ok(errors)
+        } else {
+            Err(self)
+        }
+    }
+
     pub fn single_resource(resource: Resource, included: Included) -> Self {
         Self {
             item: DocumentItem::PrimaryData(Some((
@@ -97,6 +105,14 @@ impl Document {
             item: DocumentItem::PrimaryData(Some((PrimaryDataItem::Multiple(resources), included))),
             ..Default::default()
         }
+    }
+
+    pub fn error(error: error::Error) -> Self {
+        Self { item: DocumentItem::Errors(vec![error]), ..Default::default() }
+    }
+
+    pub fn errors(errors: Errors) -> Self {
+        Self { item: DocumentItem::Errors(errors), ..Default::default() }
     }
 
     pub fn extend_meta(&mut self, meta: Meta) { self.meta.extend(meta.into_iter()); }
