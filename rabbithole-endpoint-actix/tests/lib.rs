@@ -4,12 +4,6 @@ extern crate lazy_static;
 use actix_web::web;
 use std::convert::TryInto;
 
-pub mod common;
-mod model;
-mod service;
-pub mod v1_0;
-pub mod v1_1;
-
 fn app(settings: config::Config) -> (String, String, actix_http_test::TestServerRuntime) {
     let settings: rabbithole_endpoint_actix::settings::ActixSettingsModel =
         settings.try_into().unwrap();
@@ -84,3 +78,9 @@ macro_rules! send_request {
         req.send().await.unwrap()
     }}
 }
+
+pub mod common;
+mod model;
+mod service;
+pub mod v1_0;
+pub mod v1_1;

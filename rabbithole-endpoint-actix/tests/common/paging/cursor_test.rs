@@ -1,27 +1,14 @@
-use crate::{init_app, send_request};
 use actix_http_test::block_on;
 
 use crate::model::dog::generate_dogs;
-
-use rabbithole::model::resource::Resource;
 
 use crate::common::resp_to_doc;
 
 use rabbithole::operation::ResourceDataWrapper;
 use rabbithole::query::page::Cursor;
 
+use crate::common::paging::check_names;
 use rabbithole::model::error;
-use std::str::FromStr;
-
-fn check_names(resources: &[Resource], names: &[usize]) {
-    assert_eq!(resources.len(), names.len());
-
-    for r in resources {
-        let name =
-            usize::from_str(r.attributes.get_field("name").unwrap().0.as_str().unwrap()).unwrap();
-        assert!(names.contains(&name));
-    }
-}
 
 #[test]
 fn empty_test() {
@@ -72,25 +59,8 @@ fn range_test() {
         let doc = resp_to_doc(resp).await;
         assert_eq!(doc.links.len(), 3);
 
-        if let Some(prev) = doc.links.get("prev") {
-            let prev = http::Uri::from(prev).path_and_query().unwrap().to_string();
-            let resp = send_request!(app, get, prev);
-            let doc = resp_to_doc(resp).await;
-            let (resources, _) = doc.into_multiple().unwrap();
-            check_names(&resources, &[0, 1]);
-        } else {
-            unreachable!("`prev` link is needed");
-        }
-
-        if let Some(next) = doc.links.get("next") {
-            let next = http::Uri::from(next).path_and_query().unwrap().to_string();
-            let resp = send_request!(app, get, next);
-            let doc = resp_to_doc(resp).await;
-            let (resources, _) = doc.into_multiple().unwrap();
-            check_names(&resources, &[4, 5, 6]);
-        } else {
-            unreachable!("`next` link is needed");
-        }
+        check_link!(app, doc, prev, &[0, 1]);
+        check_link!(app, doc, next, &[4, 5, 6]);
 
         let (resources, _) = doc.into_multiple().unwrap();
         check_names(&resources, &[2, 3]);
@@ -122,15 +92,7 @@ fn one_side_test() {
         let doc = resp_to_doc(resp).await;
         assert_eq!(doc.links.len(), 2);
 
-        if let Some(prev) = doc.links.get("prev") {
-            let prev = http::Uri::from(prev).path_and_query().unwrap().to_string();
-            let resp = send_request!(app, get, prev);
-            let doc = resp_to_doc(resp).await;
-            let (resources, _) = doc.into_multiple().unwrap();
-            check_names(&resources, &[1, 2, 3]);
-        } else {
-            unreachable!("`prev` link is needed");
-        }
+        check_link!(app, doc, prev, &[1, 2, 3]);
 
         let (resources, _) = doc.into_multiple().unwrap();
         check_names(&resources, &[4, 5, 6]);
@@ -147,15 +109,7 @@ fn one_side_test() {
         let doc = resp_to_doc(resp).await;
         assert_eq!(doc.links.len(), 2);
 
-        if let Some(next) = doc.links.get("next") {
-            let next = http::Uri::from(next).path_and_query().unwrap().to_string();
-            let resp = send_request!(app, get, next);
-            let doc = resp_to_doc(resp).await;
-            let (resources, _) = doc.into_multiple().unwrap();
-            check_names(&resources, &[2, 3, 4]);
-        } else {
-            unreachable!("`next` link is needed");
-        }
+        check_link!(app, doc, next, &[2, 3, 4]);
 
         let (resources, _) = doc.into_multiple().unwrap();
         check_names(&resources, &[0, 1]);
@@ -172,15 +126,7 @@ fn one_side_test() {
         let doc = resp_to_doc(resp).await;
         assert_eq!(doc.links.len(), 2);
 
-        if let Some(next) = doc.links.get("next") {
-            let next = http::Uri::from(next).path_and_query().unwrap().to_string();
-            let resp = send_request!(app, get, next);
-            let doc = resp_to_doc(resp).await;
-            let (resources, _) = doc.into_multiple().unwrap();
-            check_names(&resources, &[3, 4, 5]);
-        } else {
-            unreachable!("`next` link is needed");
-        }
+        check_link!(app, doc, next, &[3, 4, 5]);
 
         let (resources, _) = doc.into_multiple().unwrap();
         check_names(&resources, &[0, 1, 2]);
