@@ -1,7 +1,7 @@
 use crate::model::error;
 
 use crate::entity::SingleEntity;
-use crate::query::QuerySettings;
+use crate::query::{encode_string, QuerySettings};
 use crate::RbhResult;
 use itertools::Itertools;
 use num_integer::Integer;
@@ -10,10 +10,12 @@ use std::hash::BuildHasher;
 use std::iter::Step;
 use std::str::FromStr;
 
-pub trait PageData: Sized + ToString + Into<PageQuery> + Clone {
+pub trait PageData: Sized + Into<PageQuery> + Clone {
     fn page<E: SingleEntity>(
         &self, entities: &[E],
     ) -> RbhResult<(usize, usize, RelativePages<Self>)>;
+
+    fn to_string(&self, raw_encode: bool) -> String;
 }
 
 #[derive(Debug)]
@@ -67,25 +69,6 @@ pub struct CursorBasedData {
     pub after: Option<Cursor>,
     pub before: Option<Cursor>,
     pub size: usize,
-}
-
-impl ToString for CursorBasedData {
-    fn to_string(&self) -> String {
-        let after = self
-            .after
-            .as_ref()
-            .map(|c| format!("page[after]={}", c.to_string()))
-            .unwrap_or_default();
-        let before = self
-            .before
-            .as_ref()
-            .map(|c| format!("page[before]={}", c.to_string()))
-            .unwrap_or_default();
-        vec![after, before, format!("page[size]={}", self.size)]
-            .iter()
-            .filter(|s| !s.is_empty())
-            .join("&")
-    }
 }
 
 impl CursorBasedData {
@@ -154,18 +137,29 @@ impl PageData for CursorBasedData {
         };
         Ok((from, to, RelativePages { first: None, last: None, prev, next }))
     }
+
+    fn to_string(&self, raw_encode: bool) -> String {
+        let after = self
+            .after
+            .as_ref()
+            .map(|c| format!("{}={}", encode_string("page[after]", raw_encode), c.to_string()))
+            .unwrap_or_default();
+        let before = self
+            .before
+            .as_ref()
+            .map(|c| format!("{}={}", encode_string("page[before]", raw_encode), c.to_string()))
+            .unwrap_or_default();
+        vec![after, before, format!("{}={}", encode_string("page[size]", raw_encode), self.size)]
+            .iter()
+            .filter(|s| !s.is_empty())
+            .join("&")
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct OffsetBasedData {
     pub offset: usize,
     pub limit: usize,
-}
-
-impl ToString for OffsetBasedData {
-    fn to_string(&self) -> String {
-        format!("page[offset]={}&page[limit]={}", self.offset, self.limit)
-    }
 }
 
 impl OffsetBasedData {
@@ -203,18 +197,22 @@ impl PageData for OffsetBasedData {
 
         Ok((start, end, RelativePages { first, last, prev, next }))
     }
+
+    fn to_string(&self, raw_encode: bool) -> String {
+        format!(
+            "{}={}&{}={}",
+            encode_string("page[offset]", raw_encode),
+            self.offset,
+            encode_string("page[limit]", raw_encode),
+            self.limit
+        )
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct PageBasedData {
     pub number: usize,
     pub size: usize,
-}
-
-impl ToString for PageBasedData {
-    fn to_string(&self) -> String {
-        format!("page[number]={}&page[size]={}", self.number, self.size)
-    }
 }
 
 impl PageBasedData {
@@ -256,6 +254,16 @@ impl PageData for PageBasedData {
 
         Ok((start, end, RelativePages { first, last, prev, next }))
     }
+
+    fn to_string(&self, raw_encode: bool) -> String {
+        format!(
+            "{}={}&{}={}",
+            encode_string("page[number]", raw_encode),
+            self.number,
+            encode_string("page[size]", raw_encode),
+            self.size
+        )
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -263,16 +271,6 @@ pub enum PageQuery {
     OffsetBased(OffsetBasedData),
     PageBased(PageBasedData),
     CursorBased(CursorBasedData),
-}
-
-impl ToString for PageQuery {
-    fn to_string(&self) -> String {
-        match &self {
-            PageQuery::OffsetBased(data) => data.to_string(),
-            PageQuery::PageBased(data) => data.to_string(),
-            PageQuery::CursorBased(data) => data.to_string(),
-        }
-    }
 }
 
 impl PageQuery {
@@ -308,5 +306,13 @@ impl PageQuery {
         };
 
         Ok((&entities[start .. end], relat_pages))
+    }
+
+    pub fn to_string(&self, raw_encode: bool) -> String {
+        match &self {
+            PageQuery::OffsetBased(data) => data.to_string(raw_encode),
+            PageQuery::PageBased(data) => data.to_string(raw_encode),
+            PageQuery::CursorBased(data) => data.to_string(raw_encode),
+        }
     }
 }

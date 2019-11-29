@@ -109,20 +109,24 @@ impl Query {
             .collect();
         Ok((data.to_vec(), relat_pages?))
     }
-}
 
-impl ToString for Query {
-    fn to_string(&self) -> String {
+    fn to_string(&self, raw_encode: bool) -> String {
         let include_query = match &self.include {
             None => Default::default(),
             Some(data) if data.is_empty() => Default::default(),
-            Some(data) => format!("include={}", data.iter().join(",")),
+            Some(data) => format!("include={}", encode_string_iter(data.iter(), raw_encode)),
         };
         let fields_query: Vec<String> = self
             .fields
             .iter()
             .filter(|(_, v)| !v.is_empty())
-            .map(|(k, v)| format!("fields[{}]={}", k, v.iter().join(",")))
+            .map(|(k, v)| {
+                (
+                    encode_string(format!("fields[{}]", k), raw_encode),
+                    encode_string_iter(v.iter(), raw_encode),
+                )
+            })
+            .map(|(k, v)| format!("{}={}", k, v))
             .collect();
         let sort_query = self
             .sort
@@ -133,11 +137,11 @@ impl ToString for Query {
                     OrderType::Asc => "",
                     OrderType::Desc => "-",
                 };
-                format!("{}{}", ty_str, k)
+                format!("{}{}", ty_str, encode_string(k, raw_encode))
             })
             .join(",");
-        let page_query = self.page.as_ref().map(ToString::to_string).unwrap_or_default();
-        let filter_query = self.filter.to_string();
+        let page_query = self.page.as_ref().map(|pq| pq.to_string(raw_encode)).unwrap_or_default();
+        let filter_query = self.filter.to_string(raw_encode);
         let mut vec = vec![include_query, page_query, filter_query];
         if !sort_query.is_empty() {
             vec.push(format!("sort={}", sort_query));
@@ -147,20 +151,26 @@ impl ToString for Query {
     }
 }
 
+fn encode_string(string: impl ToString, raw_encode: bool) -> String {
+    if raw_encode {
+        string.to_string()
+    } else {
+        percent_encode(string.to_string().as_bytes(), NON_ALPHANUMERIC).to_string()
+    }
+}
+
+fn encode_string_iter(iter: impl Iterator<Item = impl ToString>, raw_encode: bool) -> String {
+    iter.map(|s| encode_string(s, raw_encode)).join(",")
+}
+
 lazy_static! {
     static ref KEY_REGEX: Regex = Regex::new(r#"(?P<name>\w+)\[(?P<param>[\w\-_@]+)\]"#).unwrap();
-    static ref CHAR_SET: AsciiSet = NON_ALPHANUMERIC.remove(b'=').remove(b'&');
 }
 
 impl QuerySettings {
     pub fn encode_path(&self, path: &RawUri, query: &Query) -> RbhResult<RawUri> {
         let RawUri(path) = path;
-        let query_str = query.to_string();
-        let query_str = if self.raw_encode {
-            query_str
-        } else {
-            percent_encode(query_str.as_bytes(), &CHAR_SET).to_string()
-        };
+        let query_str = query.to_string(self.raw_encode);
         let path_and_query = format!("{}?{}", path.path(), query_str);
         let mut builder = http::Uri::builder();
         let builder = builder.path_and_query(path_and_query.as_bytes());
@@ -248,8 +258,8 @@ impl QuerySettings {
 #[cfg(test)]
 mod tests {
     use crate::model::link::RawUri;
-    use crate::query::{PageSettings, QuerySettings, CHAR_SET};
-    use percent_encoding::percent_encode;
+    use crate::query::{PageSettings, QuerySettings};
+    use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
 
     #[test]
     fn to_string_test() {
@@ -258,7 +268,7 @@ mod tests {
                               Literary Fiction','Science \
                               Fiction')&include=authors&fields[book]=title,authors&\
                               fields[author]=name&page[offset]=3&page[limit]=2",
-            &CHAR_SET,
+            &NON_ALPHANUMERIC.remove(b'&').remove(b'='),
         )
         .to_string();
         let uri: RawUri = format!("/author/1?{}", query).parse().unwrap();

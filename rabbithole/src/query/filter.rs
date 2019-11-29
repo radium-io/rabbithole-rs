@@ -11,15 +11,17 @@ use rsql::Constraint;
 use rsql::Operator;
 
 use crate::entity::SingleEntity;
-use crate::query::FilterSettings;
+use crate::query::{encode_string, FilterSettings};
 use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
-pub trait FilterData: Sized + ToString {
+pub trait FilterData: Sized {
     fn new(params: &HashMap<String, String>) -> RbhResult<Self>;
 
     fn filter<E: SingleEntity>(&self, entities: Vec<E>) -> RbhResult<Vec<E>>;
+
+    fn to_string(&self, raw_encode: bool) -> String;
 }
 
 /// Example:
@@ -27,12 +29,6 @@ pub trait FilterData: Sized + ToString {
 /// where key is self type or relationship name
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Default, Clone)]
 pub struct RsqlFilterData(HashMap<String, Expr>);
-
-impl ToString for RsqlFilterData {
-    fn to_string(&self) -> String {
-        self.0.iter().map(|(k, v)| format!("filter[{}]={}", k, v.to_string())).join("&")
-    }
-}
 
 impl FilterData for RsqlFilterData {
     fn new(params: &HashMap<String, String>) -> RbhResult<Self> {
@@ -66,6 +62,19 @@ impl FilterData for RsqlFilterData {
                 .collect::<RbhResult<Vec<E>>>()?;
         }
         Ok(entities)
+    }
+
+    fn to_string(&self, raw_encode: bool) -> String {
+        self.0
+            .iter()
+            .map(|(k, v)| {
+                (
+                    encode_string(format!("filter[{}]", k), raw_encode),
+                    encode_string(v.clone(), raw_encode),
+                )
+            })
+            .map(|(k, v)| format!("{}={}", k, v))
+            .join("&")
     }
 }
 
@@ -135,14 +144,6 @@ pub enum FilterQuery {
     Rsql(RsqlFilterData),
 }
 
-impl ToString for FilterQuery {
-    fn to_string(&self) -> String {
-        match &self {
-            FilterQuery::Rsql(data) => data.to_string(),
-        }
-    }
-}
-
 impl Default for FilterQuery {
     fn default() -> Self { Self::Rsql(Default::default()) }
 }
@@ -161,6 +162,12 @@ impl FilterQuery {
     pub fn filter<E: SingleEntity>(&self, entities: Vec<E>) -> RbhResult<Vec<E>> {
         match &self {
             FilterQuery::Rsql(map) => RsqlFilterData::filter(map, entities),
+        }
+    }
+
+    pub fn to_string(&self, raw_encode: bool) -> String {
+        match &self {
+            FilterQuery::Rsql(data) => data.to_string(raw_encode),
         }
     }
 }
