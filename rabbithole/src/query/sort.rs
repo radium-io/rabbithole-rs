@@ -5,7 +5,7 @@ use std::cmp::Ordering;
 use std::convert::TryFrom;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct SortQuery(Vec<(String, OrderType)>);
+pub struct SortQuery(pub(crate) Vec<(String, OrderType)>);
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub enum OrderType {

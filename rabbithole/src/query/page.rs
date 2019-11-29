@@ -1,69 +1,159 @@
 use crate::model::error;
 
-use crate::RbhResult;
-use std::collections::HashMap;
-
 use crate::entity::SingleEntity;
-#[cfg(feature = "page_cursor")]
+use crate::query::QuerySettings;
+use crate::RbhResult;
+use itertools::Itertools;
+use num_integer::Integer;
+use std::collections::HashMap;
+use std::hash::BuildHasher;
 use std::iter::Step;
 use std::str::FromStr;
 
-trait PageData: Sized {
-    fn new(params: &HashMap<String, String>) -> RbhResult<Option<Self>>;
+pub trait PageData: Sized + ToString + Into<PageQuery> + Clone {
+    fn page<E: SingleEntity>(
+        &self, entities: &[E],
+    ) -> RbhResult<(usize, usize, RelativePages<Self>)>;
+}
 
-    fn page<E: SingleEntity>(&self, entities: &[E]) -> (usize, usize);
+#[derive(Debug)]
+pub struct RelativePages<P: PageData> {
+    pub first: Option<P>,
+    pub last: Option<P>,
+    pub prev: Option<P>,
+    pub next: Option<P>,
+}
+
+impl<P: PageData, S: Default + BuildHasher> From<RelativePages<P>>
+    for HashMap<String, PageQuery, S>
+{
+    fn from(relat_pages: RelativePages<P>) -> Self {
+        vec![
+            ("first", relat_pages.first.as_ref()),
+            ("last", relat_pages.last.as_ref()),
+            ("prev", relat_pages.prev.as_ref()),
+            ("next", relat_pages.next.as_ref()),
+        ]
+        .into_iter()
+        .filter_map(|(k, v)| v.map(|vv| (k.to_string(), vv.clone().into())))
+        .collect()
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
+pub struct Cursor {
+    pub id: String,
+}
+
+impl FromStr for Cursor {
+    type Err = error::Error;
+
+    fn from_str(cursor: &str) -> Result<Self, Self::Err> {
+        let cursor =
+            base64::decode(cursor).map_err(|_| error::Error::InvalidCursorContent(None))?;
+        serde_json::from_slice(&cursor).map_err(|_| error::Error::InvalidCursorContent(None))
+    }
+}
+
+impl ToString for Cursor {
+    fn to_string(&self) -> String {
+        let cursor = serde_json::to_string(&self).unwrap();
+        base64::encode_config(&cursor, base64::URL_SAFE)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct CursorBasedData {
-    pub target_id: String,
-    pub is_look_after: bool,
-    pub limit: usize,
+    pub after: Option<Cursor>,
+    pub before: Option<Cursor>,
+    pub size: usize,
+}
+
+impl ToString for CursorBasedData {
+    fn to_string(&self) -> String {
+        let after = self
+            .after
+            .as_ref()
+            .map(|c| format!("page[after]={}", c.to_string()))
+            .unwrap_or_default();
+        let before = self
+            .before
+            .as_ref()
+            .map(|c| format!("page[before]={}", c.to_string()))
+            .unwrap_or_default();
+        vec![after, before, format!("page[size]={}", self.size)]
+            .iter()
+            .filter(|s| !s.is_empty())
+            .join("&")
+    }
+}
+
+impl CursorBasedData {
+    pub fn new(settings: &QuerySettings, params: &HashMap<String, String>) -> RbhResult<Self> {
+        let after = if let Some(after) = params.get("after") {
+            Some(after.parse::<Cursor>()?)
+        } else {
+            None
+        };
+        let before = if let Some(before) = params.get("before") {
+            Some(before.parse::<Cursor>()?)
+        } else {
+            None
+        };
+        let size = params
+            .get("size")
+            .and_then(|s| usize::from_str(s.as_str()).ok())
+            .unwrap_or(settings.default_size);
+        Ok(Self { after, before, size })
+    }
+
+    fn parse_entity(&self, entity: &impl SingleEntity, is_after: bool) -> Self {
+        let cursor = Cursor { id: entity.id() };
+        if is_after {
+            Self { after: Some(cursor), before: None, size: self.size }
+        } else {
+            Self { before: Some(cursor), after: None, size: self.size }
+        }
+    }
+}
+
+impl From<CursorBasedData> for PageQuery {
+    fn from(data: CursorBasedData) -> Self { PageQuery::CursorBased(data) }
 }
 
 impl PageData for CursorBasedData {
-    #[cfg(feature = "page_cursor")]
-    fn new(params: &HashMap<String, String>) -> RbhResult<Option<Self>> {
-        if let Some(cursor) = params.get("cursor") {
-            let cursor =
-                base64::decode(cursor).map_err(|_| error::Error::InvalidCursorContent(None))?;
-            let cursor = String::from_utf8(cursor)
-                .map_err(|err| error::Error::InvalidUtf8String(&err, None))?;
-            let cursor: CursorBasedData = serde_json::from_str(&cursor)
-                .map_err(|_| error::Error::InvalidCursorContent(None))?;
+    fn page<E: SingleEntity>(
+        &self, entities: &[E],
+    ) -> RbhResult<(usize, usize, RelativePages<Self>)> {
+        let after_opt =
+            self.after.as_ref().and_then(|cur| entities.iter().position(|r| r.id() == cur.id));
+        let before_opt =
+            self.before.as_ref().and_then(|cur| entities.iter().position(|r| r.id() == cur.id));
 
-            Ok(Some(cursor))
+        let (from, to) = match (after_opt, before_opt) {
+            (Some(after), Some(before)) if after >= before => {
+                return Err(error::Error::BaforeAndAfterCursorNotMatch(None))
+            },
+            // When the gap between `after` and `before` is larger than `size`
+            (Some(after), Some(before)) if before - after > self.size + 1 => {
+                (after + 1, after + 1 + self.size)
+            },
+            (Some(after), Some(before)) => (after + 1, before),
+            (Some(after), None) => (after + 1, after + 1 + self.size),
+            (None, Some(before)) => (before.sub_usize(self.size).unwrap_or_default(), before),
+            (None, None) => (0, self.size),
+        };
+        let (from, to) = (from.max(0), to.min(entities.len()));
+
+        let prev =
+            if from != 0 { entities.get(from).map(|e| self.parse_entity(e, false)) } else { None };
+        let next = if to != entities.len() {
+            entities.get(to.sub_usize(1).unwrap_or_default()).map(|e| self.parse_entity(e, true))
         } else {
-            Ok(None)
-        }
+            None
+        };
+        Ok((from, to, RelativePages { first: None, last: None, prev, next }))
     }
-
-    #[cfg(not(feature = "page_cursor"))]
-    fn new(params: &HashMap<String, String>) -> RbhResult<Option<Self>> {
-        if params.get("cursor").is_some() {
-            Err(error::Error::CursorPaginationNotImplemented(None))
-        } else {
-            Ok(None)
-        }
-    }
-
-    #[cfg(feature = "page_cursor")]
-    fn page<E: SingleEntity>(&self, entities: &[E]) -> (usize, usize) {
-        if let Some(tid) = entities.iter().position(|r| r.id() == self.target_id) {
-            if self.is_look_after {
-                (tid + 1, (tid + 1 + self.limit).min(entities.len()))
-            } else {
-                ((tid + 1).sub_usize(self.limit).unwrap_or(0usize), tid + 1)
-            }
-        } else if self.is_look_after {
-            (0, self.limit.min(entities.len()))
-        } else {
-            (entities.len().sub_usize(self.limit).unwrap_or(0usize), entities.len())
-        }
-    }
-
-    #[cfg(not(feature = "page_cursor"))]
-    fn page<E: SingleEntity>(&self, _entities: &[E]) -> (usize, usize) { unimplemented!() }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
@@ -72,25 +162,46 @@ pub struct OffsetBasedData {
     pub limit: usize,
 }
 
-impl PageData for OffsetBasedData {
-    fn new(params: &HashMap<String, String>) -> RbhResult<Option<Self>> {
-        if let (Some(offset), Some(limit)) = (params.get("offset"), params.get("limit")) {
-            let offset = usize::from_str(offset).map_err(|_| {
-                error::Error::UnmatchedFilterItem("OffsetBased", "offset", offset, None)
-            })?;
-            let limit = usize::from_str(limit).map_err(|_| {
-                error::Error::UnmatchedFilterItem("OffsetBased", "limit", limit, None)
-            })?;
-            Ok(Some(OffsetBasedData { limit, offset }))
-        } else {
-            Ok(None)
-        }
+impl ToString for OffsetBasedData {
+    fn to_string(&self) -> String {
+        format!("page[offset]={}&page[limit]={}", self.offset, self.limit)
     }
+}
 
-    fn page<E: SingleEntity>(&self, entities: &[E]) -> (usize, usize) {
-        let start = self.offset.min(entities.len());
+impl OffsetBasedData {
+    pub fn new(settings: &QuerySettings, params: &HashMap<String, String>) -> RbhResult<Self> {
+        let offset =
+            params.get("offset").and_then(|num| usize::from_str(num).ok()).unwrap_or_else(|| 0);
+        let limit = params
+            .get("limit")
+            .and_then(|num| usize::from_str(num).ok())
+            .unwrap_or_else(|| settings.default_size);
+        Ok(Self { limit, offset })
+    }
+}
+
+impl From<OffsetBasedData> for PageQuery {
+    fn from(data: OffsetBasedData) -> Self { PageQuery::OffsetBased(data) }
+}
+
+impl PageData for OffsetBasedData {
+    fn page<E: SingleEntity>(
+        &self, entities: &[E],
+    ) -> RbhResult<(usize, usize, RelativePages<Self>)> {
+        let start = self.offset.min(entities.len()).max(0);
         let end = (self.offset + self.limit).min(entities.len());
-        (start, end)
+        let first = Some(OffsetBasedData { offset: 0, limit: self.limit });
+        let last = Some(OffsetBasedData {
+            offset: entities.len().sub_usize(self.limit).unwrap_or_default(),
+            limit: self.limit,
+        });
+        let prev = Some(OffsetBasedData {
+            offset: start.sub_usize(self.limit).unwrap_or_default(),
+            limit: self.limit,
+        });
+        let next = Some(OffsetBasedData { offset: end, limit: self.limit });
+
+        Ok((start, end, RelativePages { first, last, prev, next }))
     }
 }
 
@@ -99,82 +210,103 @@ pub struct PageBasedData {
     pub number: usize,
     pub size: usize,
 }
-impl PageData for PageBasedData {
-    fn new(params: &HashMap<String, String>) -> RbhResult<Option<Self>> {
-        if let (Some(number), Some(size)) = (params.get("number"), params.get("size")) {
-            let number = usize::from_str(number).map_err(|_| {
-                error::Error::UnmatchedFilterItem("PageBased", "number", number, None)
-            })?;
-            let size = usize::from_str(size)
-                .map_err(|_| error::Error::UnmatchedFilterItem("PageBased", "size", size, None))?;
-            Ok(Some(PageBasedData { number, size }))
-        } else {
-            Ok(None)
-        }
-    }
 
-    fn page<E: SingleEntity>(&self, entities: &[E]) -> (usize, usize) {
-        let start = (self.number * self.size).min(entities.len());
-        let end = ((self.number + 1) * self.size).min(entities.len());
-        (start, end)
+impl ToString for PageBasedData {
+    fn to_string(&self) -> String {
+        format!("page[number]={}&page[size]={}", self.number, self.size)
     }
 }
 
-#[derive(Debug)]
+impl PageBasedData {
+    pub fn new(settings: &QuerySettings, params: &HashMap<String, String>) -> RbhResult<Self> {
+        let number =
+            params.get("number").and_then(|num| usize::from_str(num).ok()).unwrap_or_else(|| 0);
+        let size = params
+            .get("size")
+            .and_then(|num| usize::from_str(num).ok())
+            .unwrap_or_else(|| settings.default_size);
+        Ok(Self { number, size })
+    }
+}
+
+impl From<PageBasedData> for PageQuery {
+    fn from(data: PageBasedData) -> Self { PageQuery::PageBased(data) }
+}
+
+impl PageData for PageBasedData {
+    fn page<E: SingleEntity>(
+        &self, entities: &[E],
+    ) -> RbhResult<(usize, usize, RelativePages<Self>)> {
+        if self.size == 0 {
+            return Err(error::Error::InvalidPageSize(None));
+        }
+
+        let start = (self.number * self.size).min(entities.len());
+        let end = ((self.number + 1) * self.size).min(entities.len());
+
+        let max_page = entities.len().div_ceil(&self.size).sub_usize(1).unwrap_or_default();
+
+        let first = Some(PageBasedData { number: 0, size: self.size });
+        let last = Some(PageBasedData { number: max_page, size: self.size });
+        let prev = Some(PageBasedData {
+            number: self.number.sub_usize(1).unwrap_or_default(),
+            size: self.size,
+        });
+        let next = Some(PageBasedData { number: (self.number + 1).min(max_page), size: self.size });
+
+        Ok((start, end, RelativePages { first, last, prev, next }))
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum PageQuery {
     OffsetBased(OffsetBasedData),
     PageBased(PageBasedData),
     CursorBased(CursorBasedData),
 }
 
-impl PageQuery {
-    pub fn new(params: &HashMap<String, String>) -> RbhResult<Option<PageQuery>> {
-        if let Some(offset) = OffsetBasedData::new(params)? {
-            Ok(Some(Self::OffsetBased(offset)))
-        } else if let Some(page) = PageBasedData::new(params)? {
-            Ok(Some(Self::PageBased(page)))
-        } else if let Some(cursor) = CursorBasedData::new(params)? {
-            Ok(Some(Self::CursorBased(cursor)))
-        } else {
-            Ok(None)
+impl ToString for PageQuery {
+    fn to_string(&self) -> String {
+        match &self {
+            PageQuery::OffsetBased(data) => data.to_string(),
+            PageQuery::PageBased(data) => data.to_string(),
+            PageQuery::CursorBased(data) => data.to_string(),
         }
-    }
-
-    pub fn page<'a, E: SingleEntity>(&'a self, entities: &'a [E]) -> &'a [E] {
-        let (start, end) = match self {
-            PageQuery::OffsetBased(data) => data.page(entities),
-            PageQuery::PageBased(data) => data.page(entities),
-            PageQuery::CursorBased(data) => data.page(entities),
-        };
-
-        &entities[start .. end]
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::query::page::{CursorBasedData, PageQuery};
-    use crate::query::QuerySettings;
-    use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
-
-    #[test]
-    fn cursor_des_test() {
-        let query = QuerySettings { filter_type: "Rsql".to_string() };
-
-        let ori_cursor =
-            CursorBasedData { target_id: "target_id".to_string(), is_look_after: true, limit: 10 };
-
-        let ori_cursor_str: String = serde_json::to_string(&ori_cursor).unwrap();
-        let ori_cursor_str = base64::encode_config(&ori_cursor_str, base64::URL_SAFE_NO_PAD);
-        let uri = format!("page[cursor]={}", ori_cursor_str);
-        let uri = percent_encode(uri.as_bytes(), NON_ALPHANUMERIC);
-        let uri = format!("/?{}", uri.to_string());
-        let uri: http::Uri = uri.parse().unwrap();
-        let query = query.from_uri(&uri).unwrap();
-        if let Some(PageQuery::CursorBased(cursor)) = query.page {
-            assert_eq!(cursor, ori_cursor);
+impl PageQuery {
+    pub fn new(settings: &QuerySettings, params: &HashMap<String, String>) -> RbhResult<PageQuery> {
+        if let Some(page_settings) = settings.page.as_ref() {
+            match page_settings.ty.as_str() {
+                "OffsetBased" => Ok(Self::OffsetBased(OffsetBasedData::new(&settings, params)?)),
+                "PageBased" => Ok(Self::PageBased(PageBasedData::new(&settings, params)?)),
+                "CursorBased" => Ok(Self::CursorBased(CursorBasedData::new(&settings, params)?)),
+                _ => Err(error::Error::InvalidPaginationType(&page_settings.ty, None)),
+            }
         } else {
-            unreachable!();
+            Err(error::Error::InvalidPaginationType(&"None", None))
         }
+    }
+
+    pub fn page<'a, E: SingleEntity>(
+        &'a self, entities: &'a [E],
+    ) -> RbhResult<(&'a [E], HashMap<String, PageQuery>)> {
+        let (start, end, relat_pages) = match self {
+            PageQuery::OffsetBased(data) => {
+                let (start, end, relat_pages) = data.page(entities)?;
+                (start, end, relat_pages.into())
+            },
+            PageQuery::PageBased(data) => {
+                let (start, end, relat_pages) = data.page(entities)?;
+                (start, end, relat_pages.into())
+            },
+            PageQuery::CursorBased(data) => {
+                let (start, end, relat_pages) = data.page(entities)?;
+                (start, end, relat_pages.into())
+            },
+        };
+
+        Ok((&entities[start .. end], relat_pages))
     }
 }

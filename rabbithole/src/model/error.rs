@@ -136,13 +136,19 @@ rabbithole_errors! {
     detail: "An error found when parsing JSON: {invalid}",
     param: [invalid: &serde_json::Error,];
 
-
     ty: RelationshipPathNotSupported,
     status: http::StatusCode::BAD_REQUEST,
     code: "RBH-0004",
     title: "Relationship Path Not Supported",
     detail: "The relationship path in Query `{relat_path}` is not supported yet",
     param: [relat_path: &str,];
+
+    ty: InvalidUri,
+    status: http::StatusCode::BAD_REQUEST,
+    code: "RBH-0005",
+    title: "Invalid URI",
+    detail: "Failed when parsing URI: {}",
+    param: [error: &http::Error,];
 
     ty: InvalidPaginationType,
     status: http::StatusCode::NOT_ACCEPTABLE,
@@ -172,19 +178,33 @@ rabbithole_errors! {
     detail: r#"The content of `page[cursor]` is not acceptable, please use a valid cursor"#,
     param: [];
 
-    ty: LackOfPaginationParams,
+    ty: BaforeAndAfterCursorNotMatch,
     status: http::StatusCode::NOT_ACCEPTABLE,
     code: "RBH-0105",
+    title: "Bafore and After Cursor Not Match",
+    detail: r#"The `page[before]` and `page[after]` cursor both exists, but the contents do not match. Maybe because the index of `before` cursor is smaller than `after` cursor"#,
+    param: [];
+
+    ty: LackOfPaginationParams,
+    status: http::StatusCode::NOT_ACCEPTABLE,
+    code: "RBH-0106",
     title: "Lack of Pagination Item",
     detail: "Pagination type `[{page_type}]` need ALL of the parameters: [{params:?}]",
     param: [page_type: &str, params: &[&str],];
 
     ty: UnsupportedRsqlComparison,
     status: http::StatusCode::NOT_ACCEPTABLE,
-    code: "RBH-0106",
+    code: "RBH-0107",
     title: "Unsupported RSQL Comparison",
     detail: "Comparison `{comparison:?}` with {param_cnt} parameter(s) is not supported now",
     param: [comparison: &[String], param_cnt: usize,];
+
+    ty: InvalidPageSize,
+    status: http::StatusCode::NOT_ACCEPTABLE,
+    code: "RBH-0108",
+    title: "Invalid Page Size",
+    detail: "The page size should larger then zero",
+    param: [];
 
     ty: InvalidJsonApiVersion,
     status: http::StatusCode::NOT_ACCEPTABLE,

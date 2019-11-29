@@ -4,24 +4,20 @@ use crate::RbhResult;
 
 use rsql::Expr;
 
-#[cfg(feature = "filter_rsql")]
 use rsql::parser::rsql::RsqlParser;
-#[cfg(feature = "filter_rsql")]
 use rsql::parser::Parser;
-#[cfg(feature = "filter_rsql")]
 use rsql::Comparison;
-#[cfg(feature = "filter_rsql")]
 use rsql::Constraint;
-#[cfg(feature = "filter_rsql")]
 use rsql::Operator;
 
 use crate::entity::SingleEntity;
-#[cfg(feature = "filter_rsql")]
+use crate::query::FilterSettings;
+use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
-pub trait FilterData: Sized {
-    fn new(params: &HashMap<String, String>) -> RbhResult<Option<Self>>;
+pub trait FilterData: Sized + ToString {
+    fn new(params: &HashMap<String, String>) -> RbhResult<Self>;
 
     fn filter<E: SingleEntity>(&self, entities: Vec<E>) -> RbhResult<Vec<E>>;
 }
@@ -29,17 +25,17 @@ pub trait FilterData: Sized {
 /// Example:
 /// `?include=authors&filter[book]=title==*Foo*&filter[author]=name!='Orson Scott Card'`
 /// where key is self type or relationship name
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Default, Clone)]
 pub struct RsqlFilterData(HashMap<String, Expr>);
 
-impl FilterData for RsqlFilterData {
-    #[cfg(not(feature = "filter_rsql"))]
-    fn new(_params: &HashMap<String, String>) -> RbhResult<Option<Self>> {
-        Err(error::Error::RsqlFilterNotImplemented(None))
+impl ToString for RsqlFilterData {
+    fn to_string(&self) -> String {
+        self.0.iter().map(|(k, v)| format!("filter[{}]={}", k, v.to_string())).join("&")
     }
+}
 
-    #[cfg(feature = "filter_rsql")]
-    fn new(params: &HashMap<String, String>) -> RbhResult<Option<Self>> {
+impl FilterData for RsqlFilterData {
+    fn new(params: &HashMap<String, String>) -> RbhResult<Self> {
         let mut res: HashMap<String, Expr> = Default::default();
         for (k, v) in params.iter() {
             if k.contains('.') {
@@ -48,18 +44,11 @@ impl FilterData for RsqlFilterData {
             let expr = RsqlParser::default()
                 .parse_to_node(v)
                 .map_err(|_| error::Error::UnmatchedFilterItem("Rsql", &k, &v, None))?;
-
-            eprintln!("expr: {:?}", expr);
-
             res.insert(k.clone(), expr);
         }
-        Ok(if res.is_empty() { None } else { Some(RsqlFilterData(res)) })
+        Ok(RsqlFilterData(res))
     }
 
-    #[cfg(not(feature = "filter_rsql"))]
-    fn filter<E: SingleEntity>(&self, _entities: Vec<E>) -> RbhResult<Vec<E>> { unimplemented!() }
-
-    #[cfg(feature = "filter_rsql")]
     fn filter<E: SingleEntity>(&self, mut entities: Vec<E>) -> RbhResult<Vec<E>> {
         for (ty_or_relat, expr) in &self.0 {
             entities = entities
@@ -81,7 +70,6 @@ impl FilterData for RsqlFilterData {
 }
 
 impl RsqlFilterData {
-    #[cfg(feature = "filter_rsql")]
     pub fn filter_on_attributes<E: SingleEntity>(expr: &Expr, entity: &E) -> RbhResult<bool> {
         let ent: bool = match &expr {
             Expr::Item(Constraint { selector, comparison, arguments }) => {
@@ -121,7 +109,7 @@ impl RsqlFilterData {
                             .is_none()
                     } else {
                         return Err(error::Error::UnsupportedRsqlComparison(
-                            &comparison.symbols,
+                            &comparison.get_symbols(),
                             arguments.0.len(),
                             None,
                         ));
@@ -142,17 +130,31 @@ impl RsqlFilterData {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FilterQuery {
     Rsql(RsqlFilterData),
 }
 
+impl ToString for FilterQuery {
+    fn to_string(&self) -> String {
+        match &self {
+            FilterQuery::Rsql(data) => data.to_string(),
+        }
+    }
+}
+
+impl Default for FilterQuery {
+    fn default() -> Self { Self::Rsql(Default::default()) }
+}
+
 impl FilterQuery {
-    pub fn new(ty: &str, params: &HashMap<String, String>) -> RbhResult<Option<FilterQuery>> {
-        if ty == "Rsql" {
-            RsqlFilterData::new(params).map(|op| op.map(FilterQuery::Rsql))
+    pub fn new(
+        settings: &FilterSettings, params: &HashMap<String, String>,
+    ) -> RbhResult<FilterQuery> {
+        if &settings.ty == "Rsql" {
+            RsqlFilterData::new(params).map(FilterQuery::Rsql)
         } else {
-            Err(error::Error::InvalidFilterType(ty, None))
+            Err(error::Error::InvalidFilterType(&settings.ty, None))
         }
     }
 

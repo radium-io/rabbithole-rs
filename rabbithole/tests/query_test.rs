@@ -8,7 +8,8 @@ use rabbithole::entity::Entity;
 
 use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
 use rabbithole::model::document::DocumentItem;
-use rabbithole::query::page::{CursorBasedData, PageQuery};
+
+use rabbithole::query::page::{Cursor, CursorBasedData, PageQuery};
 use rabbithole::query::sort::OrderType;
 use rabbithole::query::Query;
 use std::convert::TryInto;
@@ -31,19 +32,19 @@ fn sort_and_page_test() {
             .try_into()
             .unwrap(),
         page: Some(PageQuery::CursorBased(CursorBasedData {
-            target_id: "b".to_string(),
-            is_look_after: true,
-            limit: 2,
+            after: Some(Cursor { id: "b".to_string() }),
+            before: None,
+            size: 10,
         })),
-        filter: None,
+        ..Default::default()
     };
 
-    let uri = "sort=-name,-age&page[cursor]=<some-base64>";
+    let uri = "sort=-name,-age&page[before]=<some-base64>&page[size]=10";
     let uri = percent_encode(uri.as_bytes(), NON_ALPHANUMERIC);
     let uri = format!("/dogs?{}", uri.to_string());
 
     query.sort.sort(&mut dogs);
-    let dogs = query.page.as_ref().unwrap().page(&dogs);
+    let (dogs, _) = query.page.as_ref().unwrap().page(&dogs).unwrap();
 
     let doc = dogs
         .to_document(

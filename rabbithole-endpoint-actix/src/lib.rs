@@ -96,8 +96,10 @@ macro_rules! single_step_operation {
             if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
                 return Ok(err_resp);
             }
+            let uri = &this.uri.to_string();
+            let path = req.uri().clone().into();
 
-            match service.lock().await.$fn_name($(&$param.into_inner()),+).await {
+            match service.lock().await.$fn_name($(&$param.into_inner()),+, uri, &path).await {
                 Ok(item) => {
                     to_response!($return_ty: this, item)
                 },
@@ -130,7 +132,10 @@ impl ActixSettings {
             return Ok(err_resp);
         }
 
-        match service.lock().await.delete_resource(&params.into_inner()).await {
+        let uri = &this.uri.to_string();
+        let path = req.uri().clone().into();
+
+        match service.lock().await.delete_resource(&params.into_inner(), uri, &path).await {
             Ok(OperationResultData { additional_links, additional_meta, .. }) => {
                 if additional_links.is_empty() && additional_meta.is_empty() {
                     Ok(actix_web::HttpResponse::NoContent().finish())
@@ -157,10 +162,12 @@ impl ActixSettings {
             return Ok(err_resp);
         }
 
-        match service.lock().await.create(&body.into_inner()).await {
+        let uri = &this.uri.to_string();
+        let path = req.uri().clone().into();
+
+        match service.lock().await.create(&body.into_inner(), uri, &path).await {
             Ok(OperationResultData { data, additional_links, additional_meta }) => {
-                let mut resource =
-                    data.to_resource(&this.uri.to_string(), &Default::default()).unwrap();
+                let mut resource = data.to_resource(uri, &Default::default()).unwrap();
                 resource.extend_meta(additional_meta);
                 resource.extend_links(additional_links);
                 Ok(actix_web::HttpResponse::Ok().json(ResourceDataWrapper { data: resource }))
@@ -181,16 +188,14 @@ impl ActixSettings {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return Ok(err_resp);
         }
-        match this.query.from_uri(req.uri()) {
-            Ok(query) => match service.lock().await.fetch_collection(&query).await {
+
+        let uri = &this.uri.to_string();
+        let path = req.uri().clone().into();
+
+        match this.query.decode_path(&path) {
+            Ok(query) => match service.lock().await.fetch_collection(uri, &path, &query).await {
                 Ok(OperationResultData { data, additional_links, additional_meta }) => {
-                    match data.to_document(
-                        &this.uri.to_string(),
-                        &query,
-                        req.uri().into(),
-                        additional_links,
-                        additional_meta,
-                    ) {
+                    match data.to_document(uri, &query, path, additional_links, additional_meta) {
                         Ok(doc) => Ok(HttpResponse::Ok().json(doc)),
                         Err(err) => Ok(error_to_response(err)),
                     }
@@ -212,9 +217,18 @@ impl ActixSettings {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return Ok(err_resp);
         }
-        match this.query.from_uri(req.uri()) {
+
+        let uri = &this.uri.to_string();
+        let path = req.uri().clone().into();
+
+        match this.query.decode_path(&path) {
             Ok(query) => {
-                match service.lock().await.fetch_single(&param.into_inner(), &query).await {
+                match service
+                    .lock()
+                    .await
+                    .fetch_single(&param.into_inner(), uri, &path, &query)
+                    .await
+                {
                     Ok(OperationResultData { data, additional_links, additional_meta }) => {
                         match SingleEntity::to_document(
                             &data,
@@ -246,19 +260,17 @@ impl ActixSettings {
         if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
             return Ok(err_resp);
         }
-        match this.query.from_uri(req.uri()) {
+
+        let uri = &this.uri.to_string();
+        let path = req.uri().clone().into();
+
+        match this.query.decode_path(&path) {
             Ok(query) => {
                 let (id, related_field) = param.into_inner();
                 match service
                     .lock()
                     .await
-                    .fetch_relationship(
-                        &id,
-                        &related_field,
-                        &this.uri.to_string(),
-                        &query,
-                        &req.uri().into(),
-                    )
+                    .fetch_relationship(&id, &related_field, uri, &path, &query)
                     .await
                 {
                     Ok(OperationResultData { mut data, additional_links, additional_meta }) => {
@@ -285,19 +297,16 @@ impl ActixSettings {
             return Ok(err_resp);
         }
 
-        match this.query.from_uri(req.uri()) {
+        let uri = &this.uri.to_string();
+        let path = req.uri().clone().into();
+
+        match this.query.decode_path(&path) {
             Ok(query) => {
                 let (id, related_field) = param.into_inner();
                 match service
                     .lock()
                     .await
-                    .fetch_related(
-                        &id,
-                        &related_field,
-                        &this.uri.to_string(),
-                        &query,
-                        &req.uri().into(),
-                    )
+                    .fetch_related(&id, &related_field, uri, &path, &query)
                     .await
                 {
                     Ok(item) => Ok(new_json_api_resp(StatusCode::OK).json(item)),

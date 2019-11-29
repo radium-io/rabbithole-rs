@@ -14,8 +14,6 @@ license = "MIT"
 
 [features]
 default = []
-page_cursor = []
-filter_rsql = []
 
 [dependencies]
 env_logger = "~0.6"
@@ -28,6 +26,8 @@ thiserror = "~1.0"
 serde = "~1.0"
 serde_json = "~1.0"
 serde_derive = "~1.0"
+itertools = "~0.8"
+num-integer = "~0.1"
 
 http = "~0.1"
 url = "~2.1"
@@ -35,7 +35,7 @@ percent-encoding = "~2.1"
 base64 = "~0.11"
 
 uuid = { version = "~0.8", features = ["v4", "serde"] }
-rsql = "~0.3"
+rsql = "~0.4"
 async-trait = "~0.1"
 
 [dev-dependencies]
