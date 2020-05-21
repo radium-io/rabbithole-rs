@@ -162,7 +162,7 @@ impl QuerySettings {
             percent_encode(query_str.as_bytes(), &CHAR_SET).to_string()
         };
         let path_and_query = format!("{}?{}", path.path(), query_str);
-        let mut builder = http::Uri::builder();
+        let builder = http::Uri::builder();
         let builder = builder.path_and_query(path_and_query.as_bytes());
         builder.build().map(RawUri).map_err(|err| error::Error::InvalidUri(&err, None))
     }
