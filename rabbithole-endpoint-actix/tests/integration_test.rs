@@ -74,7 +74,7 @@ async fn basic_crud_test() {
     assert_eq!(new_dog_resources.len(), dog_resources.len());
 
     let new_dog_resource =
-        new_dog_resources.iter().find(|r| &r.id.id != &first_dog_res.data.id.id).unwrap();
+        new_dog_resources.iter().find(|r| r.id.id != first_dog_res.data.id.id).unwrap();
     let old_matched_resource =
         &dog_resources.iter().find(|r| r.data.id == new_dog_resource.id).unwrap().data;
     assert_eq!(new_dog_resource, old_matched_resource);
@@ -86,7 +86,7 @@ async fn basic_crud_test() {
     assert_eq!(new_dog_resources.len(), dog_resources.len());
 
     let new_dog_resource =
-        new_dog_resources.iter().find(|r| &r.id.id != &first_dog_res.data.id.id).unwrap();
+        new_dog_resources.iter().find(|r| r.id.id != first_dog_res.data.id.id).unwrap();
     let old_matched_resource =
         &dog_resources.iter().find(|r| r.data.id == new_dog_resource.id).unwrap().data;
     assert_eq!(new_dog_resource, old_matched_resource);
