@@ -31,8 +31,8 @@ async-trait = "~0.1"
 rand = "~0.7"
 config = "0.10.1"
 
-rabbithole = { path = "../rabbithole" }
-rabbithole-derive = { path = "../rabbithole-derive" }
+rabbithole = { path = "../rabbithole", version = "~0.3" }
+rabbithole-derive = { path = "../rabbithole-derive", version = "~0.3" }
 
 [dev-dependencies]
 actix-http-test = "1.0.0"
