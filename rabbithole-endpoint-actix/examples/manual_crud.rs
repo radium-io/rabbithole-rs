@@ -20,10 +20,9 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
 
     let mut settings = Config::default();
-
     settings.merge(File::with_name("config/actix.config.example.toml")).unwrap();
-
-    let actix_settings: ActixSettings = settings.clone().try_into().unwrap();
+    let actix_settings: ActixSettings = settings.try_into().unwrap();
+    let service_settings = actix_settings.clone();
 
     let dog_service = DogService::new();
     let human_service = HumanService::new(dog_service.clone());
@@ -32,16 +31,16 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .data(dog_service.clone())
             .data(human_service.clone())
-            .data::<ActixSettings>(actix_settings.clone())
+            .data::<ActixSettings>(service_settings.clone())
             .wrap(middleware::Logger::default())
             .service(
-                web::scope(&actix_settings.path)
+                web::scope(&service_settings.path)
                     .service(DogService::actix_service())
                     .service(HumanService::actix_service()),
             )
             .default_service(web::to(HttpResponse::NotFound))
     })
-    .bind(format!("[::]:{:?}", settings.get::<u32>("port")))?
+    .bind(format!("[::]:{:?}", actix_settings.port))?
     .run()
     .await
 }
