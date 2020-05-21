@@ -1,27 +1,22 @@
 pub mod settings;
 
+use crate::settings::JsonApiSettings;
+use actix_web::dev::HttpResponseBuilder;
 use actix_web::http::{header, HeaderMap, StatusCode};
 use actix_web::web;
 use actix_web::{HttpRequest, HttpResponse};
+use futures::lock::Mutex;
 use rabbithole::entity::{Entity, SingleEntity};
-
-use crate::settings::JsonApiSettings;
-use actix_web::dev::HttpResponseBuilder;
-
+use rabbithole::model::document::Document;
 use rabbithole::model::error;
 use rabbithole::model::version::JsonApiVersion;
 use rabbithole::operation::{
     Creating, Deleting, Fetching, IdentifierDataWrapper, OperationResultData, ResourceDataWrapper,
 };
+use rabbithole::query::QuerySettings;
 use rabbithole::rule::RuleDispatcher;
 use rabbithole::JSON_API_HEADER;
-
 use serde::Deserialize;
-
-use futures::lock::Mutex;
-use rabbithole::query::QuerySettings;
-
-use rabbithole::model::document::Document;
 use std::sync::Arc;
 
 fn error_to_response(err: error::Error) -> HttpResponse {
