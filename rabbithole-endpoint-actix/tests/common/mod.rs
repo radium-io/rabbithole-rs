@@ -4,16 +4,19 @@ pub mod service;
 #[macro_export]
 macro_rules! init_app {
     (PageBased) => {{
-        init_app!("config/actix.config.test.page_based.toml".to_string())
+        init_app!("tests/config/actix.config.test.page_based.toml".to_string())
     }};
     (CursorBased) => {{
-        init_app!("config/actix.config.test.cursor_based.toml".to_string())
+        init_app!("tests/config/actix.config.test.cursor_based.toml".to_string())
     }};
     (OffsetBased) => {{
-        init_app!("config/actix.config.test.offset_based.toml".to_string())
+        init_app!("tests/config/actix.config.test.offset_based.toml".to_string())
     }};
     (DefaultPage) => {{
-        init_app!("config/actix.config.test.default_page.toml".to_string())
+        init_app!("tests/config/actix.config.test.default_page.toml".to_string())
+    }};
+    ($major:expr, $minor:expr) => {{
+        init_app!(format!("tests/config/actix.config.test.v{}_{}.toml", $major, $minor))
     }};
     ($file_name:expr) => {{
         let mut settings = config::Config::default();
@@ -36,9 +39,6 @@ macro_rules! init_app {
                 .default_service(actix_web::web::to(actix_web::HttpResponse::NotFound)),
         )
         .await
-    }};
-    ($major:expr, $minor:expr) => {{
-        init_app!(format!("config/actix.config.test.v{}_{}.toml", $major, $minor))
     }};
 }
 
