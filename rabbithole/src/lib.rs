@@ -9,7 +9,6 @@ extern crate lazy_static;
 use crate::model::error::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
-pub type RbhOptionRes<T> = std::result::Result<Option<T>, Error>;
 pub const JSON_API_HEADER: &str = "application/vnd.api+json";
 
 pub mod entity;
