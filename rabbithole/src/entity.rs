@@ -10,6 +10,30 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::ops::Deref;
+pub trait Entity: Serialize + Clone {
+    /// Returns the `included` field of this entity
+    ///
+    /// `include_query`: If exists, only the `included` item whose `ty` is in the `include_query`
+    ///                  will be retained
+    ///                  If exists but empty, means all `included` fields will be ignored
+    ///                  If not exists, all the `included` fields will be retained   
+    ///
+    /// `fields_query`: For any resources whose `ty` is in the `fields_query`, their `relationship`
+    ///                 and `attributes` will be filtered. Only the field name inside the `field_query`
+    ///                 item will be retained
+    #[doc(hidden)]
+    fn included(
+        &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &FieldsQuery,
+    ) -> Result<Included>;
+
+    /// Returns a `Document` based on `query`. This function will do all of the actions databases should do in memory,
+    /// using a trivial iter way. But I still recommend you guys implement `to_document` or `to_document_async` yourself
+    /// for better performance
+    fn to_document(
+        &self, uri: &str, query: &Query, request_path: RawUri, additional_links: Links,
+        additional_meta: Meta,
+    ) -> Result<Document>;
+}
 
 pub trait SingleEntity: Entity {
     #[doc(hidden)]
@@ -96,31 +120,6 @@ pub trait SingleEntity: Entity {
     fn cmp_field(&self, field: &str, other: &Self) -> Result<Ordering> {
         self.attributes().cmp(field, &other.attributes())
     }
-}
-
-pub trait Entity: Serialize + Clone {
-    /// Returns the `included` field of this entity
-    ///
-    /// `include_query`: If exists, only the `included` item whose `ty` is in the `include_query`
-    ///                  will be retained
-    ///                  If exists but empty, means all `included` fields will be ignored
-    ///                  If not exists, all the `included` fields will be retained   
-    ///
-    /// `fields_query`: For any resources whose `ty` is in the `fields_query`, their `relationship`
-    ///                 and `attributes` will be filtered. Only the field name inside the `field_query`
-    ///                 item will be retained
-    #[doc(hidden)]
-    fn included(
-        &self, uri: &str, include_query: &Option<IncludeQuery>, fields_query: &FieldsQuery,
-    ) -> Result<Included>;
-
-    /// Returns a `Document` based on `query`. This function will do all of the actions databases should do in memory,
-    /// using a trivial iter way. But I still recommend you guys implement `to_document` or `to_document_async` yourself
-    /// for better performance
-    fn to_document(
-        &self, uri: &str, query: &Query, request_path: RawUri, additional_links: Links,
-        additional_meta: Meta,
-    ) -> Result<Document>;
 }
 
 impl<T: SingleEntity> SingleEntity for Option<T> {
