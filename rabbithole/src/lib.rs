@@ -1,5 +1,6 @@
 #![feature(associated_type_defaults)]
 #![feature(step_trait)]
+#![feature(step_trait_ext)]
 
 #[macro_use]
 extern crate serde_derive;

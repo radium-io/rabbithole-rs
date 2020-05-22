@@ -136,7 +136,7 @@ impl PageData for CursorBasedData {
             },
             (Some(after), Some(before)) => (after + 1, before),
             (Some(after), None) => (after + 1, after + 1 + self.size),
-            (None, Some(before)) => (before.sub_usize(self.size).unwrap_or_default(), before),
+            (None, Some(before)) => (Step::backward_checked(before, self.size).unwrap_or_default(), before),
             (None, None) => (0, self.size),
         };
         let (from, to) = (from.max(0), to.min(entities.len()));
@@ -144,7 +144,7 @@ impl PageData for CursorBasedData {
         let prev =
             if from != 0 { entities.get(from).map(|e| self.parse_entity(e, false)) } else { None };
         let next = if to != entities.len() {
-            entities.get(to.sub_usize(1).unwrap_or_default()).map(|e| self.parse_entity(e, true))
+            entities.get(Step::backward_checked(to, 1).unwrap_or_default()).map(|e| self.parse_entity(e, true))
         } else {
             None
         };
@@ -186,11 +186,11 @@ impl PageData for OffsetBasedData {
         let end = (self.offset + self.limit).min(entities.len());
         let first = Some(OffsetBasedData { offset: 0, limit: self.limit });
         let last = Some(OffsetBasedData {
-            offset: entities.len().sub_usize(self.limit).unwrap_or_default(),
+            offset: Step::backward_checked(entities.len(),self.limit).unwrap_or_default(),
             limit: self.limit,
         });
         let prev = Some(OffsetBasedData {
-            offset: start.sub_usize(self.limit).unwrap_or_default(),
+            offset: Step::backward_checked(start,self.limit).unwrap_or_default(),
             limit: self.limit,
         });
         let next = Some(OffsetBasedData { offset: end, limit: self.limit });
@@ -236,12 +236,12 @@ impl PageData for PageBasedData {
         let start = (self.number * self.size).min(entities.len());
         let end = ((self.number + 1) * self.size).min(entities.len());
 
-        let max_page = entities.len().div_ceil(&self.size).sub_usize(1).unwrap_or_default();
+        let max_page = Step::backward_checked(entities.len().div_ceil(&self.size),1).unwrap_or_default();
 
         let first = Some(PageBasedData { number: 0, size: self.size });
         let last = Some(PageBasedData { number: max_page, size: self.size });
         let prev = Some(PageBasedData {
-            number: self.number.sub_usize(1).unwrap_or_default(),
+            number: Step::backward_checked(self.number,1).unwrap_or_default(),
             size: self.size,
         });
         let next = Some(PageBasedData { number: (self.number + 1).min(max_page), size: self.size });
