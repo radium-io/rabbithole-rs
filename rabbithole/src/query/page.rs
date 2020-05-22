@@ -128,7 +128,7 @@ impl PageData for CursorBasedData {
 
         let (from, to) = match (after_opt, before_opt) {
             (Some(after), Some(before)) if after >= before => {
-                return Err(error::Error::BaforeAndAfterCursorNotMatch(None))
+                return Err(error::Error::BeforeAndAfterCursorNotMatch(None))
             },
             // When the gap between `after` and `before` is larger than `size`
             (Some(after), Some(before)) if before - after > self.size + 1 => {
