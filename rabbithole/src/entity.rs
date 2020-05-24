@@ -1,5 +1,5 @@
 use crate::model::document::{Document, Included};
-use crate::model::link::{Link, Links, RawUri};
+use crate::model::link::{Link, Links};
 use crate::model::relationship::{RelationshipLinks, Relationships};
 use crate::model::resource::{Attributes, Resource, ResourceIdentifier};
 use crate::model::Meta;
@@ -30,7 +30,7 @@ pub trait Entity: Serialize + Clone {
     /// using a trivial iter way. But I still recommend you guys implement `to_document` or `to_document_async` yourself
     /// for better performance
     fn to_document(
-        &self, uri: &str, query: &Query, request_path: RawUri, additional_links: Links,
+        &self, uri: &str, query: &Query, request_path: http::Uri, additional_links: Links,
         additional_meta: Meta,
     ) -> Result<Document>;
 }
@@ -59,7 +59,7 @@ pub trait SingleEntity: Entity {
     }
 
     fn to_document(
-        &self, uri: &str, query: &Query, request_path: RawUri, mut additional_links: Links,
+        &self, uri: &str, query: &Query, request_path: http::Uri, mut additional_links: Links,
         additional_meta: Meta,
     ) -> Result<Document> {
         let (key, value) = Link::slf(uri, request_path);
@@ -134,7 +134,7 @@ impl<T: SingleEntity> SingleEntity for Option<T> {
     }
 
     fn to_document(
-        &self, uri: &str, query: &Query, request_path: RawUri, additional_links: Links,
+        &self, uri: &str, query: &Query, request_path: http::Uri, additional_links: Links,
         additional_meta: Meta,
     ) -> Result<Document> {
         if let Some(item) = self {
@@ -172,7 +172,7 @@ impl<T: Entity> Entity for Option<T> {
     }
 
     fn to_document(
-        &self, uri: &str, query: &Query, request_path: RawUri, additional_links: Links,
+        &self, uri: &str, query: &Query, request_path: http::Uri, additional_links: Links,
         additional_meta: Meta,
     ) -> Result<Document> {
         self.as_ref()
@@ -199,7 +199,7 @@ impl<T: Entity> Entity for Box<T> {
     }
 
     fn to_document(
-        &self, uri: &str, query: &Query, request_path: RawUri, additional_links: Links,
+        &self, uri: &str, query: &Query, request_path: http::Uri, additional_links: Links,
         additional_meta: Meta,
     ) -> Result<Document> {
         self.as_ref().to_document(uri, query, request_path, additional_links, additional_meta)
@@ -230,7 +230,7 @@ where
     }
 
     fn to_document(
-        &self, uri: &str, query: &Query, request_path: RawUri, additional_links: Links,
+        &self, uri: &str, query: &Query, request_path: http::Uri, additional_links: Links,
         additional_meta: Meta,
     ) -> Result<Document> {
         self.deref().to_document(uri, query, request_path, additional_links, additional_meta)
@@ -249,7 +249,7 @@ impl<T: SingleEntity> Entity for &[T] {
     }
 
     fn to_document(
-        &self, uri: &str, query: &Query, request_path: RawUri, mut additional_links: Links,
+        &self, uri: &str, query: &Query, request_path: http::Uri, mut additional_links: Links,
         additional_meta: Meta,
     ) -> Result<Document> {
         let entities = self.to_vec();
@@ -275,7 +275,7 @@ impl<T: SingleEntity> Entity for Vec<T> {
     }
 
     fn to_document(
-        &self, uri: &str, query: &Query, request_path: RawUri, additional_links: Links,
+        &self, uri: &str, query: &Query, request_path: http::Uri, additional_links: Links,
         additional_meta: Meta,
     ) -> Result<Document> {
         self.as_slice().to_document(uri, query, request_path, additional_links, additional_meta)

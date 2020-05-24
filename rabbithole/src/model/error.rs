@@ -1,4 +1,4 @@
-use crate::model::link::{Link, Links, RawUri};
+use crate::model::link::{Link, Links};
 use crate::model::Meta;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -28,9 +28,10 @@ impl From<Links> for ErrorLinks {
 /// Error location
 #[derive(Debug, Clone, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ErrorSource {
-    pub pointer: Option<RawUri>,
+    pub pointer: Option<crate::model::link::WrappedUri>,
     pub parameter: Option<String>,
 }
+
 
 impl ErrorSource {
     pub(crate) fn is_empty(&self) -> bool { self.pointer.is_none() && self.parameter.is_none() }

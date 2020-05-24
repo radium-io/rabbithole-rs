@@ -11,7 +11,6 @@ use rabbithole::model::resource::AttributeField;
 use rabbithole::query::Query;
 
 use futures::lock::Mutex;
-use rabbithole::model::link::RawUri;
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -45,7 +44,7 @@ impl Operation for DogService {
 #[async_trait]
 impl Fetching for DogService {
     async fn fetch_collection(
-        &self, uri: &str, path: &RawUri, query: &Query,
+        &self, uri: &str, path: &http::Uri, query: &Query,
     ) -> CollectionResult<Dog> {
         let data: Vec<Dog> = self.0.values().cloned().collect();
         let (data, links) = query.query(data, uri, path)?;
@@ -53,7 +52,7 @@ impl Fetching for DogService {
     }
 
     async fn fetch_single(
-        &self, id: &str, _uri: &str, _path: &RawUri, _query: &Query,
+        &self, id: &str, _uri: &str, _path: &http::Uri, _query: &Query,
     ) -> SingleResult<Dog> {
         Ok(OperationResultData { data: self.0.get(id).map(Clone::clone), ..Default::default() })
     }
@@ -61,7 +60,7 @@ impl Fetching for DogService {
 #[async_trait]
 impl Creating for DogService {
     async fn create(
-        &mut self, data: &ResourceDataWrapper, _uri: &str, _path: &RawUri,
+        &mut self, data: &ResourceDataWrapper, _uri: &str, _path: &http::Uri,
     ) -> SingleResult<Dog> {
         let ResourceDataWrapper { data } = data;
         let id = if !data.id.id.is_empty() {
@@ -87,7 +86,7 @@ impl Creating for DogService {
 #[async_trait]
 impl Updating for DogService {
     async fn update_resource(
-        &mut self, id: &str, data: &ResourceDataWrapper, _uri: &str, _path: &RawUri,
+        &mut self, id: &str, data: &ResourceDataWrapper, _uri: &str, _path: &http::Uri,
     ) -> SingleResult<Dog> {
         if let Some(mut dog) = self.get_by_id(id) {
             let ResourceDataWrapper { data } = data;
@@ -108,7 +107,7 @@ impl Updating for DogService {
 #[async_trait]
 impl Deleting for DogService {
     async fn delete_resource(
-        &mut self, id: &str, _uri: &str, _path: &RawUri,
+        &mut self, id: &str, _uri: &str, _path: &http::Uri,
     ) -> OperationResult<()> {
         self.0.remove(id);
         Ok(OperationResultData { data: (), ..Default::default() })

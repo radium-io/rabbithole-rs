@@ -1,10 +1,9 @@
-use crate::model::link::RawUri;
-
+use crate::model::link::WrappedUri;
 /// Pagination links
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct Pagination {
-    pub first: Option<RawUri>,
-    pub prev: Option<RawUri>,
-    pub next: Option<RawUri>,
-    pub last: Option<RawUri>,
+    pub first: Option<WrappedUri>,
+    pub prev: Option<WrappedUri>,
+    pub next: Option<WrappedUri>,
+    pub last: Option<WrappedUri>,
 }

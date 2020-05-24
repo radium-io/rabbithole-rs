@@ -30,6 +30,7 @@ itertools = "~0.8"
 num-integer = "~0.1"
 
 http = "0.2.1"
+http-serde = "1.0.1"
 url = "2.1.1"
 percent-encoding = "~2.1"
 base64 = "0.12.1"

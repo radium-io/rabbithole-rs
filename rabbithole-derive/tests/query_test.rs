@@ -3,7 +3,7 @@ extern crate serde;
 
 use rabbithole::entity::{Entity, SingleEntity};
 use rabbithole::model::document::{Document, Included};
-use rabbithole::model::link::{Link, RawUri};
+use rabbithole::model::link::{Link};
 use rabbithole::model::resource::Resource;
 use rabbithole::query::Query;
 use serde::{Deserialize, Serialize};
@@ -85,7 +85,7 @@ fn default_include_test() {
     let mut manual_doc = Document::multiple_resources(master_reses, manual_included);
     manual_doc.extend_links(HashMap::from_iter(vec![Link::slf(
         "https://example.com",
-        "/api".parse::<RawUri>().unwrap(),
+        "/api".parse::<http::Uri>().unwrap(),
     )]));
     assert_eq!(gen_doc.unwrap(), manual_doc);
 }
@@ -111,7 +111,7 @@ fn only_unknown_include_test() {
     let mut manual_doc = Document::multiple_resources(master_reses, Default::default());
     manual_doc.extend_links(HashMap::from_iter(vec![Link::slf(
         "https://example.com",
-        "/api".parse::<RawUri>().unwrap(),
+        "/api".parse::<http::Uri>().unwrap(),
     )]));
     assert_eq!(gen_doc.unwrap(), manual_doc);
 }
@@ -134,7 +134,7 @@ fn not_included_fields_but_retain_attributes() {
     let mut manual_doc = Document::multiple_resources(master_reses, Default::default());
     manual_doc.extend_links(HashMap::from_iter(vec![Link::slf(
         "https://example.com",
-        "/api".parse::<RawUri>().unwrap(),
+        "/api".parse::<http::Uri>().unwrap(),
     )]));
     assert_eq!(gen_doc.unwrap(), manual_doc);
 }
@@ -167,7 +167,7 @@ fn not_foreign_attributes_but_retain_included_fields() {
     let mut manual_doc = Document::multiple_resources(master_reses, manual_included);
     manual_doc.extend_links(HashMap::from_iter(vec![Link::slf(
         "https://example.com",
-        "/api".parse::<RawUri>().unwrap(),
+        "/api".parse::<http::Uri>().unwrap(),
     )]));
     assert_eq!(gen_doc.unwrap(), manual_doc);
 }

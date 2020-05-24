@@ -11,7 +11,7 @@ use crate::query::page::PageQuery;
 use crate::query::sort::{OrderType, SortQuery};
 
 use crate::entity::SingleEntity;
-use crate::model::link::{Link, Links, RawUri};
+use crate::model::link::{Link, Links};
 use itertools::Itertools;
 use percent_encoding::percent_decode_str;
 use percent_encoding::{percent_encode, AsciiSet, NON_ALPHANUMERIC};
@@ -88,7 +88,7 @@ pub struct Query {
 
 impl Query {
     pub fn query<E: SingleEntity>(
-        &self, mut data: Vec<E>, uri: &str, path: &RawUri,
+        &self, mut data: Vec<E>, uri: &str, path: &http::Uri,
     ) -> Result<(Vec<E>, Links)> {
         self.sort.sort(&mut data);
         let data = self.filter.filter(data)?;
@@ -153,8 +153,7 @@ lazy_static! {
 }
 
 impl QuerySettings {
-    pub fn encode_path(&self, path: &RawUri, query: &Query) -> Result<RawUri> {
-        let RawUri(path) = path;
+    pub fn encode_path(&self, path: &http::Uri, query: &Query) -> Result<http::Uri> {
         let query_str = query.to_string();
         let query_str = if self.raw_encode {
             query_str
@@ -164,11 +163,10 @@ impl QuerySettings {
         let path_and_query = format!("{}?{}", path.path(), query_str);
         let builder = http::Uri::builder();
         let builder = builder.path_and_query(path_and_query.as_bytes());
-        builder.build().map(RawUri).map_err(|err| error::Error::InvalidUri(&err, None))
+        builder.build().map_err(|err| error::Error::InvalidUri(&err, None))
     }
 
-    pub fn decode_path(&self, path: &RawUri) -> Result<Query> {
-        let RawUri(path) = path;
+    pub fn decode_path(&self, path: &http::Uri) -> Result<Query> {
         let mut include_query: IncludeQuery = Default::default();
         let mut include_query_exist = false;
         let mut sort_query: SortQuery = Default::default();
@@ -247,7 +245,6 @@ impl QuerySettings {
 
 #[cfg(test)]
 mod tests {
-    use crate::model::link::RawUri;
     use crate::query::{PageSettings, QuerySettings, CHAR_SET};
     use percent_encoding::percent_encode;
 
@@ -261,7 +258,7 @@ mod tests {
             &CHAR_SET,
         )
         .to_string();
-        let uri: RawUri = format!("/author/1?{}", query).parse().unwrap();
+        let uri: http::Uri = format!("/author/1?{}", query).parse().unwrap();
         let settings = QuerySettings {
             default_size: 10,
             page: Some(PageSettings { ty: "OffsetBased".into() }),

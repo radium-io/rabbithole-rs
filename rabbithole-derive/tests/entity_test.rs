@@ -3,7 +3,7 @@ extern crate serde;
 
 use rabbithole::entity::Entity;
 use rabbithole::model::document::{Document, DocumentItem, PrimaryDataItem};
-use rabbithole::model::link::{Link, RawUri};
+use rabbithole::model::link::{Link};
 use rabbithole::model::relationship::Relationship;
 use rabbithole::model::resource::*;
 use rabbithole::query::Query;
@@ -298,7 +298,7 @@ fn general_test() {
     );
     document.extend_links(HashMap::from_iter(vec![Link::slf(
         "https://example.com",
-        "/api".parse::<RawUri>().unwrap(),
+        "/api".parse::<http::Uri>().unwrap(),
     )]));
 
     let gen_doc: Document = dog

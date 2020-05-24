@@ -175,7 +175,7 @@ impl ActixSettings {
         }
 
         let uri = &this.uri().to_string();
-        let path: rabbithole::model::link::RawUri = req.uri().clone().into();
+        let path = req.uri().to_owned();
 
         match this.query.decode_path(&path) {
             Ok(query) => match service.lock().await.fetch_collection(uri, &path, &query).await {
@@ -219,7 +219,7 @@ impl ActixSettings {
                             &data,
                             &this.uri().to_string(),
                             &query,
-                            req.uri().into(),
+                            req.uri().to_owned(),
                             additional_links,
                             additional_meta,
                         ) {

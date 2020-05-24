@@ -2,7 +2,7 @@ use crate::entity::SingleEntity;
 use crate::model::document::Document;
 use crate::model::relationship::Relationship;
 
-use crate::model::link::{Links, RawUri};
+use crate::model::link::{Links};
 use crate::model::resource::{IdentifierData, Resource};
 use crate::model::{error, Meta};
 use crate::query::Query;
@@ -33,28 +33,28 @@ pub trait Fetching: Operation {
     //    ///     - put `prev`, `next`, `first` and `last` into `links`
     //    ///     - put `totalPages` if `@type == PageBased`
     //    async fn vec_to_document(
-    //        items: &[Self::Item], uri: &str, query: &Query, request_path: &RawUri,
+    //        items: &[Self::Item], uri: &str, query: &Query, request_path: &http::Uri,
     //    ) -> Result<Document> {
     //        Ok(items.to_document(uri, query, request_path)?)
     //    }
     /// Mapping to `/<ty>?<query>`
     #[allow(unused_variables)]
     async fn fetch_collection(
-        &self, uri: &str, path: &RawUri, query: &Query,
+        &self, uri: &str, path: &http::Uri, query: &Query,
     ) -> CollectionResult<Self::Item> {
         Err(error::Error::OperationNotImplemented("fetch_collection", None))
     }
     /// Mapping to `/<ty>/<id>?<query>`
     #[allow(unused_variables)]
     async fn fetch_single(
-        &self, id: &str, uri: &str, path: &RawUri, query: &Query,
+        &self, id: &str, uri: &str, path: &http::Uri, query: &Query,
     ) -> SingleResult<Self::Item> {
         Err(error::Error::OperationNotImplemented("fetch_single", None))
     }
     /// Mapping to `/<ty>/<id>/relationships/<related_field>?<query>`
     #[allow(unused_variables)]
     async fn fetch_relationship(
-        &self, id: &str, related_field: &str, uri: &str, path: &RawUri, query: &Query,
+        &self, id: &str, related_field: &str, uri: &str, path: &http::Uri, query: &Query,
     ) -> OperationResult<Relationship> {
         Err(error::Error::OperationNotImplemented("fetch_relationship", None))
     }
@@ -64,7 +64,7 @@ pub trait Fetching: Operation {
     /// the document yourself
     #[allow(unused_variables)]
     async fn fetch_related(
-        &self, id: &str, related_field: &str, uri: &str, path: &RawUri, query: &Query,
+        &self, id: &str, related_field: &str, uri: &str, path: &http::Uri, query: &Query,
     ) -> Result<Document> {
         Err(error::Error::OperationNotImplemented("fetch_related", None))
     }
@@ -102,7 +102,7 @@ pub trait Creating: Operation {
     /// If returns `Ok(None)`, then will be mapped to `StatusCode == '204 No Content'` with empty body
     #[allow(unused_variables)]
     async fn create(
-        &mut self, data: &ResourceDataWrapper, uri: &str, path: &RawUri,
+        &mut self, data: &ResourceDataWrapper, uri: &str, path: &http::Uri,
     ) -> SingleResult<Self::Item> {
         Err(error::Error::OperationNotImplemented("create", None))
     }
@@ -117,7 +117,7 @@ pub trait Updating: Operation {
     /// Otherwise, this function should return `200 OK`, with the whole updated resource
     #[allow(unused_variables)]
     async fn update_resource(
-        &mut self, id: &str, data: &ResourceDataWrapper, uri: &str, path: &RawUri,
+        &mut self, id: &str, data: &ResourceDataWrapper, uri: &str, path: &http::Uri,
     ) -> SingleResult<Self::Item> {
         Err(error::Error::OperationNotImplemented("update_resource", None))
     }
@@ -132,7 +132,7 @@ pub trait Updating: Operation {
     #[allow(unused_variables)]
     async fn replace_relationship(
         &mut self, id_field: &(String, String), data: &IdentifierDataWrapper, uri: &str,
-        path: &RawUri,
+        path: &http::Uri,
     ) -> UpdateResult<Self::Item> {
         Err(error::Error::OperationNotImplemented("replace_relationship", None))
     }
@@ -147,7 +147,7 @@ pub trait Updating: Operation {
     #[allow(unused_variables)]
     async fn add_relationship(
         &mut self, id_field: &(String, String), data: &IdentifierDataWrapper, uri: &str,
-        path: &RawUri,
+        path: &http::Uri,
     ) -> UpdateResult<Self::Item> {
         Err(error::Error::OperationNotImplemented("add_relationship", None))
     }
@@ -162,7 +162,7 @@ pub trait Updating: Operation {
     #[allow(unused_variables)]
     async fn remove_relationship(
         &mut self, id_field: &(String, String), data: &IdentifierDataWrapper, uri: &str,
-        path: &RawUri,
+        path: &http::Uri,
     ) -> UpdateResult<Self::Item> {
         Err(error::Error::OperationNotImplemented("remove_relationship", None))
     }
@@ -172,7 +172,7 @@ pub trait Updating: Operation {
 pub trait Deleting: Operation {
     /// Mapping to `DELETE /<ty>/<id>`
     #[allow(unused_variables)]
-    async fn delete_resource(&mut self, id: &str, uri: &str, path: &RawUri) -> OperationResult<()> {
+    async fn delete_resource(&mut self, id: &str, uri: &str, path: &http::Uri) -> OperationResult<()> {
         Err(error::Error::OperationNotImplemented("delete_resource", None))
     }
 }
