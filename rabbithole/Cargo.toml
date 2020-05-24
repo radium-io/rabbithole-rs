@@ -1,6 +1,6 @@
 [package]
 name = "rabbithole"
-version = "0.3.1"
+version = "0.4.0"
 authors = ["Ukonn Ra <ukonnra@outlook.com>"]
 edition = "2018"
 description = "JSON:API Data Structure & Query implementation"
@@ -40,4 +40,4 @@ rsql = "~0.4"
 async-trait = "~0.1"
 
 [dev-dependencies]
-rabbithole-derive = { path = "../rabbithole-derive", version = "~0.3" }
+rabbithole-derive = { path = "../rabbithole-derive", version = "~0.4" }

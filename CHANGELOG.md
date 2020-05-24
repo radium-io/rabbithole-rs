@@ -5,11 +5,16 @@
 ### Changed
 
 - [ ] Redesign the `CursorBased` pagination based on `https://jsonapi.org/profiles/ethanresnick/cursor-pagination/`
-- Update `actix-web` to `2.0` with the async handler
 - A in-memory demo
 - `204 No Content`/`200 OK` when `PATCH`, `POST` and `DELETE` the resource
 - From `to_document_automatically` to `to_document`, now this function only handle a simple job - convert `Entity` to `Document`, no more, no less
 - Now User can return the additional links and meta info in `Operation` trait
+
+## [0.4.0]
+- Update `actix-web` to `2.0` with the async handler
+- BREAKING: remove ActixSettingsModel, use ActixSettings directly instead
+- BREAKING: Removed RawUri. Use `http::Uri` for path in trait methods instead
+- Internal: Use only one set of example services for tests and example
 
 ## [0.3.0] - 2019-11-17
 
