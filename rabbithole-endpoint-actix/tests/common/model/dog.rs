@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 #[derive(rbh_derive::EntityDecorator, Serialize, Deserialize, Clone, Debug)]
 #[entity(type = "dogs")]
-#[entity(service(crate::service::dog::DogService))]
+#[entity(service(super::super::service::dog::DogService))]
 #[entity(backend(actix))]
 pub struct Dog {
     #[entity(id)]

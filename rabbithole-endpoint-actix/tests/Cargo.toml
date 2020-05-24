@@ -1,0 +1,24 @@
+[package]
+name = "rabbithole-endpoint-actix-tests-common"
+version = "0.3.1"
+edition = "2018"
+publish = false
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+lazy_static = "1.4.0"
+rabbithole = { path = "../../rabbithole" }
+rabbithole-derive = { path = "../../rabbithole-derive" }
+rabbithole-endpoint-actix = { path = "../" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.53"
+async-trait = "~0.1"
+http = "0.2.1"
+actix-http-test = "1.0.0"
+actix-http = "1.0.1"
+actix-web = "2.0.0"
+actix-rt = "1.1.1"
+futures = "0.3.5"
+uuid = "0.8.1"

@@ -14,7 +14,6 @@ use actix_web::test::{call_service, read_response_json};
 use rabbithole::model::document::Document;
 
 pub mod common;
-use common::model;
 use common::model::dog::{generate_dogs, Dog};
 use common::model::human::Human;
 use common::service;

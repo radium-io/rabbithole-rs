@@ -5,7 +5,7 @@ use rabbithole::JSON_API_HEADER;
 use rabbithole_endpoint_actix::ActixSettings;
 
 pub mod common;
-use common::{model, service};
+use common::{service};
 
 #[macro_use]
 extern crate lazy_static;

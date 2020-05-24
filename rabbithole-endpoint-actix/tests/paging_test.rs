@@ -7,7 +7,6 @@ use rabbithole::operation::ResourceDataWrapper;
 use rabbithole_endpoint_actix::ActixSettings;
 
 pub mod common;
-use common::model;
 use common::model::dog::generate_dogs;
 use common::service;
 use common::{get, post};

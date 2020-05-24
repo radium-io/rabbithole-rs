@@ -4,8 +4,8 @@ use rabbithole::operation::*;
 
 use rabbithole::model::error;
 
-use crate::model::dog::Dog;
-use crate::service::*;
+use super::super::model::dog::Dog;
+use super::super::service::*;
 
 use rabbithole::model::resource::AttributeField;
 use rabbithole::query::Query;

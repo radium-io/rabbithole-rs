@@ -1,18 +1,12 @@
-#[macro_use]
-extern crate lazy_static;
-
-pub mod model;
-pub mod service;
-
 use actix_web::App;
 use actix_web::{middleware, web};
 use actix_web::{HttpResponse, HttpServer};
-
 use rabbithole_endpoint_actix::ActixSettings;
-
-use crate::service::dog::DogService;
-use crate::service::human::HumanService;
 use config::{Config, File};
+
+extern crate rabbithole_endpoint_actix_tests_common;
+use rabbithole_endpoint_actix_tests_common::common::service::dog::{DogService};
+use rabbithole_endpoint_actix_tests_common::common::service::human::{HumanService};
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {

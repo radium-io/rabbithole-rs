@@ -4,10 +4,10 @@ use rabbithole::operation::*;
 
 use rabbithole::model::error::Error;
 
-use crate::model::dog::Dog;
-use crate::model::human::Human;
-use crate::service::dog::DogService;
-use crate::service::*;
+use super::super::model::dog::Dog;
+use super::super::model::human::Human;
+use super::super::service::dog::DogService;
+use super::super::service::*;
 use futures::lock::Mutex;
 use rabbithole::entity::{Entity, SingleEntity};
 use rabbithole::model::document::Document;

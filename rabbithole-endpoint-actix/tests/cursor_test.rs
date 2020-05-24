@@ -18,7 +18,6 @@ use actix_web::test;
 use rabbithole::model::document::Document;
 
 pub mod common;
-use common::model;
 use common::model::dog::generate_dogs;
 use common::service;
 use common::{get, post};
