@@ -8,11 +8,6 @@ pub type Links = HashMap<String, Link>;
 #[derive(Debug,Serialize,Deserialize,Eq,PartialEq,Clone)]
 pub struct WrappedUri(#[serde(with = "http_serde::uri")] http::Uri);
 
-fn append_to(path: &http::Uri, base_url: &str) -> http::Uri {
-    let base = base_url.parse::<url::Url>().unwrap().join(path.to_string().as_str()).unwrap();
-    base.to_string().parse::<http::Uri>().unwrap()
-}
-
 impl FromStr for Link {
     type Err = http::uri::InvalidUri;
 
@@ -54,7 +49,10 @@ pub enum Link {
 }
 
 impl Link {
-    pub fn new(uri: &str, path: http::Uri) -> Link { append_to(&path, uri).into() }
+    pub fn new(uri: &str, path: http::Uri) -> Link { 
+        let base = uri.parse::<url::Url>().unwrap().join(path.to_string().as_str()).unwrap();
+        base.to_string().parse::<http::Uri>().unwrap().into()
+     }
 
     pub fn slf(uri: &str, path: http::Uri) -> (String, Link) { ("self".into(), Link::new(uri, path)) }
 }
