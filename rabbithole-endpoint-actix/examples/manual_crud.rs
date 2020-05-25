@@ -1,12 +1,12 @@
 use actix_web::App;
 use actix_web::{middleware, web};
 use actix_web::{HttpResponse, HttpServer};
-use rabbithole_endpoint_actix::ActixSettings;
 use config::{Config, File};
+use rabbithole_endpoint_actix::ActixSettings;
 
 extern crate rabbithole_endpoint_actix_tests_common;
-use rabbithole_endpoint_actix_tests_common::common::service::dog::{DogService};
-use rabbithole_endpoint_actix_tests_common::common::service::human::{HumanService};
+use rabbithole_endpoint_actix_tests_common::common::service::dog::DogService;
+use rabbithole_endpoint_actix_tests_common::common::service::human::HumanService;
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
@@ -14,7 +14,9 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
 
     let mut settings = Config::default();
-    settings.merge(File::with_name("config/actix.config.example.toml")).unwrap();
+    settings
+        .merge(File::with_name("config/actix.config.example.toml"))
+        .unwrap();
     let actix_settings: ActixSettings = settings.try_into().unwrap();
     let service_settings = actix_settings.clone();
 

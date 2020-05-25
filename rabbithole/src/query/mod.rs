@@ -29,7 +29,11 @@ pub struct FilterSettings {
 }
 
 impl Default for FilterSettings {
-    fn default() -> Self { Self { ty: "Rsql".to_string() } }
+    fn default() -> Self {
+        Self {
+            ty: "Rsql".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -100,7 +104,10 @@ impl Query {
         let relat_pages: Result<Links> = relat_pages
             .into_iter()
             .map(|(k, v)| {
-                let relat_query = Query { page: Some(v), ..self.clone() };
+                let relat_query = Query {
+                    page: Some(v),
+                    ..self.clone()
+                };
                 self.settings
                     .encode_path(path, &relat_query)
                     .map(|path| Link::new(uri, path))
@@ -136,7 +143,11 @@ impl ToString for Query {
                 format!("{}{}", ty_str, k)
             })
             .join(",");
-        let page_query = self.page.as_ref().map(ToString::to_string).unwrap_or_default();
+        let page_query = self
+            .page
+            .as_ref()
+            .map(ToString::to_string)
+            .unwrap_or_default();
         let filter_query = self.filter.to_string();
         let mut vec = vec![include_query, page_query, filter_query];
         if !sort_query.is_empty() {
@@ -163,7 +174,9 @@ impl QuerySettings {
         let path_and_query = format!("{}?{}", path.path(), query_str);
         let builder = http::Uri::builder();
         let builder = builder.path_and_query(path_and_query.as_bytes());
-        builder.build().map_err(|err| error::Error::InvalidUri(&err, None))
+        builder
+            .build()
+            .map_err(|err| error::Error::InvalidUri(&err, None))
     }
 
     pub fn decode_path(&self, path: &http::Uri) -> Result<Query> {
@@ -190,7 +203,11 @@ impl QuerySettings {
                 if key == "include" {
                     include_query_exist = true;
 
-                    for v in value.split(',').filter(|s| !s.is_empty()).map(ToString::to_string) {
+                    for v in value
+                        .split(',')
+                        .filter(|s| !s.is_empty())
+                        .map(ToString::to_string)
+                    {
                         include_query.insert(v);
                     }
                     continue;
@@ -228,7 +245,11 @@ impl QuerySettings {
                 }
             }
         }
-        let include = if include_query_exist { Some(include_query) } else { None };
+        let include = if include_query_exist {
+            Some(include_query)
+        } else {
+            None
+        };
         let sort = sort_query;
         let page = if let Some(_page_settings) = self.page.as_ref() {
             Some(PageQuery::new(&self, &page_map)?)
@@ -236,8 +257,14 @@ impl QuerySettings {
             None
         };
         let filter = FilterQuery::new(&self.filter, &filter_map)?;
-        let query =
-            Query { settings: self.clone(), include, fields: fields_map, sort, page, filter };
+        let query = Query {
+            settings: self.clone(),
+            include,
+            fields: fields_map,
+            sort,
+            page,
+            filter,
+        };
 
         Ok(query)
     }
@@ -261,7 +288,9 @@ mod tests {
         let uri: http::Uri = format!("/author/1?{}", query).parse().unwrap();
         let settings = QuerySettings {
             default_size: 10,
-            page: Some(PageSettings { ty: "OffsetBased".into() }),
+            page: Some(PageSettings {
+                ty: "OffsetBased".into(),
+            }),
             ..Default::default()
         };
 

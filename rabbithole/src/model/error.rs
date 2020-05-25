@@ -32,7 +32,6 @@ pub struct ErrorSource {
     pub parameter: Option<String>,
 }
 
-
 impl ErrorSource {
     pub(crate) fn is_empty(&self) -> bool { self.pointer.is_none() && self.parameter.is_none() }
 }

@@ -38,8 +38,12 @@ fn one_field_sorting_test() {
 fn two_field_sorting_test() {
     let mut dogs = DOGS.clone();
 
-    let sort_query: SortQuery =
-        vec![("name".into(), OrderType::Desc), ("age".into(), OrderType::Desc)].try_into().unwrap();
+    let sort_query: SortQuery = vec![
+        ("name".into(), OrderType::Desc),
+        ("age".into(), OrderType::Desc),
+    ]
+    .try_into()
+    .unwrap();
     sort_query.sort(&mut dogs);
     assert_eq!(dogs[0].id(), "b");
     assert_eq!(dogs[1].id(), "c");

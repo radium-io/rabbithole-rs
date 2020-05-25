@@ -19,7 +19,10 @@ lazy_static! {
 #[test]
 fn offset_page_test() {
     let dogs = DOGS.clone();
-    let page = PageQuery::OffsetBased(OffsetBasedData { offset: 0, limit: 2 });
+    let page = PageQuery::OffsetBased(OffsetBasedData {
+        offset: 0,
+        limit: 2,
+    });
     let (slice, _relat_pages) = page.page(&dogs).unwrap();
     assert_eq!(slice.len(), 2);
     assert_eq!(slice[0].id(), "a");
@@ -29,7 +32,10 @@ fn offset_page_test() {
 #[test]
 fn overflow_offset_page_test() {
     let dogs = DOGS.clone();
-    let page = PageQuery::OffsetBased(OffsetBasedData { offset: 0, limit: 100 });
+    let page = PageQuery::OffsetBased(OffsetBasedData {
+        offset: 0,
+        limit: 100,
+    });
     let (slice, _relat_pages) = page.page(&dogs).unwrap();
     assert_eq!(slice.len(), 3);
     assert_eq!(slice[0].id(), "a");
@@ -40,7 +46,10 @@ fn overflow_offset_page_test() {
 #[test]
 fn larger_than_max_offset_page_test() {
     let dogs = DOGS.clone();
-    let page = PageQuery::OffsetBased(OffsetBasedData { offset: 90, limit: 100 });
+    let page = PageQuery::OffsetBased(OffsetBasedData {
+        offset: 90,
+        limit: 100,
+    });
     let (slice, _relat_pages) = page.page(&dogs).unwrap();
     assert_eq!(slice.len(), 0);
 }
@@ -63,7 +72,10 @@ fn page_based_page_test() {
 #[test]
 fn overflow_page_based_page_test() {
     let dogs = DOGS.clone();
-    let page = PageQuery::PageBased(PageBasedData { number: 0, size: 100 });
+    let page = PageQuery::PageBased(PageBasedData {
+        number: 0,
+        size: 100,
+    });
     let (slice, _relat_pages) = page.page(&dogs).unwrap();
     assert_eq!(slice.len(), 3);
     assert_eq!(slice[0].id(), "a");
@@ -74,11 +86,17 @@ fn overflow_page_based_page_test() {
     let res = page.page(&dogs);
     assert!(res.is_err());
 
-    let page = PageQuery::PageBased(PageBasedData { number: 100, size: 0 });
+    let page = PageQuery::PageBased(PageBasedData {
+        number: 100,
+        size: 0,
+    });
     let res = page.page(&dogs);
     assert!(res.is_err());
 
-    let page = PageQuery::PageBased(PageBasedData { number: 100, size: 100 });
+    let page = PageQuery::PageBased(PageBasedData {
+        number: 100,
+        size: 100,
+    });
     let (slice, _relat_pages) = page.page(&dogs).unwrap();
     assert_eq!(slice.len(), 0);
 }
@@ -123,7 +141,11 @@ fn cursor_based_test() {
     assert_eq!(slice[0].id(), "a");
     assert_eq!(slice[1].id(), "b");
 
-    let page = PageQuery::CursorBased(CursorBasedData { before: None, after: None, size: 100 });
+    let page = PageQuery::CursorBased(CursorBasedData {
+        before: None,
+        after: None,
+        size: 100,
+    });
     let (slice, _relat_pages) = page.page(&dogs).unwrap();
     assert_eq!(slice.len(), 3);
     assert_eq!(slice[0].id(), "a");

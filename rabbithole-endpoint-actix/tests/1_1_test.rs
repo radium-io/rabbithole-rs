@@ -5,7 +5,7 @@ use rabbithole::JSON_API_HEADER;
 use rabbithole_endpoint_actix::ActixSettings;
 
 pub mod common;
-use common::{service};
+use common::service;
 
 #[macro_use]
 extern crate lazy_static;
@@ -42,7 +42,10 @@ async fn invalid_content_type_params_test() {
     let mut app = init_app!(1, 1);
     let req = TestRequest::get()
         .uri("/api/v1/people")
-        .header(header::ACCEPT, format!(r#"{}; profile="cursor-pagination""#, JSON_API_HEADER))
+        .header(
+            header::ACCEPT,
+            format!(r#"{}; profile="cursor-pagination""#, JSON_API_HEADER),
+        )
         .header(
             header::CONTENT_TYPE,
             format!(r#"{}; profile="cursor-pagination""#, JSON_API_HEADER),

@@ -56,7 +56,10 @@ async fn basic_crud_test() {
     let map: Attributes = map.into();
     first_dog_res.data.attributes = map;
 
-    let req = patch(format!("/api/v1/dogs/{}", first_dog_res.data.id.id).as_str(), &first_dog_res);
+    let req = patch(
+        format!("/api/v1/dogs/{}", first_dog_res.data.id.id).as_str(),
+        &first_dog_res,
+    );
     let resp = call_service(&mut app, req).await;
     assert_eq!(resp.status(), StatusCode::NO_CONTENT);
 
@@ -72,10 +75,15 @@ async fn basic_crud_test() {
     let (new_dog_resources, _) = doc.into_multiple().unwrap();
     assert_eq!(new_dog_resources.len(), dog_resources.len());
 
-    let new_dog_resource =
-        new_dog_resources.iter().find(|r| r.id.id != first_dog_res.data.id.id).unwrap();
-    let old_matched_resource =
-        &dog_resources.iter().find(|r| r.data.id == new_dog_resource.id).unwrap().data;
+    let new_dog_resource = new_dog_resources
+        .iter()
+        .find(|r| r.id.id != first_dog_res.data.id.id)
+        .unwrap();
+    let old_matched_resource = &dog_resources
+        .iter()
+        .find(|r| r.data.id == new_dog_resource.id)
+        .unwrap()
+        .data;
     assert_eq!(new_dog_resource, old_matched_resource);
 
     // Get all dogs
@@ -84,10 +92,15 @@ async fn basic_crud_test() {
     let (new_dog_resources, _) = doc.into_multiple().unwrap();
     assert_eq!(new_dog_resources.len(), dog_resources.len());
 
-    let new_dog_resource =
-        new_dog_resources.iter().find(|r| r.id.id != first_dog_res.data.id.id).unwrap();
-    let old_matched_resource =
-        &dog_resources.iter().find(|r| r.data.id == new_dog_resource.id).unwrap().data;
+    let new_dog_resource = new_dog_resources
+        .iter()
+        .find(|r| r.id.id != first_dog_res.data.id.id)
+        .unwrap();
+    let old_matched_resource = &dog_resources
+        .iter()
+        .find(|r| r.data.id == new_dog_resource.id)
+        .unwrap()
+        .data;
     assert_eq!(new_dog_resource, old_matched_resource);
 
     // Add some humans
@@ -120,7 +133,9 @@ async fn basic_crud_test() {
         &human_resources.first().unwrap().data.relationships
     );
     for (pet_key, pet_value) in &included {
-        let old_dog = new_dog_resources.iter().find(|wrapper| &wrapper.id == pet_key);
+        let old_dog = new_dog_resources
+            .iter()
+            .find(|wrapper| &wrapper.id == pet_key);
         let old_dog = old_dog.unwrap();
         assert_eq!(&pet_value.attributes, &old_dog.attributes);
     }
@@ -139,8 +154,10 @@ async fn relationship_test() {
         assert!(resp.status().is_success());
     }
 
-    let dogs_idents =
-        dog_resources.iter().map(|r| r.data.id.clone()).collect::<Vec<ResourceIdentifier>>();
+    let dogs_idents = dog_resources
+        .iter()
+        .map(|r| r.data.id.clone())
+        .collect::<Vec<ResourceIdentifier>>();
     let (_first_dogs_idents, second_dogs_idents) = dogs_idents.split_first().unwrap();
     let (first_dogs, second_dogs) = dogs.split_first().unwrap();
     let first_dogs: Vec<Dog> = vec![first_dogs].into_iter().cloned().collect();
@@ -155,8 +172,9 @@ async fn relationship_test() {
     }
 
     // Delete all dogs from the second master
-    let deleted_identifier_data =
-        IdentifierDataWrapper { data: IdentifierData::Multiple(Vec::from(second_dogs_idents)) };
+    let deleted_identifier_data = IdentifierDataWrapper {
+        data: IdentifierData::Multiple(Vec::from(second_dogs_idents)),
+    };
     let second_master_id = masters[1].id.to_string();
     let req = delete(
         format!("/api/v1/people/{}/relationships/dogs", second_master_id).as_str(),
@@ -169,7 +187,15 @@ async fn relationship_test() {
     let doc: Document = read_response_json(&mut app, req).await;
     let (second_human_resource, included) = doc.into_single().unwrap();
     assert!(included.is_empty());
-    assert!(second_human_resource.relationships.get("dogs").unwrap().data.data().is_empty());
+    assert!(
+        second_human_resource
+            .relationships
+            .get("dogs")
+            .unwrap()
+            .data
+            .data()
+            .is_empty()
+    );
 
     // Add the removed pets to the first master
     let first_master_id = masters.first().unwrap().id.to_string();
@@ -185,8 +211,12 @@ async fn relationship_test() {
     let (first_human_resource, included) = doc.into_single().unwrap();
     assert_eq!(included.len(), 3);
 
-    let first_pets: Vec<ResourceIdentifier> =
-        first_human_resource.relationships.get("dogs").unwrap().data.data();
+    let first_pets: Vec<ResourceIdentifier> = first_human_resource
+        .relationships
+        .get("dogs")
+        .unwrap()
+        .data
+        .data();
     let first_pets_set: HashSet<ResourceIdentifier> = HashSet::from_iter(first_pets);
     assert_eq!(first_pets_set, HashSet::from_iter(dogs_idents));
 }

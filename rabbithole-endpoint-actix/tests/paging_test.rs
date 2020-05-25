@@ -14,9 +14,15 @@ use common::{get, post};
 use actix_web::test::{call_service, read_response_json};
 
 fn get_names(resources: &[Resource]) -> Vec<String> {
-    let names: Result<Vec<AttributeField>, rabbithole::model::error::Error> =
-        resources.iter().map(|r| r.attributes.get_field("name").map(Clone::clone)).collect();
-    names.unwrap().iter().map(|a| a.0.as_str().unwrap().to_string()).collect()
+    let names: Result<Vec<AttributeField>, rabbithole::model::error::Error> = resources
+        .iter()
+        .map(|r| r.attributes.get_field("name").map(Clone::clone))
+        .collect();
+    names
+        .unwrap()
+        .iter()
+        .map(|a| a.0.as_str().unwrap().to_string())
+        .collect()
 }
 
 #[actix_rt::test]

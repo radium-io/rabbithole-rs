@@ -144,8 +144,10 @@ fn api_document_collection_from_json_file() {
                     assert_eq!(arr.len(), 1);
 
                     assert_eq!(included.len(), 3);
-                    let ids: HashSet<&str> =
-                        included.iter().map(|(inc_id, _)| inc_id.id.as_str()).collect();
+                    let ids: HashSet<&str> = included
+                        .iter()
+                        .map(|(inc_id, _)| inc_id.id.as_str())
+                        .collect();
                     assert_eq!(ids, HashSet::from_iter(vec!["9", "5", "12"]));
                 },
                 DocumentItem::PrimaryData(Some((PrimaryDataItem::Single(_), _))) => unreachable!(
@@ -243,7 +245,10 @@ fn can_deserialize_jsonapi_example_jsonapi_info() {
 fn it_omits_empty_document_and_primary_data_keys() {
     let _ = env_logger::try_init();
 
-    let resource = Resource { id: ResourceIdentifier::new("test", "123"), ..Default::default() };
+    let resource = Resource {
+        id: ResourceIdentifier::new("test", "123"),
+        ..Default::default()
+    };
     let doc = Document {
         item: DocumentItem::PrimaryData(Some((
             PrimaryDataItem::Single(Box::new(resource)),
@@ -252,21 +257,36 @@ fn it_omits_empty_document_and_primary_data_keys() {
         ..Default::default()
     };
 
-    assert_eq!(serde_json::to_string(&doc).unwrap(), r#"{"data":{"type":"test","id":"123"}}"#);
+    assert_eq!(
+        serde_json::to_string(&doc).unwrap(),
+        r#"{"data":{"type":"test","id":"123"}}"#
+    );
 }
 
 #[test]
 fn it_does_not_omit_an_empty_primary_data() {
-    let doc = Document { item: DocumentItem::PrimaryData(None), ..Default::default() };
+    let doc = Document {
+        item: DocumentItem::PrimaryData(None),
+        ..Default::default()
+    };
 
     assert_eq!(serde_json::to_string(&doc).unwrap(), r#"{"data":null}"#);
 }
 
 #[test]
 fn it_omits_empty_error_keys() {
-    let error = Error { id: Some("error_id".to_string()), ..Default::default() };
-    let doc = Document { item: DocumentItem::Errors(vec![error]), ..Default::default() };
-    assert_eq!(serde_json::to_string(&doc).unwrap(), r#"{"errors":[{"id":"error_id"}]}"#);
+    let error = Error {
+        id: Some("error_id".to_string()),
+        ..Default::default()
+    };
+    let doc = Document {
+        item: DocumentItem::Errors(vec![error]),
+        ..Default::default()
+    };
+    assert_eq!(
+        serde_json::to_string(&doc).unwrap(),
+        r#"{"errors":[{"id":"error_id"}]}"#
+    );
 }
 
 #[test]

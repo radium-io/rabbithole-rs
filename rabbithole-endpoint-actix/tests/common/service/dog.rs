@@ -48,13 +48,20 @@ impl Fetching for DogService {
     ) -> CollectionResult<Dog> {
         let data: Vec<Dog> = self.0.values().cloned().collect();
         let (data, links) = query.query(data, uri, path)?;
-        Ok(OperationResultData { data, additional_links: links, ..Default::default() })
+        Ok(OperationResultData {
+            data,
+            additional_links: links,
+            ..Default::default()
+        })
     }
 
     async fn fetch_single(
         &self, id: &str, _uri: &str, _path: &http::Uri, _query: &Query,
     ) -> SingleResult<Dog> {
-        Ok(OperationResultData { data: self.0.get(id).map(Clone::clone), ..Default::default() })
+        Ok(OperationResultData {
+            data: self.0.get(id).map(Clone::clone),
+            ..Default::default()
+        })
     }
 }
 #[async_trait]
@@ -75,9 +82,15 @@ impl Creating for DogService {
         if let AttributeField(serde_json::Value::String(name)) =
             data.attributes.get_field("name")?
         {
-            let dog = Dog { id, name: name.clone() };
+            let dog = Dog {
+                id,
+                name: name.clone(),
+            };
             self.0.insert(dog.id.clone().to_string(), dog.clone());
-            Ok(OperationResultData { data: Some(dog), ..Default::default() })
+            Ok(OperationResultData {
+                data: Some(dog),
+                ..Default::default()
+            })
         } else {
             Err(WRONG_FIELD_TYPE.clone())
         }
@@ -95,7 +108,10 @@ impl Updating for DogService {
             {
                 dog.name = name.to_string();
                 self.0.insert(id.into(), dog);
-                Ok(OperationResultData { data: None, ..Default::default() })
+                Ok(OperationResultData {
+                    data: None,
+                    ..Default::default()
+                })
             } else {
                 Err(WRONG_FIELD_TYPE.clone())
             }
@@ -110,6 +126,9 @@ impl Deleting for DogService {
         &mut self, id: &str, _uri: &str, _path: &http::Uri,
     ) -> OperationResult<()> {
         self.0.remove(id);
-        Ok(OperationResultData { data: (), ..Default::default() })
+        Ok(OperationResultData {
+            data: (),
+            ..Default::default()
+        })
     }
 }

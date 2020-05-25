@@ -8,17 +8,17 @@ publish = false
 path = "lib.rs"
 
 [dependencies]
+actix-http = "1.0.1"
+actix-http-test = "1.0.0"
+actix-rt = "1.1.1"
+actix-web = "2.0.0"
+async-trait = "~0.1"
+futures = "0.3.5"
+http = "0.2.1"
 lazy_static = "1.4.0"
 rabbithole = { path = "../../rabbithole" }
 rabbithole-derive = { path = "../../rabbithole-derive" }
 rabbithole-endpoint-actix = { path = "../" }
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0.53"
-async-trait = "~0.1"
-http = "0.2.1"
-actix-http-test = "1.0.0"
-actix-http = "1.0.1"
-actix-web = "2.0.0"
-actix-rt = "1.1.1"
-futures = "0.3.5"
 uuid = "0.8.1"

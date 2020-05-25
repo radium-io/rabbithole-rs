@@ -30,8 +30,14 @@ async fn empty_test() {
     // Prepare data
     let mut app = init_app!(CursorBased);
 
-    let after_cursor = Cursor { id: "1".to_string() }.to_string();
-    let before_cursor = Cursor { id: "2".to_string() }.to_string();
+    let after_cursor = Cursor {
+        id: "1".to_string(),
+    }
+    .to_string();
+    let before_cursor = Cursor {
+        id: "2".to_string(),
+    }
+    .to_string();
 
     let req = get(format!(
         "/api/v1/dogs?sort=name&page[after]={}&page[before]={}&page[size]=3",
@@ -59,8 +65,14 @@ async fn range_test() {
         assert!(resp.status().is_success());
     }
 
-    let after_cursor = Cursor { id: dogs[1].id.to_string() }.to_string();
-    let before_cursor = Cursor { id: dogs[4].id.to_string() }.to_string();
+    let after_cursor = Cursor {
+        id: dogs[1].id.to_string(),
+    }
+    .to_string();
+    let before_cursor = Cursor {
+        id: dogs[4].id.to_string(),
+    }
+    .to_string();
 
     let req = get(format!(
         "/api/v1/dogs?sort=name&page[after]={}&page[before]={}&page[size]=3",
@@ -108,9 +120,15 @@ async fn one_side_test() {
     }
 
     // Only after
-    let after_cursor = Cursor { id: dogs[3].id.to_string() }.to_string();
-    let req =
-        get(format!("/api/v1/dogs?sort=name&page[after]={}&page[size]=3", after_cursor).as_str());
+    let after_cursor = Cursor {
+        id: dogs[3].id.to_string(),
+    }
+    .to_string();
+    let req = get(format!(
+        "/api/v1/dogs?sort=name&page[after]={}&page[size]=3",
+        after_cursor
+    )
+    .as_str());
     let doc: Document = test::read_response_json(&mut app, req).await;
     assert_eq!(doc.links.len(), 2);
 
@@ -128,9 +146,15 @@ async fn one_side_test() {
     check_names(&resources, &[4, 5, 6]);
 
     // Only before
-    let before_cursor = Cursor { id: dogs[2].id.to_string() }.to_string();
-    let req =
-        get(format!("/api/v1/dogs?sort=name&page[before]={}&page[size]=3", before_cursor).as_str());
+    let before_cursor = Cursor {
+        id: dogs[2].id.to_string(),
+    }
+    .to_string();
+    let req = get(format!(
+        "/api/v1/dogs?sort=name&page[before]={}&page[size]=3",
+        before_cursor
+    )
+    .as_str());
     let doc: Document = test::read_response_json(&mut app, req).await;
     assert_eq!(doc.links.len(), 2);
 
@@ -148,9 +172,15 @@ async fn one_side_test() {
     check_names(&resources, &[0, 1]);
 
     // Bad cursor will be ignored
-    let before_cursor = Cursor { id: "no exist".to_string() }.to_string();
-    let req =
-        get(format!("/api/v1/dogs?sort=name&page[before]={}&page[size]=3", before_cursor).as_str());
+    let before_cursor = Cursor {
+        id: "no exist".to_string(),
+    }
+    .to_string();
+    let req = get(format!(
+        "/api/v1/dogs?sort=name&page[before]={}&page[size]=3",
+        before_cursor
+    )
+    .as_str());
     let doc: Document = test::read_response_json(&mut app, req).await;
     assert_eq!(doc.links.len(), 2);
 

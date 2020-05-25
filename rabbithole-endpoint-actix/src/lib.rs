@@ -21,7 +21,10 @@ use std::sync::Arc;
 
 fn error_to_response(err: error::Error) -> HttpResponse {
     new_json_api_resp(
-        err.status.as_deref().and_then(|s| s.parse().ok()).unwrap_or(StatusCode::BAD_REQUEST),
+        err.status
+            .as_deref()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(StatusCode::BAD_REQUEST),
     )
     .json(err)
 }
@@ -37,8 +40,11 @@ pub struct ActixSettings {
 
 macro_rules! to_response {
     (Resource: $this:ident, $item:ident) => {{
-        let rabbithole::operation::OperationResultData { data, additional_links, additional_meta } =
-            $item;
+        let rabbithole::operation::OperationResultData {
+            data,
+            additional_links,
+            additional_meta,
+        } = $item;
         let resource = data.to_resource(&$this.uri().to_string(), &Default::default());
         match resource {
             Some(mut resource) => {
@@ -51,8 +57,11 @@ macro_rules! to_response {
         }
     }};
     (Relationship: $this:ident, $item:ident) => {{
-        let rabbithole::operation::OperationResultData { data, additional_links, additional_meta } =
-            $item;
+        let rabbithole::operation::OperationResultData {
+            data,
+            additional_links,
+            additional_meta,
+        } = $item;
         let (field_name, item) = data;
         let resource = item.to_resource(&$this.uri().to_string(), &Default::default());
         match resource {
@@ -62,7 +71,12 @@ macro_rules! to_response {
 
                 Ok(actix_web::HttpResponse::Ok().json(
                     rabbithole::operation::IdentifierDataWrapper {
-                        data: resource.relationships.get(&field_name).cloned().unwrap().data,
+                        data: resource
+                            .relationships
+                            .get(&field_name)
+                            .cloned()
+                            .unwrap()
+                            .data,
                     },
                 ))
             },
@@ -105,7 +119,9 @@ impl ActixSettings {
     single_step_operation!(Relationship: remove_relationship, Updating, params => web::Path<(String, String)>, body => web::Json<IdentifierDataWrapper>);
 
     fn uri(&self) -> url::Url {
-        let uri = format!("http://{}:{}", self.host, self.port).parse::<url::Url>().unwrap();
+        let uri = format!("http://{}:{}", self.host, self.port)
+            .parse::<url::Url>()
+            .unwrap();
         uri.join(&self.path).unwrap()
     }
 
@@ -124,8 +140,17 @@ impl ActixSettings {
         let uri = &this.uri().to_string();
         let path = req.uri().clone().into();
 
-        match service.lock().await.delete_resource(&params.into_inner(), uri, &path).await {
-            Ok(OperationResultData { additional_links, additional_meta, .. }) => {
+        match service
+            .lock()
+            .await
+            .delete_resource(&params.into_inner(), uri, &path)
+            .await
+        {
+            Ok(OperationResultData {
+                additional_links,
+                additional_meta,
+                ..
+            }) => {
                 if additional_links.is_empty() && additional_meta.is_empty() {
                     Ok(actix_web::HttpResponse::NoContent().finish())
                 } else {
@@ -152,8 +177,17 @@ impl ActixSettings {
         let uri = &this.uri().to_string();
         let path = req.uri().clone().into();
 
-        match service.lock().await.create(&body.into_inner(), uri, &path).await {
-            Ok(OperationResultData { data, additional_links, additional_meta }) => {
+        match service
+            .lock()
+            .await
+            .create(&body.into_inner(), uri, &path)
+            .await
+        {
+            Ok(OperationResultData {
+                data,
+                additional_links,
+                additional_meta,
+            }) => {
                 let mut resource = data.to_resource(uri, &Default::default()).unwrap();
                 resource.extend_meta(additional_meta);
                 resource.extend_links(additional_links);
@@ -178,8 +212,17 @@ impl ActixSettings {
         let path = req.uri().to_owned();
 
         match this.query.decode_path(&path) {
-            Ok(query) => match service.lock().await.fetch_collection(uri, &path, &query).await {
-                Ok(OperationResultData { data, additional_links, additional_meta }) => {
+            Ok(query) => match service
+                .lock()
+                .await
+                .fetch_collection(uri, &path, &query)
+                .await
+            {
+                Ok(OperationResultData {
+                    data,
+                    additional_links,
+                    additional_meta,
+                }) => {
                     match data.to_document(uri, &query, path, additional_links, additional_meta) {
                         Ok(doc) => Ok(HttpResponse::Ok().json(doc)),
                         Err(err) => Ok(error_to_response(err)),
@@ -214,7 +257,11 @@ impl ActixSettings {
                     .fetch_single(&param.into_inner(), uri, &path, &query)
                     .await
                 {
-                    Ok(OperationResultData { data, additional_links, additional_meta }) => {
+                    Ok(OperationResultData {
+                        data,
+                        additional_links,
+                        additional_meta,
+                    }) => {
                         match SingleEntity::to_document(
                             &data,
                             &this.uri().to_string(),
@@ -258,7 +305,11 @@ impl ActixSettings {
                     .fetch_relationship(&id, &related_field, uri, &path, &query)
                     .await
                 {
-                    Ok(OperationResultData { mut data, additional_links, additional_meta }) => {
+                    Ok(OperationResultData {
+                        mut data,
+                        additional_links,
+                        additional_meta,
+                    }) => {
                         data.extend_links(additional_links);
                         data.extend_meta(additional_meta);
                         Ok(new_json_api_resp(StatusCode::OK).json(data))
@@ -305,8 +356,12 @@ impl ActixSettings {
 
 // TODO: If this check should be put into the main logic rather than web-framework specific?
 fn check_header(api_version: &JsonApiVersion, headers: &HeaderMap) -> Result<(), HttpResponse> {
-    let content_type = headers.get(header::CONTENT_TYPE).map(|r| r.to_str().unwrap().to_string());
-    let accept = headers.get(header::ACCEPT).map(|r| r.to_str().unwrap().to_string());
+    let content_type = headers
+        .get(header::CONTENT_TYPE)
+        .map(|r| r.to_str().unwrap().to_string());
+    let accept = headers
+        .get(header::ACCEPT)
+        .map(|r| r.to_str().unwrap().to_string());
     RuleDispatcher::ContentTypeMustBeJsonApi(api_version, &content_type)
         .map_err(error_to_response)?;
     RuleDispatcher::AcceptHeaderShouldBeJsonApi(api_version, &accept).map_err(error_to_response)?;

@@ -74,7 +74,10 @@ pub trait SingleEntity: Entity {
     }
 
     fn to_resource_identifier(&self) -> Option<ResourceIdentifier> {
-        Some(ResourceIdentifier { ty: <Self as SingleEntity>::ty(), id: self.id() })
+        Some(ResourceIdentifier {
+            ty: <Self as SingleEntity>::ty(),
+            id: self.id(),
+        })
     }
 
     fn to_resource(&self, uri: &str, fields_query: &FieldsQuery) -> Option<Resource> {
@@ -88,7 +91,10 @@ pub trait SingleEntity: Entity {
         }
 
         Some(Resource {
-            id: ResourceIdentifier { id: self.id(), ty: Self::ty() },
+            id: ResourceIdentifier {
+                id: self.id(),
+                ty: Self::ty(),
+            },
             attributes,
             relationships,
             links: self.links(uri),
@@ -202,7 +208,8 @@ impl<T: Entity> Entity for Box<T> {
         &self, uri: &str, query: &Query, request_path: http::Uri, additional_links: Links,
         additional_meta: Meta,
     ) -> Result<Document> {
-        self.as_ref().to_document(uri, query, request_path, additional_links, additional_meta)
+        self.as_ref()
+            .to_document(uri, query, request_path, additional_links, additional_meta)
     }
 }
 
@@ -233,7 +240,8 @@ where
         &self, uri: &str, query: &Query, request_path: http::Uri, additional_links: Links,
         additional_meta: Meta,
     ) -> Result<Document> {
-        self.deref().to_document(uri, query, request_path, additional_links, additional_meta)
+        self.deref()
+            .to_document(uri, query, request_path, additional_links, additional_meta)
     }
 }
 
@@ -254,7 +262,10 @@ impl<T: SingleEntity> Entity for &[T] {
     ) -> Result<Document> {
         let entities = self.to_vec();
         let (key, value) = Link::slf(uri, request_path);
-        let resources = entities.iter().filter_map(|e| e.to_resource(uri, &query.fields)).collect();
+        let resources = entities
+            .iter()
+            .filter_map(|e| e.to_resource(uri, &query.fields))
+            .collect();
         additional_links.insert(key, value);
         let mut doc = Document::multiple_resources(
             resources,
@@ -278,6 +289,7 @@ impl<T: SingleEntity> Entity for Vec<T> {
         &self, uri: &str, query: &Query, request_path: http::Uri, additional_links: Links,
         additional_meta: Meta,
     ) -> Result<Document> {
-        self.as_slice().to_document(uri, query, request_path, additional_links, additional_meta)
+        self.as_slice()
+            .to_document(uri, query, request_path, additional_links, additional_meta)
     }
 }

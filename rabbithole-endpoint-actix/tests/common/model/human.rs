@@ -35,6 +35,10 @@ impl Human {
 impl From<&[Dog]> for Human {
     fn from(dogs: &[Dog]) -> Self {
         let uuid = uuid::Uuid::new_v4();
-        Self { id: uuid, name: uuid.to_string(), dogs: dogs.to_vec() }
+        Self {
+            id: uuid,
+            name: uuid.to_string(),
+            dogs: dogs.to_vec(),
+        }
     }
 }

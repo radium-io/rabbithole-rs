@@ -30,7 +30,11 @@ impl SortQuery {
     pub fn is_empty(&self) -> bool { self.0.is_empty() }
 
     pub fn insert_raw(&mut self, value: &str) -> Result<()> {
-        for v in value.split(',').filter(|s| !s.is_empty()).map(ToString::to_string) {
+        for v in value
+            .split(',')
+            .filter(|s| !s.is_empty())
+            .map(ToString::to_string)
+        {
             if v.starts_with('-') {
                 self.insert((v.as_str()[1 ..]).into(), OrderType::Desc)?;
             } else {

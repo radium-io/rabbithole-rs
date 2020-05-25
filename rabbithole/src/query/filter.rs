@@ -30,7 +30,10 @@ pub struct RsqlFilterData(HashMap<String, Expr>);
 
 impl ToString for RsqlFilterData {
     fn to_string(&self) -> String {
-        self.0.iter().map(|(k, v)| format!("filter[{}]={}", k, v.to_string())).join("&")
+        self.0
+            .iter()
+            .map(|(k, v)| format!("filter[{}]={}", k, v.to_string()))
+            .join("&")
     }
 }
 
@@ -54,7 +57,10 @@ impl FilterData for RsqlFilterData {
             entities = entities
                 .into_iter()
                 .filter_map(|r| {
-                    match (&E::ty() == ty_or_relat, Self::filter_on_attributes(expr, &r)) {
+                    match (
+                        &E::ty() == ty_or_relat,
+                        Self::filter_on_attributes(expr, &r),
+                    ) {
                         (true, Ok(true)) => Some(Ok(r)),
                         (true, Ok(false)) => None,
                         (true, Err(err)) => Some(Err(err)),
@@ -72,7 +78,11 @@ impl FilterData for RsqlFilterData {
 impl RsqlFilterData {
     pub fn filter_on_attributes<E: SingleEntity>(expr: &Expr, entity: &E) -> Result<bool> {
         let ent: bool = match &expr {
-            Expr::Item(Constraint { selector, comparison, arguments }) => {
+            Expr::Item(Constraint {
+                selector,
+                comparison,
+                arguments,
+            }) => {
                 if let Ok(field) = entity.attributes().get_field(&selector) {
                     if comparison == &Comparison::EQUAL() && arguments.0.len() == 1 {
                         let arg: &str = arguments.0.first().unwrap();
@@ -100,7 +110,10 @@ impl RsqlFilterData {
                         let res = field.cmp_with_str(arg, &selector)?;
                         res == Ordering::Less || res == Ordering::Equal
                     } else if comparison == &Comparison::IN() {
-                        arguments.0.iter().any(|s| field.eq_with_str(s, &selector).is_ok())
+                        arguments
+                            .0
+                            .iter()
+                            .any(|s| field.eq_with_str(s, &selector).is_ok())
                     } else if comparison == &Comparison::OUT() {
                         arguments
                             .0

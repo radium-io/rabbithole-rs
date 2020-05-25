@@ -60,7 +60,13 @@ impl Default for Document {
 }
 
 impl Document {
-    pub fn null(links: Links, meta: Meta) -> Self { Self { links, meta, ..Default::default() } }
+    pub fn null(links: Links, meta: Meta) -> Self {
+        Self {
+            links,
+            meta,
+            ..Default::default()
+        }
+    }
 
     pub fn into_single(self) -> Result<(Box<Resource>, Included), Self> {
         if let DocumentItem::PrimaryData(Some((PrimaryDataItem::Single(resource), included))) =
@@ -220,7 +226,7 @@ impl<'de> Visitor<'de> for DocumentVisitor {
             (None, Some(_), _) => {
                 return Err(serde::de::Error::custom(
                     "field `included` cannot exist without `data`",
-                ))
+                ));
             },
             (None, None, None) => DocumentItem::PrimaryData(None),
             _ => {

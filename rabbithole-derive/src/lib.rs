@@ -15,12 +15,18 @@ use quote::{quote, TokenStreamExt};
 use std::collections::HashSet;
 use syn::DeriveInput;
 
-type FieldBundle<'a> =
-    (&'a syn::Ident, Vec<&'a syn::Ident>, Vec<&'a syn::Ident>, Vec<&'a syn::Ident>);
+type FieldBundle<'a> = (
+    &'a syn::Ident,
+    Vec<&'a syn::Ident>,
+    Vec<&'a syn::Ident>,
+    Vec<&'a syn::Ident>,
+);
 
 #[proc_macro_derive(EntityDecorator, attributes(entity))]
 pub fn derive(input: TokenStream) -> TokenStream {
-    inner_derive(input).unwrap_or_else(|err| err.to_compile_error()).into()
+    inner_derive(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
 }
 
 #[allow(clippy::cognitive_complexity)]
@@ -200,11 +206,17 @@ fn get_entity_type(ast: &syn::DeriveInput) -> syn::Result<(String, HashSet<Strin
     }
 
     if ty_opt.is_none() {
-        return Err(syn::Error::new_spanned(ast, EntityDecoratorError::InvalidEntityType));
+        return Err(syn::Error::new_spanned(
+            ast,
+            EntityDecoratorError::InvalidEntityType,
+        ));
     }
 
     if service.is_none() {
-        return Err(syn::Error::new_spanned(ast, EntityDecoratorError::LackOfService));
+        return Err(syn::Error::new_spanned(
+            ast,
+            EntityDecoratorError::LackOfService,
+        ));
     }
 
     Ok((ty_opt.unwrap(), backends, service.unwrap()))
@@ -226,7 +238,10 @@ fn get_fields(ast: &syn::DeriveInput) -> syn::Result<FieldBundle> {
             match (f, n.ident.as_ref()) {
                 (FieldType::Id, Some(ident)) if id.is_none() => id = Some(ident),
                 (FieldType::Id, _) => {
-                    return Err(syn::Error::new_spanned(n, EntityDecoratorError::DuplicatedId))
+                    return Err(syn::Error::new_spanned(
+                        n,
+                        EntityDecoratorError::DuplicatedId,
+                    ));
                 },
                 (FieldType::ToOne, Some(ident)) => to_ones.push(ident),
                 (FieldType::ToMany, Some(ident)) => to_manys.push(ident),
@@ -234,7 +249,10 @@ fn get_fields(ast: &syn::DeriveInput) -> syn::Result<FieldBundle> {
                     attrs.push(ident);
                 },
                 _ => {
-                    return Err(syn::Error::new_spanned(n, EntityDecoratorError::FieldWithoutName))
+                    return Err(syn::Error::new_spanned(
+                        n,
+                        EntityDecoratorError::FieldWithoutName,
+                    ));
                 },
             }
         }
@@ -243,5 +261,8 @@ fn get_fields(ast: &syn::DeriveInput) -> syn::Result<FieldBundle> {
             return Ok((id, attrs, to_ones, to_manys));
         }
     }
-    Err(syn::Error::new_spanned(&ast.ident, EntityDecoratorError::InvalidEntityType))
+    Err(syn::Error::new_spanned(
+        &ast.ident,
+        EntityDecoratorError::InvalidEntityType,
+    ))
 }

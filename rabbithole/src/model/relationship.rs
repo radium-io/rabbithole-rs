@@ -24,7 +24,11 @@ pub struct Relationship {
 
 impl Relationship {
     pub fn null(links: Links, meta: Meta) -> Relationship {
-        Self { data: IdentifierData::Single(None), links: links.into(), meta }
+        Self {
+            data: IdentifierData::Single(None),
+            links: links.into(),
+            meta,
+        }
     }
 
     pub fn extend_meta(&mut self, meta: Meta) { self.meta.extend(meta.into_iter()); }
@@ -55,7 +59,11 @@ impl From<Links> for RelationshipLinks {
         for &f in &INVALID_RELAT_FIELDS as &HashSet<&str> {
             links.remove(f);
         }
-        Self { slf, related, links }
+        Self {
+            slf,
+            related,
+            links,
+        }
     }
 }
 

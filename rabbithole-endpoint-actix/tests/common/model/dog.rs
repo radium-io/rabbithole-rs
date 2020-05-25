@@ -16,7 +16,10 @@ pub fn generate_dogs(len: usize) -> Vec<Dog> {
     let mut dogs = Vec::with_capacity(len);
     for i in 0 .. len {
         let uuid = uuid::Uuid::new_v4();
-        dogs.push(Dog { id: uuid, name: i.to_string() });
+        dogs.push(Dog {
+            id: uuid,
+            name: i.to_string(),
+        });
     }
     dogs
 }

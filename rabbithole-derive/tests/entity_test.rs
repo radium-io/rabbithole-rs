@@ -3,7 +3,7 @@ extern crate serde;
 
 use rabbithole::entity::Entity;
 use rabbithole::model::document::{Document, DocumentItem, PrimaryDataItem};
-use rabbithole::model::link::{Link};
+use rabbithole::model::link::Link;
 use rabbithole::model::relationship::Relationship;
 use rabbithole::model::resource::*;
 use rabbithole::query::Query;
@@ -74,7 +74,10 @@ fn generate_fleas(len: usize) -> Vec<Flea> {
     let mut fleas = Vec::with_capacity(len);
     for _i in 0 .. len {
         let uuid = Uuid::new_v4().to_string();
-        fleas.push(Flea { id: uuid.clone(), name: uuid.clone() });
+        fleas.push(Flea {
+            id: uuid.clone(),
+            name: uuid.clone(),
+        });
     }
     fleas
 }
@@ -131,7 +134,10 @@ fn multiple_entities_test() {
 
 #[test]
 fn general_test() {
-    let master_flea = Flea { id: "1".to_string(), name: "master_flea".to_string() };
+    let master_flea = Flea {
+        id: "1".to_string(),
+        name: "master_flea".to_string(),
+    };
 
     let master = Human {
         passport_number: "number".to_string(),
@@ -161,7 +167,9 @@ fn general_test() {
                 ),
                 (
                     "related".into(),
-                    "https://example.com/api/humans/number/only_flea".parse::<Link>().unwrap(),
+                    "https://example.com/api/humans/number/only_flea"
+                        .parse::<Link>()
+                        .unwrap(),
                 ),
             ])
             .into(),
@@ -169,12 +177,17 @@ fn general_test() {
         })]),
         links: HashMap::from_iter(vec![(
             "self".into(),
-            "https://example.com/api/humans/number".parse::<Link>().unwrap(),
+            "https://example.com/api/humans/number"
+                .parse::<Link>()
+                .unwrap(),
         )]),
         ..Default::default()
     };
 
-    let dog_flea_a = Flea { id: "a".to_string(), name: "dog_flea_a".to_string() };
+    let dog_flea_a = Flea {
+        id: "a".to_string(),
+        name: "dog_flea_a".to_string(),
+    };
 
     let dog_flea_a_res = Resource {
         id: ResourceIdentifier::new("fleas", "a"),
@@ -190,7 +203,10 @@ fn general_test() {
         ..Default::default()
     };
 
-    let dog_flea_b = Flea { id: "b".to_string(), name: "dog_flea_b".to_string() };
+    let dog_flea_b = Flea {
+        id: "b".to_string(),
+        name: "dog_flea_b".to_string(),
+    };
 
     let dog_flea_b_res = Resource {
         id: ResourceIdentifier::new("fleas", "b"),
@@ -234,7 +250,9 @@ fn general_test() {
                     ),
                     (
                         "related".into(),
-                        "https://example.com/api/dogs/1/friends".parse::<Link>().unwrap(),
+                        "https://example.com/api/dogs/1/friends"
+                            .parse::<Link>()
+                            .unwrap(),
                     ),
                 ])
                 .into(),
@@ -242,8 +260,14 @@ fn general_test() {
             }),
             ("fleas".into(), Relationship {
                 data: IdentifierData::Multiple(vec![
-                    ResourceIdentifier { ty: "fleas".to_string(), id: "a".to_string() },
-                    ResourceIdentifier { ty: "fleas".to_string(), id: "b".to_string() },
+                    ResourceIdentifier {
+                        ty: "fleas".to_string(),
+                        id: "a".to_string(),
+                    },
+                    ResourceIdentifier {
+                        ty: "fleas".to_string(),
+                        id: "b".to_string(),
+                    },
                 ]),
                 links: HashMap::from_iter(vec![
                     (
@@ -254,7 +278,9 @@ fn general_test() {
                     ),
                     (
                         "related".into(),
-                        "https://example.com/api/dogs/1/fleas".parse::<Link>().unwrap(),
+                        "https://example.com/api/dogs/1/fleas"
+                            .parse::<Link>()
+                            .unwrap(),
                     ),
                 ])
                 .into(),
@@ -274,7 +300,9 @@ fn general_test() {
                     ),
                     (
                         "related".into(),
-                        "https://example.com/api/dogs/1/master".parse::<Link>().unwrap(),
+                        "https://example.com/api/dogs/1/master"
+                            .parse::<Link>()
+                            .unwrap(),
                     ),
                 ])
                 .into(),

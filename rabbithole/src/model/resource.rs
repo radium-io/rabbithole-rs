@@ -36,7 +36,8 @@ impl AttributeField {
             let regex: regex::Regex = value.parse::<regex::Regex>().unwrap();
             Ok(regex.is_match(&self.0.as_str().unwrap()))
         } else {
-            self.cmp_with_str(value, field).map(|o| o == Ordering::Equal)
+            self.cmp_with_str(value, field)
+                .map(|o| o == Ordering::Equal)
         }
     }
 }
@@ -70,9 +71,10 @@ impl PartialOrd for AttributeField {
                 };
                 a.partial_cmp(&b)
             },
-            serde_json::Value::Number(a) if f64::from_str(&other.0.to_string()).is_ok() => {
-                a.as_f64().unwrap().partial_cmp(&f64::from_str(&other.0.to_string()).unwrap())
-            },
+            serde_json::Value::Number(a) if f64::from_str(&other.0.to_string()).is_ok() => a
+                .as_f64()
+                .unwrap()
+                .partial_cmp(&f64::from_str(&other.0.to_string()).unwrap()),
             serde_json::Value::Bool(a) if bool::from_str(&other.0.to_string()).is_ok() => {
                 a.partial_cmp(&bool::from_str(&other.0.to_string()).unwrap())
             },
@@ -99,7 +101,9 @@ impl<K: ToString> From<HashMap<K, serde_json::Value>> for Attributes {
 
 impl Attributes {
     pub fn get_field(&self, field_name: &str) -> Result<&AttributeField> {
-        self.0.get(field_name).ok_or_else(|| error::Error::FieldNotExist(field_name, None))
+        self.0
+            .get(field_name)
+            .ok_or_else(|| error::Error::FieldNotExist(field_name, None))
     }
 
     pub fn cmp(&self, field: &str, other: &Self) -> Result<Ordering> {
@@ -167,7 +171,12 @@ pub struct ResourceIdentifier {
 }
 
 impl ResourceIdentifier {
-    pub fn new(ty: &str, id: &str) -> Self { Self { ty: ty.into(), id: id.into() } }
+    pub fn new(ty: &str, id: &str) -> Self {
+        Self {
+            ty: ty.into(),
+            id: id.into(),
+        }
+    }
 }
 
 /// JSON-API Resource
@@ -208,8 +217,10 @@ mod tests {
 
     #[test]
     fn serde_test() {
-        let attributes: HashMap<String, serde_json::Value> =
-            HashMap::from_iter(vec![("name".into(), serde_json::Value::String("name1".into()))]);
+        let attributes: HashMap<String, serde_json::Value> = HashMap::from_iter(vec![(
+            "name".into(),
+            serde_json::Value::String("name1".into()),
+        )]);
         let res = Resource {
             id: ResourceIdentifier::new("ty", "id"),
             attributes: attributes.into(),

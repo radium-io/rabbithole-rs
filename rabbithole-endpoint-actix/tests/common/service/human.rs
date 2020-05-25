@@ -39,13 +39,20 @@ impl Fetching for HumanService {
     ) -> CollectionResult<Human> {
         let data: Vec<Human> = self.0.values().cloned().collect();
         let (data, links) = query.query(data, uri, path)?;
-        Ok(OperationResultData { data, additional_links: links, ..Default::default() })
+        Ok(OperationResultData {
+            data,
+            additional_links: links,
+            ..Default::default()
+        })
     }
 
     async fn fetch_single(
         &self, id: &str, _uri: &str, _path: &http::Uri, _query: &Query,
     ) -> SingleResult<Human> {
-        Ok(OperationResultData { data: self.0.get(id).map(Clone::clone), ..Default::default() })
+        Ok(OperationResultData {
+            data: self.0.get(id).map(Clone::clone),
+            ..Default::default()
+        })
     }
 
     async fn fetch_relationship(
@@ -54,7 +61,10 @@ impl Fetching for HumanService {
         if let Some(human) = self.0.get(id) {
             let resource = human.to_resource(&uri.to_string(), &query.fields).unwrap();
             if let Some(relat) = resource.relationships.get(related_field) {
-                Ok(OperationResultData { data: relat.clone(), ..Default::default() })
+                Ok(OperationResultData {
+                    data: relat.clone(),
+                    ..Default::default()
+                })
             } else {
                 Err(error::Error::FieldNotExist(related_field, None))
             }
@@ -100,17 +110,27 @@ impl Creating for HumanService {
             Ok(Uuid::new_v4())
         }?;
 
-        let dog_ids: Vec<ResourceIdentifier> =
-            data.relationships.get("dogs").map(|r| r.data.data()).unwrap_or_default();
+        let dog_ids: Vec<ResourceIdentifier> = data
+            .relationships
+            .get("dogs")
+            .map(|r| r.data.data())
+            .unwrap_or_default();
         let dog_ids: Vec<String> = dog_ids.iter().map(|id| id.id.clone()).collect();
         let dogs: Vec<Dog> = self.1.lock().await.get_by_ids(&dog_ids)?;
 
         if let AttributeField(serde_json::Value::String(name)) =
             data.attributes.get_field("name")?
         {
-            let human = Human { id, name: name.clone(), dogs };
+            let human = Human {
+                id,
+                name: name.clone(),
+                dogs,
+            };
             self.0.insert(human.id.clone().to_string(), human.clone());
-            Ok(OperationResultData { data: Some(human), ..Default::default() })
+            Ok(OperationResultData {
+                data: Some(human),
+                ..Default::default()
+            })
         } else {
             Err(WRONG_FIELD_TYPE.clone())
         }
@@ -126,8 +146,10 @@ impl Updating for HumanService {
             let new_attrs = &data.data.attributes;
             let new_relats = &data.data.relationships;
             if let Some(dog_ids) = new_relats.get("dogs").map(|r| r.data.data()) {
-                let dog_ids: Vec<String> =
-                    dog_ids.iter().map(|r: &ResourceIdentifier| r.id.clone()).collect();
+                let dog_ids: Vec<String> = dog_ids
+                    .iter()
+                    .map(|r: &ResourceIdentifier| r.id.clone())
+                    .collect();
                 let dogs = self.1.clone().lock().await.get_by_ids(&dog_ids)?;
                 human.dogs = dogs;
             }
@@ -136,7 +158,10 @@ impl Updating for HumanService {
                 human.name = name.clone();
             }
             self.0.insert(id.to_string(), human);
-            Ok(OperationResultData { data: None, ..Default::default() })
+            Ok(OperationResultData {
+                data: None,
+                ..Default::default()
+            })
         } else {
             Err(ENTITY_NOT_FOUND.clone())
         }
@@ -154,11 +179,20 @@ impl Updating for HumanService {
                 IdentifierData::Multiple(datas) => {
                     let ids: Vec<String> = datas
                         .iter()
-                        .filter_map(|i| if &i.ty == field { Some(i.id.clone()) } else { None })
+                        .filter_map(|i| {
+                            if &i.ty == field {
+                                Some(i.id.clone())
+                            } else {
+                                None
+                            }
+                        })
                         .collect();
                     let dogs = self.1.lock().await.get_by_ids(&ids)?;
                     human.dogs = dogs;
-                    Ok(OperationResultData { data: (field.clone(), None), ..Default::default() })
+                    Ok(OperationResultData {
+                        data: (field.clone(), None),
+                        ..Default::default()
+                    })
                 },
             }
         } else {
@@ -178,11 +212,20 @@ impl Updating for HumanService {
                 IdentifierData::Multiple(datas) => {
                     let ids: Vec<String> = datas
                         .iter()
-                        .filter_map(|i| if &i.ty == field { Some(i.id.clone()) } else { None })
+                        .filter_map(|i| {
+                            if &i.ty == field {
+                                Some(i.id.clone())
+                            } else {
+                                None
+                            }
+                        })
                         .collect();
                     let mut dogs = self.1.lock().await.get_by_ids(&ids)?;
                     human.add_dogs(&mut dogs);
-                    Ok(OperationResultData { data: (field.clone(), None), ..Default::default() })
+                    Ok(OperationResultData {
+                        data: (field.clone(), None),
+                        ..Default::default()
+                    })
                 },
             }
         } else {
@@ -202,10 +245,19 @@ impl Updating for HumanService {
                 IdentifierData::Multiple(datas) => {
                     let ids: Vec<String> = datas
                         .iter()
-                        .filter_map(|i| if &i.ty == field { Some(i.id.clone()) } else { None })
+                        .filter_map(|i| {
+                            if &i.ty == field {
+                                Some(i.id.clone())
+                            } else {
+                                None
+                            }
+                        })
                         .collect();
                     human.remove_dogs(&ids);
-                    Ok(OperationResultData { data: (field.clone(), None), ..Default::default() })
+                    Ok(OperationResultData {
+                        data: (field.clone(), None),
+                        ..Default::default()
+                    })
                 },
             }
         } else {
@@ -220,6 +272,9 @@ impl Deleting for HumanService {
         &mut self, id: &str, _uri: &str, _path: &http::Uri,
     ) -> OperationResult<()> {
         self.0.remove(id);
-        Ok(OperationResultData { data: (), ..Default::default() })
+        Ok(OperationResultData {
+            data: (),
+            ..Default::default()
+        })
     }
 }

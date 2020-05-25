@@ -41,7 +41,7 @@ pub(crate) fn get_field_type(item: &syn::Field) -> syn::Result<FieldType> {
                         EntityDecoratorError::InvalidUnitDecorator(
                             meta_item.path().segments.to_token_stream().to_string(),
                         ),
-                    ))
+                    ));
                 },
             }
         }

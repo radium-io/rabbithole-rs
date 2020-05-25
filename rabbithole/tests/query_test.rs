@@ -28,11 +28,16 @@ fn sort_and_page_test() {
     let query = Query {
         include: None,
         fields: Default::default(),
-        sort: vec![("name".into(), OrderType::Desc), ("age".into(), OrderType::Desc)]
-            .try_into()
-            .unwrap(),
+        sort: vec![
+            ("name".into(), OrderType::Desc),
+            ("age".into(), OrderType::Desc),
+        ]
+        .try_into()
+        .unwrap(),
         page: Some(PageQuery::CursorBased(CursorBasedData {
-            after: Some(Cursor { id: "b".to_string() }),
+            after: Some(Cursor {
+                id: "b".to_string(),
+            }),
             before: None,
             size: 10,
         })),

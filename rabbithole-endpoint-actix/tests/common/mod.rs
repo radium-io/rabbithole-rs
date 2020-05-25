@@ -3,24 +3,21 @@ pub mod service;
 
 #[macro_export]
 macro_rules! init_app {
-    (PageBased) => {{
-        init_app!("tests/config/actix.config.test.page_based.toml".to_string())
-    }};
-    (CursorBased) => {{
-        init_app!("tests/config/actix.config.test.cursor_based.toml".to_string())
-    }};
-    (OffsetBased) => {{
-        init_app!("tests/config/actix.config.test.offset_based.toml".to_string())
-    }};
-    (DefaultPage) => {{
-        init_app!("tests/config/actix.config.test.default_page.toml".to_string())
-    }};
+    (PageBased) => {{ init_app!("tests/config/actix.config.test.page_based.toml".to_string()) }};
+    (CursorBased) => {{ init_app!("tests/config/actix.config.test.cursor_based.toml".to_string()) }};
+    (OffsetBased) => {{ init_app!("tests/config/actix.config.test.offset_based.toml".to_string()) }};
+    (DefaultPage) => {{ init_app!("tests/config/actix.config.test.default_page.toml".to_string()) }};
     ($major:expr, $minor:expr) => {{
-        init_app!(format!("tests/config/actix.config.test.v{}_{}.toml", $major, $minor))
+        init_app!(format!(
+            "tests/config/actix.config.test.v{}_{}.toml",
+            $major, $minor
+        ))
     }};
     ($file_name:expr) => {{
         let mut settings = config::Config::default();
-        settings.merge(config::File::with_name(&$file_name)).unwrap();
+        settings
+            .merge(config::File::with_name(&$file_name))
+            .unwrap();
 
         let actix_settings: ActixSettings = settings.try_into().unwrap();
         let dog_service = service::dog::DogService::new();
@@ -53,7 +50,9 @@ pub fn request(req: TestRequest, uri: &str) -> TestRequest {
 
 pub fn post<D: Serialize>(uri: &str, data: &D) -> actix_http::Request {
     println!("POST {}", uri);
-    request(TestRequest::post(), uri).set_payload(serde_json::to_string(data).unwrap()).to_request()
+    request(TestRequest::post(), uri)
+        .set_payload(serde_json::to_string(data).unwrap())
+        .to_request()
 }
 
 pub fn patch<D: Serialize>(uri: &str, data: &D) -> actix_http::Request {

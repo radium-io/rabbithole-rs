@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 pub type Links = HashMap<String, Link>;
 
-#[derive(Debug,Serialize,Deserialize,Eq,PartialEq,Clone)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
 pub struct WrappedUri(#[serde(with = "http_serde::uri")] http::Uri);
 
 impl FromStr for Link {
@@ -41,18 +41,24 @@ impl From<&Link> for http::Uri {
 pub enum Link {
     #[serde(with = "http_serde::uri")]
     Raw(http::Uri),
-    Object { 
+    Object {
         #[serde(with = "http_serde::uri")]
-        href: http::Uri, 
-        meta: Meta 
+        href: http::Uri,
+        meta: Meta,
     },
 }
 
 impl Link {
-    pub fn new(uri: &str, path: http::Uri) -> Link { 
-        let base = uri.parse::<url::Url>().unwrap().join(path.to_string().as_str()).unwrap();
+    pub fn new(uri: &str, path: http::Uri) -> Link {
+        let base = uri
+            .parse::<url::Url>()
+            .unwrap()
+            .join(path.to_string().as_str())
+            .unwrap();
         base.to_string().parse::<http::Uri>().unwrap().into()
-     }
+    }
 
-    pub fn slf(uri: &str, path: http::Uri) -> (String, Link) { ("self".into(), Link::new(uri, path)) }
+    pub fn slf(uri: &str, path: http::Uri) -> (String, Link) {
+        ("self".into(), Link::new(uri, path))
+    }
 }
