@@ -9,7 +9,6 @@ use rabbithole::model::resource::*;
 use rabbithole::query::Query;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-
 use std::iter::FromIterator;
 use uuid::Uuid;
 

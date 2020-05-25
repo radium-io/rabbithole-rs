@@ -10,6 +10,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::ops::Deref;
+
 pub trait Entity: Serialize + Clone {
     /// Returns the `included` field of this entity
     ///

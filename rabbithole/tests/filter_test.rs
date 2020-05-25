@@ -4,7 +4,6 @@ extern crate lazy_static;
 pub mod common;
 
 use common::Dog;
-
 use rabbithole::query::filter::FilterData;
 use rabbithole::query::filter::RsqlFilterData;
 use std::collections::HashMap;

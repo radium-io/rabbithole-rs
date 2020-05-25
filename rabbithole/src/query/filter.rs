@@ -1,18 +1,14 @@
+use crate::entity::SingleEntity;
 use crate::model::error;
-
+use crate::query::FilterSettings;
 use crate::Result;
-
-use rsql::Expr;
-
+use itertools::Itertools;
 use rsql::parser::rsql::RsqlParser;
 use rsql::parser::Parser;
 use rsql::Comparison;
 use rsql::Constraint;
+use rsql::Expr;
 use rsql::Operator;
-
-use crate::entity::SingleEntity;
-use crate::query::FilterSettings;
-use itertools::Itertools;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 

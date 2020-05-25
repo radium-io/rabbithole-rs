@@ -1,16 +1,11 @@
-use async_trait::async_trait;
-
-use rabbithole::operation::*;
-
-use rabbithole::model::error;
-
 use super::super::model::dog::Dog;
 use super::super::service::*;
-
-use rabbithole::model::resource::AttributeField;
-use rabbithole::query::Query;
-
+use async_trait::async_trait;
 use futures::lock::Mutex;
+use rabbithole::model::error;
+use rabbithole::model::resource::AttributeField;
+use rabbithole::operation::*;
+use rabbithole::query::Query;
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;

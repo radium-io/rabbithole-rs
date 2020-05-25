@@ -1,8 +1,7 @@
 use crate::entity::SingleEntity;
 use crate::model::document::Document;
-use crate::model::relationship::Relationship;
-
 use crate::model::link::Links;
+use crate::model::relationship::Relationship;
 use crate::model::resource::{IdentifierData, Resource};
 use crate::model::{error, Meta};
 use crate::query::Query;

@@ -1,6 +1,5 @@
-use crate::model::error;
-
 use crate::entity::SingleEntity;
+use crate::model::error;
 use crate::query::QuerySettings;
 use crate::Result;
 use itertools::Itertools;

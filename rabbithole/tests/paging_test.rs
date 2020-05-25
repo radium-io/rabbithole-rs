@@ -4,7 +4,6 @@ extern crate lazy_static;
 pub mod common;
 
 use common::Dog;
-
 use rabbithole::entity::SingleEntity;
 use rabbithole::query::page::{Cursor, CursorBasedData, OffsetBasedData, PageBasedData, PageQuery};
 

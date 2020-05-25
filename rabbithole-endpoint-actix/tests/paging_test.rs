@@ -1,15 +1,15 @@
 #[macro_use]
 extern crate lazy_static;
 
+pub mod common;
+
+use common::model::dog::generate_dogs;
+use common::service;
+use common::{get, post};
 use rabbithole::model::document::Document;
 use rabbithole::model::resource::{AttributeField, Resource};
 use rabbithole::operation::ResourceDataWrapper;
 use rabbithole_endpoint_actix::ActixSettings;
-
-pub mod common;
-use common::model::dog::generate_dogs;
-use common::service;
-use common::{get, post};
 
 use actix_web::test::{call_service, read_response_json};
 

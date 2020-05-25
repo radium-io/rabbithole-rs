@@ -1,11 +1,9 @@
 use crate::model::error::Errors;
 use crate::model::link::Links;
-
 use crate::model::resource::{Resource, ResourceIdentifier, Resources};
 use crate::model::{JsonApiInfo, Meta};
 use core::fmt;
 use serde::de::{MapAccess, Visitor};
-
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;

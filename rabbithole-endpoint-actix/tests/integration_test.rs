@@ -1,7 +1,15 @@
 #[macro_use]
 extern crate lazy_static;
 
+pub mod common;
+
 use actix_web::http::StatusCode;
+use actix_web::test::{call_service, read_response_json};
+use common::model::dog::{generate_dogs, Dog};
+use common::model::human::Human;
+use common::service;
+use common::{delete, get, patch, post};
+use rabbithole::model::document::Document;
 use rabbithole::model::document::DocumentItem;
 use rabbithole::model::resource::{AttributeField, Attributes, IdentifierData, ResourceIdentifier};
 use rabbithole::operation::{IdentifierDataWrapper, ResourceDataWrapper};
@@ -9,15 +17,6 @@ use rabbithole_endpoint_actix::ActixSettings;
 use serde_json::json;
 use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
-
-use actix_web::test::{call_service, read_response_json};
-use rabbithole::model::document::Document;
-
-pub mod common;
-use common::model::dog::{generate_dogs, Dog};
-use common::model::human::Human;
-use common::service;
-use common::{delete, get, patch, post};
 
 #[actix_rt::test]
 async fn basic_crud_test() {

@@ -1,22 +1,16 @@
-use async_trait::async_trait;
-
-use rabbithole::operation::*;
-
-use rabbithole::model::error::Error;
-
 use super::super::model::dog::Dog;
 use super::super::model::human::Human;
 use super::super::service::dog::DogService;
 use super::super::service::*;
+use async_trait::async_trait;
 use futures::lock::Mutex;
 use rabbithole::entity::{Entity, SingleEntity};
 use rabbithole::model::document::Document;
-use rabbithole::model::error;
-
+use rabbithole::model::error::Error;
 use rabbithole::model::relationship::Relationship;
 use rabbithole::model::resource::{AttributeField, IdentifierData, ResourceIdentifier};
+use rabbithole::operation::*;
 use rabbithole::query::Query;
-
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;

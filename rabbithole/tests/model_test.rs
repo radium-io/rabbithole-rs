@@ -6,7 +6,6 @@ use rabbithole::model::error::Error;
 use rabbithole::model::link::Links;
 use rabbithole::model::resource::*;
 use rabbithole::model::*;
-
 use std::collections::HashSet;
 use std::iter::FromIterator;
 

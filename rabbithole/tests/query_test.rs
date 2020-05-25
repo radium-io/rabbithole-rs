@@ -4,11 +4,9 @@ pub mod common;
 extern crate lazy_static;
 
 use common::Dog;
-use rabbithole::entity::Entity;
-
 use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
+use rabbithole::entity::Entity;
 use rabbithole::model::document::DocumentItem;
-
 use rabbithole::query::page::{Cursor, CursorBasedData, PageQuery};
 use rabbithole::query::sort::OrderType;
 use rabbithole::query::Query;

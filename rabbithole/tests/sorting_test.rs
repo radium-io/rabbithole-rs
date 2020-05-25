@@ -5,7 +5,6 @@ extern crate lazy_static;
 
 use common::Dog;
 use rabbithole::entity::SingleEntity;
-
 use rabbithole::query::sort::*;
 use std::convert::TryInto;
 
