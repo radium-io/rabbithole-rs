@@ -15,6 +15,7 @@
 - BREAKING: remove ActixSettingsModel, use ActixSettings directly instead
 - BREAKING: Removed RawUri. Use `http::Uri` for path in trait methods instead
 - Internal: Use only one set of example services for tests and example
+- Remove pub type Resources and type ResourceIdentifiers
 
 ## [0.3.0] - 2019-11-17
 

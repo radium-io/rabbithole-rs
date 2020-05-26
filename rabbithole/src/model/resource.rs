@@ -11,9 +11,6 @@ use std::hash::Hash;
 use std::iter::FromIterator;
 use std::str::FromStr;
 
-pub type ResourceIdentifiers = Vec<ResourceIdentifier>;
-pub type Resources = Vec<Resource>;
-
 lazy_static! {
     static ref INVALID_ATTR_FIELDS: HashSet<&'static str> =
         HashSet::from_iter(vec!["relationships", "links", "type", "id"]);
@@ -144,7 +141,7 @@ impl Attributes {
 #[serde(untagged)]
 pub enum IdentifierData {
     Single(Option<ResourceIdentifier>),
-    Multiple(ResourceIdentifiers),
+    Multiple(Vec<ResourceIdentifier>),
 }
 
 impl IdentifierData {

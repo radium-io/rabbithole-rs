@@ -115,7 +115,7 @@ fn inner_derive(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 )*
 
                 #(
-                    let mut relat_ids: rabbithole::model::resource::ResourceIdentifiers = std::default::Default::default();
+                    let mut relat_ids: Vec<rabbithole::model::resource::ResourceIdentifier> = std::default::Default::default();
                     for item in &self.#to_manys {
                         if let Some(relat_id) = item.to_resource_identifier() {
                             relat_ids.push(relat_id);

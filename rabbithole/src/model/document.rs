@@ -1,6 +1,6 @@
 use crate::model::error::Errors;
 use crate::model::link::Links;
-use crate::model::resource::{Resource, ResourceIdentifier, Resources};
+use crate::model::resource::{Resource, ResourceIdentifier};
 use crate::model::{JsonApiInfo, Meta};
 use core::fmt;
 use serde::de::{MapAccess, Visitor};
@@ -15,7 +15,7 @@ pub type Included = HashMap<ResourceIdentifier, Resource>;
 #[serde(untagged)]
 pub enum PrimaryDataItem {
     Single(Box<Resource>),
-    Multiple(Resources),
+    Multiple(Vec<Resource>),
 }
 
 impl PrimaryDataItem {
