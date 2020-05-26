@@ -38,23 +38,12 @@ impl Default for DocumentItem {
 }
 
 /// The specification refers to this as a top-level `document`
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct Document {
     pub item: DocumentItem,
     pub links: Links,
     pub meta: Meta,
     pub jsonapi: Option<JsonApiInfo>,
-}
-
-impl Default for Document {
-    fn default() -> Self {
-        Self {
-            item: Default::default(),
-            links: Default::default(),
-            meta: Default::default(),
-            jsonapi: Default::default(),
-        }
-    }
 }
 
 impl Document {
