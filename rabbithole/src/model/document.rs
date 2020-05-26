@@ -1,4 +1,4 @@
-use crate::model::error::Errors;
+use crate::model::error;
 use crate::model::link::Links;
 use crate::model::resource::{Resource, ResourceIdentifier};
 use crate::model::{JsonApiInfo, Meta};
@@ -30,7 +30,7 @@ impl PrimaryDataItem {
 #[derive(Debug, Clone, PartialEq)]
 pub enum DocumentItem {
     PrimaryData(Option<(PrimaryDataItem, Included)>),
-    Errors(Errors),
+    Errors(Vec<error::Error>),
 }
 
 impl Default for DocumentItem {
@@ -160,48 +160,57 @@ impl<'de> Visitor<'de> for DocumentVisitor {
         let mut included = None;
         let mut errors = None;
 
+        use serde_json::from_value;
+        use serde::de::Error as serdeError;
+
         while let Some((key, value)) = map.next_entry::<String, Value>()? {
             match key.as_str() {
-                "links" if links.is_none() => match serde_json::from_value::<Links>(value) {
+                "links" if links.is_none() => match from_value::<Links>(value) {
                     Ok(new_data) => links = Some(new_data),
-                    Err(err) => return Err(serde::de::Error::custom(err)),
+                    Err(err) => return Err(serdeError::custom(err)),
                 },
-                "links" => return Err(serde::de::Error::duplicate_field("links")),
-                "meta" if meta.is_none() => match serde_json::from_value::<Meta>(value) {
+                "links" => return Err(serdeError::duplicate_field("links")),
+                
+                "meta" if meta.is_none() => match from_value::<Meta>(value) {
                     Ok(new_data) => meta = Some(new_data),
-                    Err(err) => return Err(serde::de::Error::custom(err)),
+                    Err(err) => return Err(serdeError::custom(err)),
                 },
-                "meta" => return Err(serde::de::Error::duplicate_field("meta")),
+                "meta" => return Err(serdeError::duplicate_field("meta")),
+
                 "jsonapi" if jsonapi.is_none() => {
-                    match serde_json::from_value::<JsonApiInfo>(value) {
+                    match from_value::<JsonApiInfo>(value) {
                         Ok(new_data) => jsonapi = Some(new_data),
-                        Err(err) => return Err(serde::de::Error::custom(err)),
+                        Err(err) => return Err(serdeError::custom(err)),
                     }
                 },
-                "jsonapi" => return Err(serde::de::Error::duplicate_field("jsonapi")),
+                "jsonapi" => return Err(serdeError::duplicate_field("jsonapi")),
+
                 "data" if data.is_none() => {
-                    match serde_json::from_value::<Option<PrimaryDataItem>>(value) {
+                    match from_value::<Option<PrimaryDataItem>>(value) {
                         Ok(new_data) => data = new_data,
-                        Err(err) => return Err(serde::de::Error::custom(err)),
+                        Err(err) => return Err(serdeError::custom(err)),
                     }
                 },
-                "data" => return Err(serde::de::Error::duplicate_field("data")),
+                "data" => return Err(serdeError::duplicate_field("data")),
+
                 "included" if included.is_none() => {
-                    match serde_json::from_value::<Vec<Resource>>(value) {
+                    match from_value::<Vec<Resource>>(value) {
                         Ok(new_data) => {
                             let new_data: Included =
                                 new_data.into_iter().map(|r| (r.id.clone(), r)).collect();
                             included = Some(new_data);
                         },
-                        Err(err) => return Err(serde::de::Error::custom(err)),
+                        Err(err) => return Err(serdeError::custom(err)),
                     }
                 },
-                "included" => return Err(serde::de::Error::duplicate_field("included")),
-                "errors" if errors.is_none() => match serde_json::from_value::<Errors>(value) {
+                "included" => return Err(serdeError::duplicate_field("included")),
+
+                "errors" if errors.is_none() => match from_value::<Vec<error::Error>>(value) {
                     Ok(new_data) => errors = Some(new_data),
-                    Err(err) => return Err(serde::de::Error::custom(err)),
+                    Err(err) => return Err(serdeError::custom(err)),
                 },
-                "errors" => return Err(serde::de::Error::duplicate_field("errors")),
+                "errors" => return Err(serdeError::duplicate_field("errors")),
+
                 _ => {},
             }
         }

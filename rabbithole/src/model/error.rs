@@ -3,8 +3,6 @@ use crate::model::Meta;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-pub type Errors = Vec<Error>;
-
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct ErrorLinks {
     #[serde(skip_serializing_if = "Option::is_none")]
