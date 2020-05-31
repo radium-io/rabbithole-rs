@@ -96,10 +96,8 @@ macro_rules! single_step_operation {
             if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
                 return Ok(err_resp);
             }
-            let uri = &this.uri().to_string();
-            let path = req.uri().clone().into();
 
-            match service.lock().await.$fn_name($(&$param),+, uri, &path).await {
+            match service.lock().await.$fn_name($(&$param),+, &this.uri().to_string(), &req.uri()).await {
                 Ok(item) => {
                     to_response!($return_ty: this, item)
                 },
@@ -119,10 +117,11 @@ impl ActixSettings {
     single_step_operation!(Relationship: remove_relationship, Updating, params => web::Path<(String, String)>, body => web::Json<IdentifierDataWrapper>);
 
     fn uri(&self) -> url::Url {
-        let uri = format!("http://{}:{}", self.host, self.port)
+        format!("http://{}:{}", self.host, self.port)
             .parse::<url::Url>()
-            .unwrap();
-        uri.join(&self.path).unwrap()
+            .unwrap()
+            .join(&self.path)
+            .unwrap()
     }
 
     pub async fn delete_resource<T>(
@@ -139,13 +138,10 @@ impl ActixSettings {
             return Ok(err_resp);
         }
 
-        let uri = &this.uri().to_string();
-        let path = req.uri().clone().into();
-
         match service
             .lock()
             .await
-            .delete_resource(&params, uri, &path)
+            .delete_resource(&params, &this.uri().to_string(), &req.uri())
             .await
         {
             Ok(OperationResultData {
@@ -249,7 +245,6 @@ impl ActixSettings {
             return Ok(err_resp);
         }
 
-        let uri = &this.uri().to_string();
         let path = req.uri().clone().into();
 
         match this.query.decode_path(&path) {
@@ -257,7 +252,7 @@ impl ActixSettings {
                 match service
                     .lock()
                     .await
-                    .fetch_single(&param, uri, &path, &query)
+                    .fetch_single(&param, &this.uri().to_string(), &path, &query)
                     .await
                 {
                     Ok(OperationResultData {
@@ -298,7 +293,6 @@ impl ActixSettings {
             return Ok(err_resp);
         }
 
-        let uri = &this.uri().to_string();
         let path = req.uri().clone().into();
 
         match this.query.decode_path(&path) {
@@ -307,7 +301,7 @@ impl ActixSettings {
                 match service
                     .lock()
                     .await
-                    .fetch_relationship(&id, &related_field, uri, &path, &query)
+                    .fetch_relationship(&id, &related_field, &this.uri().to_string(), &path, &query)
                     .await
                 {
                     Ok(OperationResultData {
@@ -340,7 +334,6 @@ impl ActixSettings {
             return Ok(err_resp);
         }
 
-        let uri = &this.uri().to_string();
         let path = req.uri().clone().into();
 
         match this.query.decode_path(&path) {
@@ -349,7 +342,7 @@ impl ActixSettings {
                 match service
                     .lock()
                     .await
-                    .fetch_related(&id, &related_field, uri, &path, &query)
+                    .fetch_related(&id, &related_field, &this.uri().to_string(), &path, &query)
                     .await
                 {
                     Ok(item) => Ok(new_json_api_resp(StatusCode::OK).json(item)),
