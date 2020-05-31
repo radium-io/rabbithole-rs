@@ -99,7 +99,7 @@ macro_rules! single_step_operation {
             let uri = &this.uri().to_string();
             let path = req.uri().clone().into();
 
-            match service.lock().await.$fn_name($(&$param.into_inner()),+, uri, &path).await {
+            match service.lock().await.$fn_name($(&$param),+, uri, &path).await {
                 Ok(item) => {
                     to_response!($return_ty: this, item)
                 },
@@ -126,7 +126,9 @@ impl ActixSettings {
     }
 
     pub async fn delete_resource<T>(
-        this: web::Data<Self>, service: web::Data<Arc<Mutex<T>>>, params: web::Path<String>,
+        this: web::Data<Self>,
+        service: web::Data<Arc<Mutex<T>>>,
+        params: web::Path<String>,
         req: actix_web::HttpRequest,
     ) -> Result<HttpResponse, actix_web::Error>
     where
@@ -143,7 +145,7 @@ impl ActixSettings {
         match service
             .lock()
             .await
-            .delete_resource(&params.into_inner(), uri, &path)
+            .delete_resource(&params, uri, &path)
             .await
         {
             Ok(OperationResultData {
@@ -163,7 +165,9 @@ impl ActixSettings {
     }
 
     pub async fn create<T>(
-        this: web::Data<Self>, service: web::Data<Arc<Mutex<T>>>, req: actix_web::HttpRequest,
+        this: web::Data<Self>,
+        service: web::Data<Arc<Mutex<T>>>,
+        req: actix_web::HttpRequest,
         body: web::Json<ResourceDataWrapper>,
     ) -> Result<HttpResponse, actix_web::Error>
     where
@@ -177,12 +181,7 @@ impl ActixSettings {
         let uri = &this.uri().to_string();
         let path = req.uri().clone().into();
 
-        match service
-            .lock()
-            .await
-            .create(&body.into_inner(), uri, &path)
-            .await
-        {
+        match service.lock().await.create(&body, uri, &path).await {
             Ok(OperationResultData {
                 data,
                 additional_links,
@@ -198,7 +197,9 @@ impl ActixSettings {
     }
 
     pub async fn fetch_collection<T>(
-        this: web::Data<Self>, service: web::Data<Arc<Mutex<T>>>, req: HttpRequest,
+        this: web::Data<Self>,
+        service: web::Data<Arc<Mutex<T>>>,
+        req: HttpRequest,
     ) -> Result<HttpResponse, actix_web::Error>
     where
         T: 'static + Fetching + Send + Sync,
@@ -235,7 +236,9 @@ impl ActixSettings {
     }
 
     pub async fn fetch_single<T>(
-        this: web::Data<Self>, service: web::Data<Arc<Mutex<T>>>, param: web::Path<String>,
+        this: web::Data<Self>,
+        service: web::Data<Arc<Mutex<T>>>,
+        param: web::Path<String>,
         req: HttpRequest,
     ) -> Result<HttpResponse, actix_web::Error>
     where
@@ -254,7 +257,7 @@ impl ActixSettings {
                 match service
                     .lock()
                     .await
-                    .fetch_single(&param.into_inner(), uri, &path, &query)
+                    .fetch_single(&param, uri, &path, &query)
                     .await
                 {
                     Ok(OperationResultData {
@@ -282,8 +285,10 @@ impl ActixSettings {
     }
 
     pub async fn fetch_relationship<T>(
-        this: web::Data<Self>, service: web::Data<Arc<Mutex<T>>>,
-        param: web::Path<(String, String)>, req: HttpRequest,
+        this: web::Data<Self>,
+        service: web::Data<Arc<Mutex<T>>>,
+        param: web::Path<(String, String)>,
+        req: HttpRequest,
     ) -> Result<HttpResponse, actix_web::Error>
     where
         T: 'static + Fetching + Send + Sync,
@@ -322,8 +327,10 @@ impl ActixSettings {
     }
 
     pub async fn fetch_related<T>(
-        this: web::Data<Self>, service: web::Data<Arc<Mutex<T>>>,
-        param: web::Path<(String, String)>, req: HttpRequest,
+        this: web::Data<Self>,
+        service: web::Data<Arc<Mutex<T>>>,
+        param: web::Path<(String, String)>,
+        req: HttpRequest,
     ) -> Result<HttpResponse, actix_web::Error>
     where
         T: 'static + Fetching + Send + Sync,
