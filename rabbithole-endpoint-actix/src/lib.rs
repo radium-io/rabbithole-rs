@@ -38,10 +38,10 @@ macro_rules! to_response {
             Some(mut resource) => {
                 resource.extend_meta(additional_meta);
                 resource.extend_links(additional_links);
-                Ok(actix_web::HttpResponse::Ok()
+                Ok(HttpResponse::Ok()
                     .json(rabbithole::operation::ResourceDataWrapper { data: resource }))
             },
-            None => Ok(actix_web::HttpResponse::NoContent().finish()),
+            None => Ok(HttpResponse::NoContent().finish()),
         }
     }};
     (Relationship: $this:ident, $item:ident) => {{
@@ -57,18 +57,18 @@ macro_rules! to_response {
                 resource.extend_meta(additional_meta);
                 resource.extend_links(additional_links);
 
-                Ok(actix_web::HttpResponse::Ok().json(
-                    rabbithole::operation::IdentifierDataWrapper {
+                Ok(
+                    HttpResponse::Ok().json(rabbithole::operation::IdentifierDataWrapper {
                         data: resource
                             .relationships
                             .get(&field_name)
                             .cloned()
                             .unwrap()
                             .data,
-                    },
-                ))
+                    }),
+                )
             },
-            None => Ok(actix_web::HttpResponse::NoContent().finish()),
+            None => Ok(HttpResponse::NoContent().finish()),
         }
     }};
 }
@@ -76,7 +76,7 @@ macro_rules! to_response {
 macro_rules! single_step_operation {
     ($return_ty:ident:  $fn_name:ident, $mark:ident, $( $param:ident => $ty:ty ),+) => {
         pub async fn $fn_name<T>(this: web::Data<Self>, service: actix_web::web::Data<std::sync::Arc<futures::lock::Mutex<T>>>, req: actix_web::HttpRequest, $($param: $ty),+)
-          -> Result<actix_web::HttpResponse, actix_web::Error>
+          -> Result<HttpResponse, actix_web::Error>
             where
                 T: 'static + rabbithole::operation::$mark + Send + Sync,
                 T::Item: rabbithole::entity::SingleEntity + Send + Sync,
@@ -130,10 +130,9 @@ impl ActixSettings {
                 ..
             }) => {
                 if additional_links.is_empty() && additional_meta.is_empty() {
-                    Ok(actix_web::HttpResponse::NoContent().finish())
+                    Ok(HttpResponse::NoContent().finish())
                 } else {
-                    Ok(actix_web::HttpResponse::Ok()
-                        .json(Document::null(additional_links, additional_meta)))
+                    Ok(HttpResponse::Ok().json(Document::null(additional_links, additional_meta)))
                 }
             },
             Err(err) => Ok(error_to_response(err)),
@@ -166,7 +165,7 @@ impl ActixSettings {
                 let mut resource = data.to_resource(uri, &Default::default()).unwrap();
                 resource.extend_meta(additional_meta);
                 resource.extend_links(additional_links);
-                Ok(actix_web::HttpResponse::Ok().json(ResourceDataWrapper { data: resource }))
+                Ok(HttpResponse::Ok().json(ResourceDataWrapper { data: resource }))
             },
             Err(err) => Ok(error_to_response(err)),
         }
@@ -240,7 +239,7 @@ impl ActixSettings {
                             additional_links,
                             additional_meta,
                         ) {
-                            Ok(doc) => Ok(json(StatusCode::OK).json(doc)),
+                            Ok(doc) => Ok(HttpResponse::Ok().json(doc)),
                             Err(err) => Ok(error_to_response(err)),
                         }
                     },
@@ -279,7 +278,7 @@ impl ActixSettings {
                     }) => {
                         data.extend_links(additional_links);
                         data.extend_meta(additional_meta);
-                        Ok(json(StatusCode::OK).json(data))
+                        Ok(HttpResponse::Ok().json(data))
                     },
                     Err(err) => Ok(error_to_response(err)),
                 }
@@ -309,7 +308,7 @@ impl ActixSettings {
                     .fetch_related(&id, &related_field, &this.uri().to_string(), &path, &query)
                     .await
                 {
-                    Ok(item) => Ok(json(StatusCode::OK).json(item)),
+                    Ok(item) => Ok(HttpResponse::Ok().json(item)),
                     Err(err) => Ok(error_to_response(err)),
                 }
             },
