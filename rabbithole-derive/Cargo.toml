@@ -16,15 +16,15 @@ proc-macro = true
 
 [dependencies]
 http = "0.2.1"
-lazy_static = "~1.4"
-proc-macro2 = "~1.0"
-quote = "~1.0"
-syn = { version = "~1.0", features = [ "extra-traits" ] }
-thiserror = "~1.0"
+lazy_static = "1.4.0"
+proc-macro2 = "1.0.17"
+quote = "1.0.6"
+syn = { version = "1.0.26", features = [ "extra-traits" ] }
+thiserror = "1.0.19"
 
 [dev-dependencies]
 rabbithole = { path = "../rabbithole", version = "~0.4" }
-rand = "~0.7"
-serde = "~1.0"
-serde_json = "~1.0"
-uuid = { version = "~0.8", features = [ "serde", "v4" ] }
+rand = "0.7.3"
+serde = "1.0.110"
+serde_json = "1.0.53"
+uuid = { version = "0.8.1", features = [ "serde", "v4" ] }

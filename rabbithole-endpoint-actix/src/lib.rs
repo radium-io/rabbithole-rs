@@ -1,33 +1,21 @@
+pub mod middleware;
 pub mod settings;
 
 use crate::settings::JsonApiSettings;
 use actix_web::dev::HttpResponseBuilder;
-use actix_web::http::{header, HeaderMap, StatusCode};
+use actix_web::http::StatusCode;
 use actix_web::web;
 use actix_web::{HttpRequest, HttpResponse};
 use futures::lock::Mutex;
 use rabbithole::entity::{Entity, SingleEntity};
 use rabbithole::model::document::Document;
 use rabbithole::model::error;
-use rabbithole::model::version::JsonApiVersion;
 use rabbithole::operation::{
     Creating, Deleting, Fetching, IdentifierDataWrapper, OperationResultData, ResourceDataWrapper,
 };
 use rabbithole::query::QuerySettings;
-use rabbithole::rule::RuleDispatcher;
-use rabbithole::JSON_API_HEADER;
 use serde::Deserialize;
 use std::sync::Arc;
-
-fn error_to_response(err: error::Error) -> HttpResponse {
-    new_json_api_resp(
-        err.status
-            .as_deref()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(StatusCode::BAD_REQUEST),
-    )
-    .json(err)
-}
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct ActixSettings {
@@ -93,10 +81,6 @@ macro_rules! single_step_operation {
                 T: 'static + rabbithole::operation::$mark + Send + Sync,
                 T::Item: rabbithole::entity::SingleEntity + Send + Sync,
           {
-            if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
-                return Ok(err_resp);
-            }
-
             match service.lock().await.$fn_name($(&$param),+, &this.uri().to_string(), &req.uri()).await {
                 Ok(item) => {
                     to_response!($return_ty: this, item)
@@ -134,10 +118,6 @@ impl ActixSettings {
         T: 'static + Deleting + Send + Sync,
         T::Item: rabbithole::entity::SingleEntity + Send + Sync,
     {
-        if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
-            return Ok(err_resp);
-        }
-
         match service
             .lock()
             .await
@@ -170,14 +150,14 @@ impl ActixSettings {
         T: 'static + Creating + Send + Sync,
         T::Item: rabbithole::entity::SingleEntity + Send + Sync,
     {
-        if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
-            return Ok(err_resp);
-        }
-
         let uri = &this.uri().to_string();
-        let path = req.uri().clone().into();
 
-        match service.lock().await.create(&body, uri, &path).await {
+        match service
+            .lock()
+            .await
+            .create(&body, uri, &req.uri().clone().into())
+            .await
+        {
             Ok(OperationResultData {
                 data,
                 additional_links,
@@ -201,10 +181,6 @@ impl ActixSettings {
         T: 'static + Fetching + Send + Sync,
         T::Item: rabbithole::entity::SingleEntity + Send + Sync,
     {
-        if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
-            return Ok(err_resp);
-        }
-
         let uri = &this.uri().to_string();
         let path = req.uri().to_owned();
 
@@ -241,10 +217,6 @@ impl ActixSettings {
         T: 'static + Fetching + Send + Sync,
         T::Item: rabbithole::entity::SingleEntity + Send + Sync,
     {
-        if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
-            return Ok(err_resp);
-        }
-
         let path = req.uri().clone().into();
 
         match this.query.decode_path(&path) {
@@ -268,7 +240,7 @@ impl ActixSettings {
                             additional_links,
                             additional_meta,
                         ) {
-                            Ok(doc) => Ok(new_json_api_resp(StatusCode::OK).json(doc)),
+                            Ok(doc) => Ok(json(StatusCode::OK).json(doc)),
                             Err(err) => Ok(error_to_response(err)),
                         }
                     },
@@ -289,10 +261,6 @@ impl ActixSettings {
         T: 'static + Fetching + Send + Sync,
         T::Item: rabbithole::entity::SingleEntity + Send + Sync,
     {
-        if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
-            return Ok(err_resp);
-        }
-
         let path = req.uri().clone().into();
 
         match this.query.decode_path(&path) {
@@ -311,7 +279,7 @@ impl ActixSettings {
                     }) => {
                         data.extend_links(additional_links);
                         data.extend_meta(additional_meta);
-                        Ok(new_json_api_resp(StatusCode::OK).json(data))
+                        Ok(json(StatusCode::OK).json(data))
                     },
                     Err(err) => Ok(error_to_response(err)),
                 }
@@ -330,10 +298,6 @@ impl ActixSettings {
         T: 'static + Fetching + Send + Sync,
         T::Item: rabbithole::entity::SingleEntity + Send + Sync,
     {
-        if let Err(err_resp) = check_header(&this.jsonapi.version, &req.headers()) {
-            return Ok(err_resp);
-        }
-
         let path = req.uri().clone().into();
 
         match this.query.decode_path(&path) {
@@ -345,7 +309,7 @@ impl ActixSettings {
                     .fetch_related(&id, &related_field, &this.uri().to_string(), &path, &query)
                     .await
                 {
-                    Ok(item) => Ok(new_json_api_resp(StatusCode::OK).json(item)),
+                    Ok(item) => Ok(json(StatusCode::OK).json(item)),
                     Err(err) => Ok(error_to_response(err)),
                 }
             },
@@ -354,23 +318,14 @@ impl ActixSettings {
     }
 }
 
-// TODO: If this check should be put into the main logic rather than web-framework specific?
-fn check_header(api_version: &JsonApiVersion, headers: &HeaderMap) -> Result<(), HttpResponse> {
-    let content_type = headers
-        .get(header::CONTENT_TYPE)
-        .map(|r| r.to_str().unwrap().to_string());
-    let accept = headers
-        .get(header::ACCEPT)
-        .map(|r| r.to_str().unwrap().to_string());
-    RuleDispatcher::ContentTypeMustBeJsonApi(api_version, &content_type)
-        .map_err(error_to_response)?;
-    RuleDispatcher::AcceptHeaderShouldBeJsonApi(api_version, &accept).map_err(error_to_response)?;
+fn json(status_code: StatusCode) -> HttpResponseBuilder { HttpResponse::build(status_code) }
 
-    Ok(())
-}
-
-fn new_json_api_resp(status_code: StatusCode) -> HttpResponseBuilder {
-    let mut resp = HttpResponse::build(status_code);
-    resp.set_header(header::CONTENT_TYPE, JSON_API_HEADER);
-    resp
+fn error_to_response(err: error::Error) -> HttpResponse {
+    HttpResponse::build(
+        err.status
+            .as_deref()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(StatusCode::BAD_REQUEST),
+    )
+    .body(serde_json::to_string(&err).unwrap())
 }

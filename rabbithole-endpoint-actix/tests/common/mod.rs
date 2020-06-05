@@ -3,10 +3,18 @@ pub mod service;
 
 #[macro_export]
 macro_rules! init_app {
-    (PageBased) => {{ init_app!("tests/config/actix.config.test.page_based.toml".to_string()) }};
-    (CursorBased) => {{ init_app!("tests/config/actix.config.test.cursor_based.toml".to_string()) }};
-    (OffsetBased) => {{ init_app!("tests/config/actix.config.test.offset_based.toml".to_string()) }};
-    (DefaultPage) => {{ init_app!("tests/config/actix.config.test.default_page.toml".to_string()) }};
+    (PageBased) => {{
+        init_app!("tests/config/actix.config.test.page_based.toml".to_string())
+    }};
+    (CursorBased) => {{
+        init_app!("tests/config/actix.config.test.cursor_based.toml".to_string())
+    }};
+    (OffsetBased) => {{
+        init_app!("tests/config/actix.config.test.offset_based.toml".to_string())
+    }};
+    (DefaultPage) => {{
+        init_app!("tests/config/actix.config.test.default_page.toml".to_string())
+    }};
     ($major:expr, $minor:expr) => {{
         init_app!(format!(
             "tests/config/actix.config.test.v{}_{}.toml",
@@ -23,6 +31,8 @@ macro_rules! init_app {
         let dog_service = service::dog::DogService::new();
         let human_service = service::human::HumanService::new(dog_service.clone());
 
+        use actix_web::middleware::DefaultHeaders;
+
         actix_web::test::init_service(
             actix_web::App::new()
                 .data(dog_service.clone())
@@ -30,6 +40,11 @@ macro_rules! init_app {
                 .data(actix_settings.clone())
                 .service(
                     actix_web::web::scope(&actix_settings.path)
+                        .wrap(rabbithole_endpoint_actix::middleware::JsonApi)
+                        .wrap(
+                            DefaultHeaders::new()
+                                .header("Content-Type", "application/vnd.api+json"),
+                        )
                         .service(service::dog::DogService::actix_service())
                         .service(service::human::HumanService::actix_service()),
                 )

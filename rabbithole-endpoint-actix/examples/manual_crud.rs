@@ -23,14 +23,19 @@ async fn main() -> std::io::Result<()> {
     let dog_service = DogService::new();
     let human_service = HumanService::new(dog_service.clone());
 
+    use actix_web::middleware::DefaultHeaders;
+
     HttpServer::new(move || {
         App::new()
             .data(dog_service.clone())
             .data(human_service.clone())
             .data::<ActixSettings>(service_settings.clone())
+            .wrap(middleware::Compress::default())
             .wrap(middleware::Logger::default())
             .service(
                 web::scope(&service_settings.path)
+                    .wrap(rabbithole_endpoint_actix::middleware::JsonApi)
+                    .wrap(DefaultHeaders::new().header("Content-Type", "application/vnd.api+json"))
                     .service(DogService::actix_service())
                     .service(HumanService::actix_service()),
             )
