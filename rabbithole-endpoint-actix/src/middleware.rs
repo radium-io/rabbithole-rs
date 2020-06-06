@@ -64,23 +64,33 @@ where
             .map(|r| r.to_str().unwrap().to_string());
 
         if let Err(e) = RuleDispatcher::ContentTypeMustBeJsonApi(api_version, &content_type) {
-            return Box::pin(ok(req.into_response(
-                HttpResponse::UnsupportedMediaType().json(e).into_body(),
-            )));
+            let mut res =
+                req.into_response(HttpResponse::UnsupportedMediaType().json(e).into_body());
+            res.headers_mut().insert(
+                header::CONTENT_TYPE,
+                rabbithole::JSON_API_HEADER.parse().unwrap(),
+            );
+            return Box::pin(ok(res));
         }
 
         if let Err(e) = RuleDispatcher::AcceptHeaderShouldBeJsonApi(api_version, &accept) {
-            return Box::pin(ok(
-                req.into_response(HttpResponse::NotAcceptable().json(e).into_body())
-            ));
+            let mut res = req.into_response(HttpResponse::NotAcceptable().json(e).into_body());
+            res.headers_mut().insert(
+                header::CONTENT_TYPE,
+                rabbithole::JSON_API_HEADER.parse().unwrap(),
+            );
+            return Box::pin(ok(res));
         }
 
         let fut = self.service.call(req);
 
         Box::pin(async move {
-            let res = fut.await?;
+            let mut res = fut.await?;
 
-            println!("{:?}", res.response().error());
+            res.headers_mut().insert(
+                header::CONTENT_TYPE,
+                rabbithole::JSON_API_HEADER.parse().unwrap(),
+            );
 
             Ok(res)
         })

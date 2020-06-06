@@ -2,7 +2,6 @@ pub mod middleware;
 pub mod settings;
 
 use crate::settings::JsonApiSettings;
-use actix_web::dev::HttpResponseBuilder;
 use actix_web::http::StatusCode;
 use actix_web::web;
 use actix_web::{HttpRequest, HttpResponse};
@@ -76,7 +75,7 @@ macro_rules! to_response {
 macro_rules! single_step_operation {
     ($return_ty:ident:  $fn_name:ident, $mark:ident, $( $param:ident => $ty:ty ),+) => {
         pub async fn $fn_name<T>(this: web::Data<Self>, service: actix_web::web::Data<std::sync::Arc<futures::lock::Mutex<T>>>, req: actix_web::HttpRequest, $($param: $ty),+)
-          -> Result<HttpResponse, actix_web::Error>
+          -> actix_web::Result<HttpResponse>
             where
                 T: 'static + rabbithole::operation::$mark + Send + Sync,
                 T::Item: rabbithole::entity::SingleEntity + Send + Sync,
@@ -85,7 +84,7 @@ macro_rules! single_step_operation {
                 Ok(item) => {
                     to_response!($return_ty: this, item)
                 },
-                Err(err) => Ok(error_to_response(err)),
+                Err(err) => ActixRabbitholeError(err).into(),
             }
         }
     };
@@ -113,7 +112,7 @@ impl ActixSettings {
         service: web::Data<Arc<Mutex<T>>>,
         params: web::Path<String>,
         req: actix_web::HttpRequest,
-    ) -> Result<HttpResponse, actix_web::Error>
+    ) -> actix_web::Result<HttpResponse>
     where
         T: 'static + Deleting + Send + Sync,
         T::Item: rabbithole::entity::SingleEntity + Send + Sync,
@@ -135,7 +134,7 @@ impl ActixSettings {
                     Ok(HttpResponse::Ok().json(Document::null(additional_links, additional_meta)))
                 }
             },
-            Err(err) => Ok(error_to_response(err)),
+            Err(err) => ActixRabbitholeError(err).into(),
         }
     }
 
@@ -144,7 +143,7 @@ impl ActixSettings {
         service: web::Data<Arc<Mutex<T>>>,
         req: actix_web::HttpRequest,
         body: web::Json<ResourceDataWrapper>,
-    ) -> Result<HttpResponse, actix_web::Error>
+    ) -> actix_web::Result<HttpResponse>
     where
         T: 'static + Creating + Send + Sync,
         T::Item: rabbithole::entity::SingleEntity + Send + Sync,
@@ -167,7 +166,7 @@ impl ActixSettings {
                 resource.extend_links(additional_links);
                 Ok(HttpResponse::Ok().json(ResourceDataWrapper { data: resource }))
             },
-            Err(err) => Ok(error_to_response(err)),
+            Err(err) => ActixRabbitholeError(err).into(),
         }
     }
 
@@ -175,7 +174,7 @@ impl ActixSettings {
         this: web::Data<Self>,
         service: web::Data<Arc<Mutex<T>>>,
         req: HttpRequest,
-    ) -> Result<HttpResponse, actix_web::Error>
+    ) -> actix_web::Result<HttpResponse>
     where
         T: 'static + Fetching + Send + Sync,
         T::Item: rabbithole::entity::SingleEntity + Send + Sync,
@@ -197,12 +196,12 @@ impl ActixSettings {
                 }) => {
                     match data.to_document(uri, &query, path, additional_links, additional_meta) {
                         Ok(doc) => Ok(HttpResponse::Ok().json(doc)),
-                        Err(err) => Ok(error_to_response(err)),
+                        Err(err) => ActixRabbitholeError(err).into(),
                     }
                 },
-                Err(err) => Ok(error_to_response(err)),
+                Err(err) => ActixRabbitholeError(err).into(),
             },
-            Err(err) => Ok(error_to_response(err)),
+            Err(err) => ActixRabbitholeError(err).into(),
         }
     }
 
@@ -211,7 +210,7 @@ impl ActixSettings {
         service: web::Data<Arc<Mutex<T>>>,
         param: web::Path<String>,
         req: HttpRequest,
-    ) -> Result<HttpResponse, actix_web::Error>
+    ) -> actix_web::Result<HttpResponse>
     where
         T: 'static + Fetching + Send + Sync,
         T::Item: rabbithole::entity::SingleEntity + Send + Sync,
@@ -240,13 +239,13 @@ impl ActixSettings {
                             additional_meta,
                         ) {
                             Ok(doc) => Ok(HttpResponse::Ok().json(doc)),
-                            Err(err) => Ok(error_to_response(err)),
+                            Err(err) => ActixRabbitholeError(err).into(),
                         }
                     },
-                    Err(err) => Ok(error_to_response(err)),
+                    Err(err) => ActixRabbitholeError(err).into(),
                 }
             },
-            Err(err) => Ok(error_to_response(err)),
+            Err(err) => ActixRabbitholeError(err).into(),
         }
     }
 
@@ -255,7 +254,7 @@ impl ActixSettings {
         service: web::Data<Arc<Mutex<T>>>,
         param: web::Path<(String, String)>,
         req: HttpRequest,
-    ) -> Result<HttpResponse, actix_web::Error>
+    ) -> actix_web::Result<HttpResponse>
     where
         T: 'static + Fetching + Send + Sync,
         T::Item: rabbithole::entity::SingleEntity + Send + Sync,
@@ -280,10 +279,10 @@ impl ActixSettings {
                         data.extend_meta(additional_meta);
                         Ok(HttpResponse::Ok().json(data))
                     },
-                    Err(err) => Ok(error_to_response(err)),
+                    Err(err) => ActixRabbitholeError(err).into(),
                 }
             },
-            Err(err) => Ok(error_to_response(err)),
+            Err(err) => ActixRabbitholeError(err).into(),
         }
     }
 
@@ -292,7 +291,7 @@ impl ActixSettings {
         service: web::Data<Arc<Mutex<T>>>,
         param: web::Path<(String, String)>,
         req: HttpRequest,
-    ) -> Result<HttpResponse, actix_web::Error>
+    ) -> actix_web::Result<HttpResponse>
     where
         T: 'static + Fetching + Send + Sync,
         T::Item: rabbithole::entity::SingleEntity + Send + Sync,
@@ -302,29 +301,31 @@ impl ActixSettings {
         match this.query.decode_path(&path) {
             Ok(query) => {
                 let (id, related_field) = param.into_inner();
-                match service
+                service
                     .lock()
                     .await
                     .fetch_related(&id, &related_field, &this.uri().to_string(), &path, &query)
                     .await
-                {
-                    Ok(item) => Ok(HttpResponse::Ok().json(item)),
-                    Err(err) => Ok(error_to_response(err)),
-                }
+                    .map_or_else(
+                        |e| ActixRabbitholeError(e).into(),
+                        |v| Ok(HttpResponse::Ok().json(v)),
+                    )
             },
-            Err(err) => Ok(error_to_response(err)),
+            Err(err) => ActixRabbitholeError(err).into(),
         }
     }
 }
 
-fn json(status_code: StatusCode) -> HttpResponseBuilder { HttpResponse::build(status_code) }
-
-fn error_to_response(err: error::Error) -> HttpResponse {
-    HttpResponse::build(
-        err.status
-            .as_deref()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(StatusCode::BAD_REQUEST),
-    )
-    .body(serde_json::to_string(&err).unwrap())
+struct ActixRabbitholeError(error::Error);
+impl From<ActixRabbitholeError> for Result<HttpResponse, actix_web::Error> {
+    fn from(err: ActixRabbitholeError) -> Self {
+        Ok(HttpResponse::build(
+            err.0
+                .status
+                .as_deref()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(StatusCode::BAD_REQUEST),
+        )
+        .body(serde_json::to_string(&err.0).unwrap()))
+    }
 }
