@@ -1,18 +1,13 @@
 pub mod middleware;
 pub mod settings;
 
-use crate::settings::JsonApiSettings;
-use actix_web::http::StatusCode;
 use actix_web::web;
 use actix_web::{HttpRequest, HttpResponse};
 use futures::lock::Mutex;
 use rabbithole::entity::{Entity, SingleEntity};
-use rabbithole::model::document::Document;
-use rabbithole::model::error;
 use rabbithole::operation::{
     Creating, Deleting, Fetching, IdentifierDataWrapper, OperationResultData, ResourceDataWrapper,
 };
-use rabbithole::query::QuerySettings;
 use serde::Deserialize;
 use std::sync::Arc;
 
@@ -21,13 +16,13 @@ pub struct ActixSettings {
     pub host: String,
     pub path: String,
     pub port: u32,
-    pub jsonapi: JsonApiSettings,
-    pub query: QuerySettings,
+    pub jsonapi: crate::settings::JsonApiSettings,
+    pub query: rabbithole::query::QuerySettings,
 }
 
 macro_rules! to_response {
     (Resource: $this:ident, $item:ident) => {{
-        let rabbithole::operation::OperationResultData {
+        let OperationResultData {
             data,
             additional_links,
             additional_meta,
@@ -37,14 +32,13 @@ macro_rules! to_response {
             Some(mut resource) => {
                 resource.extend_meta(additional_meta);
                 resource.extend_links(additional_links);
-                Ok(HttpResponse::Ok()
-                    .json(rabbithole::operation::ResourceDataWrapper { data: resource }))
+                Ok(HttpResponse::Ok().json(ResourceDataWrapper { data: resource }))
             },
             None => Ok(HttpResponse::NoContent().finish()),
         }
     }};
     (Relationship: $this:ident, $item:ident) => {{
-        let rabbithole::operation::OperationResultData {
+        let OperationResultData {
             data,
             additional_links,
             additional_meta,
@@ -56,16 +50,14 @@ macro_rules! to_response {
                 resource.extend_meta(additional_meta);
                 resource.extend_links(additional_links);
 
-                Ok(
-                    HttpResponse::Ok().json(rabbithole::operation::IdentifierDataWrapper {
-                        data: resource
-                            .relationships
-                            .get(&field_name)
-                            .cloned()
-                            .unwrap()
-                            .data,
-                    }),
-                )
+                Ok(HttpResponse::Ok().json(IdentifierDataWrapper {
+                    data: resource
+                        .relationships
+                        .get(&field_name)
+                        .cloned()
+                        .unwrap()
+                        .data,
+                }))
             },
             None => Ok(HttpResponse::NoContent().finish()),
         }
@@ -74,11 +66,11 @@ macro_rules! to_response {
 
 macro_rules! single_step_operation {
     ($return_ty:ident:  $fn_name:ident, $mark:ident, $( $param:ident => $ty:ty ),+) => {
-        pub async fn $fn_name<T>(this: web::Data<Self>, service: actix_web::web::Data<std::sync::Arc<futures::lock::Mutex<T>>>, req: actix_web::HttpRequest, $($param: $ty),+)
+        pub async fn $fn_name<T>(this: web::Data<Self>, service: web::Data<std::sync::Arc<futures::lock::Mutex<T>>>, req: actix_web::HttpRequest, $($param: $ty),+)
           -> actix_web::Result<HttpResponse>
             where
                 T: 'static + rabbithole::operation::$mark + Send + Sync,
-                T::Item: rabbithole::entity::SingleEntity + Send + Sync,
+                T::Item: SingleEntity + Send + Sync,
           {
             match service.lock().await.$fn_name($(&$param),+, &this.uri().to_string(), &req.uri()).await {
                 Ok(item) => {
@@ -115,7 +107,7 @@ impl ActixSettings {
     ) -> actix_web::Result<HttpResponse>
     where
         T: 'static + Deleting + Send + Sync,
-        T::Item: rabbithole::entity::SingleEntity + Send + Sync,
+        T::Item: SingleEntity + Send + Sync,
     {
         match service
             .lock()
@@ -131,7 +123,12 @@ impl ActixSettings {
                 if additional_links.is_empty() && additional_meta.is_empty() {
                     Ok(HttpResponse::NoContent().finish())
                 } else {
-                    Ok(HttpResponse::Ok().json(Document::null(additional_links, additional_meta)))
+                    Ok(
+                        HttpResponse::Ok().json(rabbithole::model::document::Document::null(
+                            additional_links,
+                            additional_meta,
+                        )),
+                    )
                 }
             },
             Err(err) => ActixRabbitholeError(err).into(),
@@ -146,7 +143,7 @@ impl ActixSettings {
     ) -> actix_web::Result<HttpResponse>
     where
         T: 'static + Creating + Send + Sync,
-        T::Item: rabbithole::entity::SingleEntity + Send + Sync,
+        T::Item: SingleEntity + Send + Sync,
     {
         let uri = &this.uri().to_string();
 
@@ -177,30 +174,33 @@ impl ActixSettings {
     ) -> actix_web::Result<HttpResponse>
     where
         T: 'static + Fetching + Send + Sync,
-        T::Item: rabbithole::entity::SingleEntity + Send + Sync,
+        T::Item: SingleEntity + Send + Sync,
     {
-        let uri = &this.uri().to_string();
-        let path = req.uri().to_owned();
+        let path = req.uri().clone();
 
-        match this.query.decode_path(&path) {
-            Ok(query) => match service
-                .lock()
-                .await
-                .fetch_collection(uri, &path, &query)
-                .await
-            {
-                Ok(OperationResultData {
-                    data,
-                    additional_links,
-                    additional_meta,
-                }) => {
-                    match data.to_document(uri, &query, path, additional_links, additional_meta) {
-                        Ok(doc) => Ok(HttpResponse::Ok().json(doc)),
-                        Err(err) => ActixRabbitholeError(err).into(),
-                    }
-                },
-                Err(err) => ActixRabbitholeError(err).into(),
-            },
+        let query = this
+            .query
+            .decode_path(&path)
+            .map_err(ActixRabbitholeError)?;
+
+        let uri = &this.uri().to_string();
+
+        match service
+            .lock()
+            .await
+            .fetch_collection(uri, &path, &query)
+            .await
+        {
+            Ok(OperationResultData {
+                data,
+                additional_links,
+                additional_meta,
+            }) => data
+                .to_document(uri, &query, path, additional_links, additional_meta)
+                .map_or_else(
+                    |e| ActixRabbitholeError(e).into(),
+                    |v| Ok(HttpResponse::Ok().json(v)),
+                ),
             Err(err) => ActixRabbitholeError(err).into(),
         }
     }
@@ -213,38 +213,37 @@ impl ActixSettings {
     ) -> actix_web::Result<HttpResponse>
     where
         T: 'static + Fetching + Send + Sync,
-        T::Item: rabbithole::entity::SingleEntity + Send + Sync,
+        T::Item: SingleEntity + Send + Sync,
     {
-        let path = req.uri().clone().into();
+        let path = req.uri().clone();
 
-        match this.query.decode_path(&path) {
-            Ok(query) => {
-                match service
-                    .lock()
-                    .await
-                    .fetch_single(&param, &this.uri().to_string(), &path, &query)
-                    .await
-                {
-                    Ok(OperationResultData {
-                        data,
-                        additional_links,
-                        additional_meta,
-                    }) => {
-                        match SingleEntity::to_document(
-                            &data,
-                            &this.uri().to_string(),
-                            &query,
-                            req.uri().to_owned(),
-                            additional_links,
-                            additional_meta,
-                        ) {
-                            Ok(doc) => Ok(HttpResponse::Ok().json(doc)),
-                            Err(err) => ActixRabbitholeError(err).into(),
-                        }
-                    },
-                    Err(err) => ActixRabbitholeError(err).into(),
-                }
-            },
+        let query = this
+            .query
+            .decode_path(&path)
+            .map_err(ActixRabbitholeError)?;
+
+        match service
+            .lock()
+            .await
+            .fetch_single(&param, &this.uri().to_string(), &path, &query)
+            .await
+        {
+            Ok(OperationResultData {
+                data,
+                additional_links,
+                additional_meta,
+            }) => SingleEntity::to_document(
+                &data,
+                &this.uri().to_string(),
+                &query,
+                req.uri().to_owned(),
+                additional_links,
+                additional_meta,
+            )
+            .map_or_else(
+                |e| ActixRabbitholeError(e).into(),
+                |v| Ok(HttpResponse::Ok().json(v)),
+            ),
             Err(err) => ActixRabbitholeError(err).into(),
         }
     }
@@ -257,30 +256,31 @@ impl ActixSettings {
     ) -> actix_web::Result<HttpResponse>
     where
         T: 'static + Fetching + Send + Sync,
-        T::Item: rabbithole::entity::SingleEntity + Send + Sync,
+        T::Item: SingleEntity + Send + Sync,
     {
-        let path = req.uri().clone().into();
+        let path = req.uri().clone();
 
-        match this.query.decode_path(&path) {
-            Ok(query) => {
-                let (id, related_field) = param.into_inner();
-                match service
-                    .lock()
-                    .await
-                    .fetch_relationship(&id, &related_field, &this.uri().to_string(), &path, &query)
-                    .await
-                {
-                    Ok(OperationResultData {
-                        mut data,
-                        additional_links,
-                        additional_meta,
-                    }) => {
-                        data.extend_links(additional_links);
-                        data.extend_meta(additional_meta);
-                        Ok(HttpResponse::Ok().json(data))
-                    },
-                    Err(err) => ActixRabbitholeError(err).into(),
-                }
+        let query = this
+            .query
+            .decode_path(&path)
+            .map_err(ActixRabbitholeError)?;
+
+        let (id, related_field) = param.into_inner();
+
+        match service
+            .lock()
+            .await
+            .fetch_relationship(&id, &related_field, &this.uri().to_string(), &path, &query)
+            .await
+        {
+            Ok(OperationResultData {
+                mut data,
+                additional_links,
+                additional_meta,
+            }) => {
+                data.extend_links(additional_links);
+                data.extend_meta(additional_meta);
+                Ok(HttpResponse::Ok().json(data))
             },
             Err(err) => ActixRabbitholeError(err).into(),
         }
@@ -294,29 +294,36 @@ impl ActixSettings {
     ) -> actix_web::Result<HttpResponse>
     where
         T: 'static + Fetching + Send + Sync,
-        T::Item: rabbithole::entity::SingleEntity + Send + Sync,
+        T::Item: SingleEntity + Send + Sync,
     {
-        let path = req.uri().clone().into();
+        let path = req.uri().clone();
 
-        match this.query.decode_path(&path) {
-            Ok(query) => {
-                let (id, related_field) = param.into_inner();
-                service
-                    .lock()
-                    .await
-                    .fetch_related(&id, &related_field, &this.uri().to_string(), &path, &query)
-                    .await
-                    .map_or_else(
-                        |e| ActixRabbitholeError(e).into(),
-                        |v| Ok(HttpResponse::Ok().json(v)),
-                    )
-            },
-            Err(err) => ActixRabbitholeError(err).into(),
-        }
+        let query = this
+            .query
+            .decode_path(&path)
+            .map_err(ActixRabbitholeError)?;
+
+        let (id, related_field) = param.into_inner();
+
+        service
+            .lock()
+            .await
+            .fetch_related(&id, &related_field, &this.uri().to_string(), &path, &query)
+            .await
+            .map(|v| HttpResponse::Ok().json(v))
+            .map_err(|e| ActixRabbitholeError(e).into())
     }
 }
 
-struct ActixRabbitholeError(error::Error);
+#[derive(Debug)]
+struct ActixRabbitholeError(rabbithole::model::error::Error);
+impl actix_http::error::ResponseError for ActixRabbitholeError {}
+
+use std::fmt;
+impl fmt::Display for ActixRabbitholeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { self.0.fmt(f) }
+}
+
 impl From<ActixRabbitholeError> for Result<HttpResponse, actix_web::Error> {
     fn from(err: ActixRabbitholeError) -> Self {
         Ok(HttpResponse::build(
@@ -324,7 +331,7 @@ impl From<ActixRabbitholeError> for Result<HttpResponse, actix_web::Error> {
                 .status
                 .as_deref()
                 .and_then(|s| s.parse().ok())
-                .unwrap_or(StatusCode::BAD_REQUEST),
+                .unwrap_or(actix_web::http::StatusCode::BAD_REQUEST),
         )
         .body(serde_json::to_string(&err.0).unwrap()))
     }
